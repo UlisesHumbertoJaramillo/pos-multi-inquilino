@@ -1,5 +1,5 @@
 import type { SessionTokens, Tenant, TenantCreateRequest } from '@pos/contracts';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { mockApi, renderApp } from '../../test/render';
@@ -62,6 +62,10 @@ describe('[RF-013] [RF-163] comercios del SA', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Crear' }));
 
     expect(await screen.findByText('Comercio «Almacén Don Pepe» creado.')).toBeInTheDocument();
+    // Mientras el diálogo se cierra, el resto de la página queda oculto para la accesibilidad.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
     const row = (await screen.findByText('Almacén Don Pepe')).closest('tr');
     if (!row) throw new Error('No se encontró la fila del comercio.');
 
