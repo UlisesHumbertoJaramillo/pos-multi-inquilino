@@ -50,7 +50,8 @@ function resolveResponse(response: DocumentedResponse | undefined): DocumentedRe
   return spec.components?.responses?.[response.$ref.slice(RESPONSE_REF.length)];
 }
 
-const ajv = new Ajv2020({ allErrors: true, strict: true });
+// OpenAPI 3.1 admite tipos unión (por ejemplo ["string", "null"]).
+const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
 addFormats.default(ajv);
 // Palabras de OpenAPI que no son de JSON Schema: Ajv las acepta sin validarlas.
 ajv.addVocabulary(['discriminator', 'xml', 'externalDocs', 'example']);

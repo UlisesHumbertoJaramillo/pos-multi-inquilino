@@ -18,9 +18,11 @@ export const ROLE_NAMES: Record<Role, string> = {
 export const NAVIGATION: Record<Role, NavItem[]> = {
   SA: [
     { label: 'Inicio', path: '/admin', available: true },
-    { label: 'Comercios', path: '/admin/comercios', available: false },
-    { label: 'Auditoría técnica', path: '/admin/auditoria-tecnica', available: false },
-    { label: 'Soporte', path: '/admin/soporte', available: false },
+    { label: 'Comercios', path: '/admin/comercios', available: true },
+    { label: 'Cuentas SA', path: '/admin/cuentas', available: true },
+    { label: 'Soporte', path: '/admin/soporte', available: true },
+    { label: 'Auditoría técnica', path: '/admin/auditoria-tecnica', available: true },
+    { label: 'Panel técnico', path: '/admin/panel', available: true },
   ],
   AC: [
     { label: 'Inicio', path: '/admin', available: true },

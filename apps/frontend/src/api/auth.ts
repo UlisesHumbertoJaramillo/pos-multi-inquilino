@@ -48,3 +48,7 @@ export function requestPasswordReset(email: string): Promise<Message> {
 export function resetPassword(token: string, nuevaContrasena: string): Promise<Message> {
   return apiRequest<Message>('/auth/recuperacion/restablecer', json({ token, nuevaContrasena }));
 }
+
+export function activateAccount(token: string, nuevaContrasena: string): Promise<Message> {
+  return apiRequest<Message>('/auth/activacion', json({ token, nuevaContrasena }));
+}

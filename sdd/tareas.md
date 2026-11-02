@@ -133,27 +133,27 @@
 
 ## Fase 2 — Plataforma (Super Administrador)
 
-- [ ] **T-049** · Completar la migración de `comercio`: moneda, zona horaria, estado, módulo de facturación y `tiene_operaciones`, con el bloqueo del cambio de moneda. · RF: RF-013, RF-134 · Dep: T-024
+- [x] **T-049** · Completar la migración de `comercio`: moneda, zona horaria, estado, módulo de facturación y `tiene_operaciones`, con el bloqueo del cambio de moneda. · RF: RF-013, RF-134 · Dep: T-024
   - Hecho cuando: una prueba verifica que cambiar la moneda de un comercio con operaciones se rechaza.
-- [ ] **T-050** · Casos de uso del SA para dar de alta y modificar comercios. · RF: RF-013 · Dep: T-049, T-042
+- [x] **T-050** · Casos de uso del SA para dar de alta y modificar comercios. · RF: RF-013 · Dep: T-049, T-042
   - Hecho cuando: en /docs, el SA crea un comercio y el alta queda en la auditoría técnica.
-- [ ] **T-051** · Crear otros SA y el primer AC de un comercio, ambos con validación de correo. · RF: RF-015 · Dep: T-050, T-029
+- [x] **T-051** · Crear otros SA y el primer AC de un comercio, ambos con validación de correo. · RF: RF-015 · Dep: T-050, T-029
   - Hecho cuando: el correo de validación del AC nuevo aparece en la consola del backend.
-- [ ] **T-052** · Suspender y reactivar comercios, revocando los tokens y publicando el evento de suspensión. · RF: RF-014, RF-146 · Dep: T-050, T-032, T-022
+- [x] **T-052** · Suspender y reactivar comercios, revocando los tokens y publicando el evento de suspensión. · RF: RF-014, RF-146 · Dep: T-050, T-032, T-022
   - Hecho cuando: el VO del comercio suspendido recibe 401 en su siguiente solicitud. El descarte de carritos se conecta en T-150.
-- [ ] **T-053** · Crear el puerto `ConsultaPendientesFiscales` (devuelve "sin pendientes" hasta la Fase 12) y la baja lógica de comercio. · RF: RF-147 · Dep: T-052
+- [x] **T-053** · Crear el puerto `ConsultaPendientesFiscales` (devuelve "sin pendientes" hasta la Fase 12) y la baja lógica de comercio. · RF: RF-147 · Dep: T-052
   - Hecho cuando: hay pruebas de la baja con el puerto simulado devolviendo pendientes y sin pendientes.
-- [ ] **T-054** · Activar y desactivar el módulo de facturación de un comercio, validando los pendientes con el puerto de T-053. · RF: RF-163, RF-164 · Dep: T-053
+- [x] **T-054** · Activar y desactivar el módulo de facturación de un comercio, validando los pendientes con el puerto de T-053. · RF: RF-163, RF-164 · Dep: T-053
   - Hecho cuando: hay pruebas de activación, de desactivación y de rechazo cuando hay pendientes simulados.
-- [ ] **T-055** · Tickets de soporte: los AC y AS los crean y el SA los sigue y responde. · RF: RF-017 · Dep: T-050
+- [x] **T-055** · Tickets de soporte: los AC y AS los crean y el SA los sigue y responde. · RF: RF-017 · Dep: T-050
   - Hecho cuando: en /docs, un AC crea un ticket y el SA lo responde, y un VO no puede crearlo.
-- [ ] **T-056** · Consulta de la auditoría técnica para el SA. · RF: RF-022 · Dep: T-040
+- [x] **T-056** · Consulta de la auditoría técnica para el SA. · RF: RF-022 · Dep: T-040
   - Hecho cuando: una prueba de esquema verifica que la respuesta no tiene campos comerciales.
-- [ ] **T-057** · Panel técnico: errores 5xx recientes y estado de los workers y del outbox. · RF: RF-016 · Dep: T-021, T-022
+- [x] **T-057** · Panel técnico: errores 5xx recientes y estado de los workers y del outbox. · RF: RF-016 · Dep: T-021, T-022
   - Hecho cuando: un error forzado aparece en el panel y el SA lo ve en /docs. Los periféricos se suman en T-241.
 - [ ] **T-058** · Frontend del SA: comercios (alta, suspensión, módulo de facturación), cuentas, tickets, auditoría técnica y panel. · RF: RF-013, RF-016, RF-017, RF-022, RF-163 · Dep: T-051 a T-057, T-046
   - Hecho cuando: en https://localhost:5173/admin, logueado como SA, se crea un comercio y se activa su módulo de facturación.
-- [ ] **T-059** · Sumar las acciones de plataforma al generador de la matriz. · RF: RF-003, RF-004 · Dep: T-058, T-038
+- [x] **T-059** · Sumar las acciones de plataforma al generador de la matriz. · RF: RF-003, RF-004 · Dep: T-058, T-038
   - Hecho cuando: las pruebas generadas de plataforma pasan y un AC no puede ejecutar ninguna acción del SA.
 
 ## Fase 3 — Organización

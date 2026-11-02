@@ -5,6 +5,7 @@ import type { Request, RequestHandler, Response } from 'express';
 import type { AccessTokens } from '../../aplicacion/access-tokens.js';
 import { ApplicationError } from '../../aplicacion/errors.js';
 import type { SecurityContext } from '../../aplicacion/security-context.js';
+import type { SessionStatus } from '../../aplicacion/session-status.js';
 
 const BEARER = /^Bearer ([\w-]+\.[\w-]+\.[\w-]+)$/;
 
@@ -16,11 +17,12 @@ export function unauthenticatedError(): ApplicationError {
   );
 }
 
-export function authenticate(tokens: AccessTokens): RequestHandler {
+export function authenticate(tokens: AccessTokens, sessions: SessionStatus): RequestHandler {
   return async (req, res, next) => {
     const match = BEARER.exec(req.headers.authorization ?? '');
     const context = match?.[1] ? await tokens.verify(match[1]) : null;
-    if (!context) {
+    // La sesión tiene que seguir vigente: cerrada, revocada o de un comercio suspendido no sirve.
+    if (!context || !(await sessions.isActive(context))) {
       next(unauthenticatedError());
       return;
     }

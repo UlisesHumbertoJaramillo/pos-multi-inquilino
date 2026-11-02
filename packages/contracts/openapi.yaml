@@ -1,12 +1,8 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.2.0
-  description: >-
-    Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar
-    cada endpoint, y los tipos de packages/contracts se generan desde este archivo.
-    Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22,
-    que declaran `security: []` (Const. 16).
+  version: 0.3.0
+  description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
     description: Desarrollo local
@@ -19,11 +15,16 @@ tags:
     description: Inicio de sesión, rol activo, validación de correo y recuperación de contraseña.
   - name: Autorizaciones
     description: PIN y autorizaciones in situ de un solo uso.
+  - name: Plataforma
+    description: Comercios, cuentas, tickets, auditoría técnica y panel del SA.
+  - name: Soporte
+    description: Tickets de soporte del comercio.
 paths:
   /salud:
     get:
       operationId: getHealth
-      tags: [Sistema]
+      tags:
+        - Sistema
       summary: Salud del sistema
       description: Público. Responde solo el estado, sin versiones ni datos internos.
       security: []
@@ -34,16 +35,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
-
   /auth/login:
     post:
       operationId: login
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Iniciar sesión
-      description: >-
-        Público. Con un correo validado y la contraseña correcta, inicia la sesión con el último
-        rol usado; en el primer ingreso con varios roles, `requiereElegirRol` es true (RF-005).
-        5 intentos fallidos seguidos bloquean la credencial 15 minutos (RF-145).
+      description: Público. Con un correo validado y la contraseña correcta, inicia la sesión con el último rol usado; en el primer ingreso con varios roles, `requiereElegirRol` es true (RF-005). 5 intentos fallidos seguidos bloquean la credencial 15 minutos (RF-145).
       security: []
       requestBody:
         required: true
@@ -68,15 +66,13 @@ paths:
           $ref: '#/components/responses/Locked'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/renovar:
     post:
       operationId: refreshSession
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Renovar la sesión
-      description: >-
-        Público (se autentica con el token de renovación). Rota el token de renovación y emite un
-        token de acceso nuevo. Falla tras la inactividad configurada (RF-009).
+      description: Público (se autentica con el token de renovación). Rota el token de renovación y emite un token de acceso nuevo. Falla tras la inactividad configurada (RF-009).
       security: []
       requestBody:
         required: true
@@ -97,11 +93,11 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/cerrar-sesion:
     post:
       operationId: logout
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Cerrar la sesión
       description: 'Revoca la sesión: su token de renovación deja de servir.'
       responses:
@@ -109,11 +105,11 @@ paths:
           description: Sesión cerrada.
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /auth/sesion:
     get:
       operationId: getCurrentSession
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Sesión actual
       description: Usuario, comercio, rol activo y sucursales, tomados del token (T-035).
       responses:
@@ -125,15 +121,13 @@ paths:
                 $ref: '#/components/schemas/SessionUser'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /auth/rol-activo:
     put:
       operationId: selectActiveRole
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Elegir o cambiar el rol activo
-      description: >-
-        Cambia el rol activo sin cerrar la sesión. El token nuevo lleva los permisos y el ámbito
-        del rol elegido (RF-010, RF-011).
+      description: Cambia el rol activo sin cerrar la sesión. El token nuevo lleva los permisos y el ámbito del rol elegido (RF-010, RF-011).
       requestBody:
         required: true
         content:
@@ -153,11 +147,11 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-
   /auth/validacion/reenviar:
     post:
       operationId: resendEmailValidation
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Reenviar el correo de validación
       description: Público. Responde lo mismo exista o no la cuenta (RF-006).
       security: []
@@ -178,11 +172,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/validacion/confirmar:
     post:
       operationId: confirmEmail
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Validar el correo
       description: Público. El token del enlace sirve una sola vez.
       security: []
@@ -203,11 +197,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/recuperacion/solicitar:
     post:
       operationId: requestPasswordReset
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Pedir la recuperación de la contraseña
       description: Público. Responde lo mismo exista o no la cuenta (RF-007).
       security: []
@@ -228,11 +222,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/recuperacion/restablecer:
     post:
       operationId: resetPassword
-      tags: [Acceso]
+      tags:
+        - Acceso
       summary: Restablecer la contraseña
       description: Público. Rechaza un token vencido o ya usado (RF-008) y cierra todas las sesiones.
       security: []
@@ -255,11 +249,11 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-
   /auth/pin:
     put:
       operationId: setAuthorizationPin
-      tags: [Autorizaciones]
+      tags:
+        - Autorizaciones
       summary: Fijar el propio PIN de autorización
       description: Solo un AS o un AC (RF-141). El PIN se guarda con hash (RF-156).
       requestBody:
@@ -279,15 +273,13 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
-
   /autorizaciones:
     post:
       operationId: authorizeOperation
-      tags: [Autorizaciones]
+      tags:
+        - Autorizaciones
       summary: Autorizar una operación con PIN
-      description: >-
-        El solicitante es el usuario del token. Autoriza un AS de la sucursal o un AC presente,
-        nunca el propio solicitante (RF-113, RF-141). La autorización es de un solo uso.
+      description: El solicitante es el usuario del token. Autoriza un AS de la sucursal o un AC presente, nunca el propio solicitante (RF-113, RF-141). La autorización es de un solo uso.
       requestBody:
         required: true
         content:
@@ -309,11 +301,11 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '423':
           $ref: '#/components/responses/Locked'
-
   /autorizaciones/{id}:
     get:
       operationId: getAuthorization
-      tags: [Autorizaciones]
+      tags:
+        - Autorizaciones
       summary: Consultar una autorización
       description: Un recurso de otro comercio se responde como inexistente (RF-002).
       parameters:
@@ -336,7 +328,508 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
+  /auth/activacion:
+    post:
+      operationId: activateAccount
+      tags:
+        - Acceso
+      summary: Activar una cuenta nueva
+      description: Público. Con el token del correo de activación, la persona elige su contraseña y su correo queda validado (RF-015).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Cuenta activada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /plataforma/comercios:
+    get:
+      operationId: listTenants
+      tags:
+        - Plataforma
+      summary: Listar comercios
+      description: Solo el SA (RF-013).
+      responses:
+        '200':
+          description: Comercios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tenant'
+        '401': &a1
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a2
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createTenant
+      tags:
+        - Plataforma
+      summary: Dar de alta un comercio
+      description: Solo el SA. Fija la moneda y la zona horaria (RF-013). El alta queda en la auditoría técnica.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreateRequest'
+      responses:
+        '201':
+          description: Comercio creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}:
+    get:
+      operationId: getTenant
+      tags:
+        - Plataforma
+      summary: Consultar un comercio
+      description: Solo el SA.
+      parameters: &a3
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: El comercio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateTenant
+      tags:
+        - Plataforma
+      summary: Modificar un comercio
+      description: Solo el SA. La moneda no cambia si el comercio tiene operaciones (RF-134).
+      parameters: *a3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdateRequest'
+      responses:
+        '200':
+          description: Comercio modificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}/suspension:
+    post:
+      operationId: suspendTenant
+      tags:
+        - Plataforma
+      summary: Suspender un comercio
+      description: Solo el SA. Cierra al instante las sesiones de sus usuarios y publica el evento de suspensión (RF-014, RF-146).
+      parameters: *a3
+      responses:
+        '200':
+          description: Comercio actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}/reactivacion:
+    post:
+      operationId: reactivateTenant
+      tags:
+        - Plataforma
+      summary: Reactivar un comercio
+      description: Solo el SA. Solo un comercio suspendido.
+      parameters: *a3
+      responses:
+        '200':
+          description: Comercio actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}/baja:
+    post:
+      operationId: closeTenant
+      tags:
+        - Plataforma
+      summary: Dar de baja un comercio
+      description: Solo el SA. Baja lógica, solo sin comprobantes fiscales por regularizar (RF-147). Los datos se conservan.
+      parameters: *a3
+      responses:
+        '200':
+          description: Comercio actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}/modulo-facturacion:
+    put:
+      operationId: setTenantBillingModule
+      tags:
+        - Plataforma
+      summary: Activar o desactivar el módulo de facturación
+      description: Solo el SA. Desactivarlo con comprobantes sin regularizar se rechaza (RF-163, RF-164).
+      parameters: *a3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingModuleRequest'
+      responses:
+        '200':
+          description: Comercio actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/comercios/{id}/administrador:
+    post:
+      operationId: createFirstTenantAdmin
+      tags:
+        - Plataforma
+      summary: Crear el primer AC de un comercio
+      description: Solo el SA, y solo si el comercio no tiene AC. La cuenta se activa por correo (RF-015).
+      parameters: *a3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAccountRequest'
+      responses:
+        '201':
+          description: Cuenta creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/administradores:
+    post:
+      operationId: createPlatformAdmin
+      tags:
+        - Plataforma
+      summary: Crear otro SA
+      description: Solo el SA. La cuenta se activa por correo (RF-015).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAccountRequest'
+      responses:
+        '201':
+          description: Cuenta creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/tickets:
+    get:
+      operationId: listAllTickets
+      tags:
+        - Plataforma
+      summary: Tickets de todos los comercios
+      description: Solo el SA (RF-017).
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+      responses:
+        '200':
+          description: Tickets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+  /plataforma/tickets/{id}:
+    get:
+      operationId: getTicketForSupport
+      tags:
+        - Plataforma
+      summary: Consultar un ticket
+      description: Solo el SA.
+      parameters: *a3
+      responses:
+        '200':
+          description: El ticket con su conversación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /plataforma/tickets/{id}/respuestas:
+    post:
+      operationId: replyTicket
+      tags:
+        - Plataforma
+      summary: Responder un ticket
+      description: Solo el SA.
+      parameters: *a3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketReplyRequest'
+      responses:
+        '200':
+          description: El ticket con la respuesta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /plataforma/tickets/{id}/cierre:
+    post:
+      operationId: closeTicket
+      tags:
+        - Plataforma
+      summary: Cerrar un ticket
+      description: Solo el SA.
+      parameters: *a3
+      responses:
+        '200':
+          description: El ticket cerrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /plataforma/auditoria-tecnica:
+    get:
+      operationId: queryTechnicalAudit
+      tags:
+        - Plataforma
+      summary: Consultar la auditoría técnica
+      description: Solo el SA. Nunca incluye contenido comercial (RF-022).
+      parameters:
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limite
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Registros, del más reciente al más antiguo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicalAuditEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+  /plataforma/panel:
+    get:
+      operationId: getTechnicalPanel
+      tags:
+        - Plataforma
+      summary: Panel técnico
+      description: Solo el SA. Errores internos recientes y estado de los trabajos y del outbox (RF-016).
+      responses:
+        '200':
+          description: Estado de la plataforma.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalPanel'
+        '401': *a1
+        '403': *a2
+  /soporte/tickets:
+    get:
+      operationId: listTenantTickets
+      tags:
+        - Soporte
+      summary: Tickets del comercio
+      description: 'AC: todos los del comercio. AS: los que envió.'
+      responses:
+        '200':
+          description: Tickets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketSummary'
+        '401': *a1
+        '403': *a2
+    post:
+      operationId: createTicket
+      tags:
+        - Soporte
+      summary: Enviar un ticket de soporte
+      description: AC o AS (RF-017). Sin datos comerciales adjuntos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreateRequest'
+      responses:
+        '201':
+          description: Ticket creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /soporte/tickets/{id}:
+    get:
+      operationId: getTenantTicket
+      tags:
+        - Soporte
+      summary: Consultar un ticket del comercio
+      description: Un ticket de otro comercio se responde como inexistente.
+      parameters: *a3
+      responses:
+        '200':
+          description: El ticket con su conversación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a1
+        '403': *a2
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     tokenAcceso:
@@ -344,7 +837,6 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token de acceso de vida corta, obtenido con /auth/login o /auth/renovar.
-
   responses:
     BadRequest:
       description: Datos inválidos o token de un solo uso inválido.
@@ -388,12 +880,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
-
   schemas:
     HealthStatus:
       type: object
       additionalProperties: false
-      required: [estado]
+      required:
+        - estado
       properties:
         estado:
           type: string
@@ -402,7 +894,9 @@ components:
       description: Respuesta de error uniforme, sin detalles internos (Const. 17).
       type: object
       additionalProperties: false
-      required: [codigo, mensaje]
+      required:
+        - codigo
+        - mensaje
       properties:
         codigo:
           type: string
@@ -413,17 +907,29 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [mensaje]
+      required:
+        - mensaje
       properties:
         mensaje:
           type: string
     Role:
       type: string
-      enum: [SA, AC, AS, VO]
+      enum:
+        - SA
+        - AC
+        - AS
+        - VO
     SessionUser:
       type: object
       additionalProperties: false
-      required: [id, email, nombre, comercioId, roles, rolActivo, sucursales]
+      required:
+        - id
+        - email
+        - nombre
+        - comercioId
+        - roles
+        - rolActivo
+        - sucursales
       properties:
         id:
           type: string
@@ -434,7 +940,9 @@ components:
           type: string
         comercioId:
           description: Nulo para el Super Administrador.
-          type: [string, 'null']
+          type:
+            - string
+            - 'null'
           format: uuid
         roles:
           type: array
@@ -455,14 +963,12 @@ components:
       type: object
       additionalProperties: false
       required:
-        [
-          tokenAcceso,
-          tokenAccesoVenceEn,
-          tokenRenovacion,
-          sesionVenceEn,
-          usuario,
-          requiereElegirRol,
-        ]
+        - tokenAcceso
+        - tokenAccesoVenceEn
+        - tokenRenovacion
+        - sesionVenceEn
+        - usuario
+        - requiereElegirRol
       properties:
         tokenAcceso:
           type: string
@@ -481,7 +987,10 @@ components:
     ActiveRoleChange:
       type: object
       additionalProperties: false
-      required: [tokenAcceso, tokenAccesoVenceEn, usuario]
+      required:
+        - tokenAcceso
+        - tokenAccesoVenceEn
+        - usuario
       properties:
         tokenAcceso:
           type: string
@@ -493,7 +1002,9 @@ components:
     LoginRequest:
       type: object
       additionalProperties: false
-      required: [email, contrasena]
+      required:
+        - email
+        - contrasena
       properties:
         email:
           type: string
@@ -503,21 +1014,24 @@ components:
     RefreshRequest:
       type: object
       additionalProperties: false
-      required: [tokenRenovacion]
+      required:
+        - tokenRenovacion
       properties:
         tokenRenovacion:
           type: string
     ActiveRoleRequest:
       type: object
       additionalProperties: false
-      required: [rol]
+      required:
+        - rol
       properties:
         rol:
           $ref: '#/components/schemas/Role'
     EmailRequest:
       type: object
       additionalProperties: false
-      required: [email]
+      required:
+        - email
       properties:
         email:
           type: string
@@ -525,14 +1039,17 @@ components:
     TokenRequest:
       type: object
       additionalProperties: false
-      required: [token]
+      required:
+        - token
       properties:
         token:
           type: string
     ResetPasswordRequest:
       type: object
       additionalProperties: false
-      required: [token, nuevaContrasena]
+      required:
+        - token
+        - nuevaContrasena
       properties:
         token:
           type: string
@@ -543,18 +1060,31 @@ components:
     PinRequest:
       type: object
       additionalProperties: false
-      required: [pin]
+      required:
+        - pin
       properties:
         pin:
           type: string
-          pattern: '^[0-9]{4,6}$'
+          pattern: ^[0-9]{4,6}$
     AuthorizationType:
       type: string
-      enum: [descuento, credito, anulacion, reembolso, retiro, pago_por_verificar, cierre_forzado]
+      enum:
+        - descuento
+        - credito
+        - anulacion
+        - reembolso
+        - retiro
+        - pago_por_verificar
+        - cierre_forzado
     AuthorizeRequest:
       type: object
       additionalProperties: false
-      required: [tipo, operacionRef, sucursalId, autorizanteId, pin]
+      required:
+        - tipo
+        - operacionRef
+        - sucursalId
+        - autorizanteId
+        - pin
       properties:
         tipo:
           $ref: '#/components/schemas/AuthorizationType'
@@ -572,7 +1102,15 @@ components:
     Authorization:
       type: object
       additionalProperties: false
-      required: [id, tipo, operacionRef, sucursalId, solicitanteId, autorizanteId, emitidaEn, usada]
+      required:
+        - id
+        - tipo
+        - operacionRef
+        - sucursalId
+        - solicitanteId
+        - autorizanteId
+        - emitidaEn
+        - usada
       properties:
         id:
           type: string
@@ -595,3 +1133,311 @@ components:
           format: date-time
         usada:
           type: boolean
+    TenantStatus:
+      type: string
+      enum:
+        - activo
+        - suspendido
+        - baja
+    Tenant:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - cuit
+        - moneda
+        - zonaHoraria
+        - estado
+        - tieneOperaciones
+        - moduloFacturacion
+        - creadoEn
+      properties:
+        id: &a4
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        cuit:
+          type:
+            - string
+            - 'null'
+        moneda:
+          type: string
+          pattern: ^[A-Z]{3}$
+        zonaHoraria:
+          type: string
+        estado:
+          $ref: '#/components/schemas/TenantStatus'
+        tieneOperaciones:
+          type: boolean
+        moduloFacturacion:
+          type: boolean
+        creadoEn: &a5
+          type: string
+          format: date-time
+    TenantCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - moneda
+        - zonaHoraria
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        cuit:
+          type:
+            - string
+            - 'null'
+          description: CUIT con o sin guiones; se valida el dígito verificador.
+        moneda:
+          type: string
+          pattern: ^[A-Z]{3}$
+          description: Código ISO 4217, por ejemplo ARS.
+        zonaHoraria:
+          type: string
+          description: Zona horaria IANA, por ejemplo America/Argentina/Buenos_Aires.
+    TenantUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        cuit:
+          type:
+            - string
+            - 'null'
+        moneda:
+          type: string
+          pattern: ^[A-Z]{3}$
+        zonaHoraria:
+          type: string
+    BillingModuleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - activo
+      properties:
+        activo:
+          type: boolean
+    NewAccountRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - nombre
+      properties:
+        email:
+          type: string
+          format: email
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+    CreatedAccount:
+      type: object
+      additionalProperties: false
+      required:
+        - usuarioId
+        - email
+      properties:
+        usuarioId: *a4
+        email:
+          type: string
+    TicketStatus:
+      type: string
+      enum:
+        - abierto
+        - respondido
+        - cerrado
+    TicketSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - comercioId
+        - comercioNombre
+        - asunto
+        - estado
+        - creadoEn
+        - actualizadoEn
+      properties:
+        id: *a4
+        comercioId: *a4
+        comercioNombre:
+          type: string
+        asunto:
+          type: string
+        estado:
+          $ref: '#/components/schemas/TicketStatus'
+        creadoEn: *a5
+        actualizadoEn: *a5
+    TicketMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - deSoporte
+        - texto
+        - creadoEn
+      properties:
+        id: *a4
+        deSoporte:
+          type: boolean
+          description: true si lo escribió el soporte de la plataforma.
+        texto:
+          type: string
+        creadoEn: *a5
+    TicketDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - comercioId
+        - comercioNombre
+        - asunto
+        - estado
+        - creadoEn
+        - actualizadoEn
+        - mensajes
+      properties:
+        id: *a4
+        comercioId: *a4
+        comercioNombre:
+          type: string
+        asunto:
+          type: string
+        estado:
+          $ref: '#/components/schemas/TicketStatus'
+        creadoEn: *a5
+        actualizadoEn: *a5
+        mensajes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketMessage'
+    TicketCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - asunto
+        - mensaje
+      properties:
+        asunto:
+          type: string
+          minLength: 1
+          maxLength: 200
+        mensaje:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    TicketReplyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - texto
+      properties:
+        texto:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    TechnicalAuditEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - momento
+        - tipoEvento
+        - actorId
+        - comercioId
+        - ip
+        - detalle
+      properties:
+        id: *a4
+        momento: *a5
+        tipoEvento:
+          type: string
+        actorId:
+          type: &a6
+            - string
+            - 'null'
+          format: uuid
+        comercioId:
+          type: *a6
+          format: uuid
+          description: 'Solo como referencia: nunca acompaña datos comerciales.'
+        ip:
+          type:
+            - string
+            - 'null'
+        detalle:
+          type: object
+          description: 'Detalle técnico plano: solo valores simples.'
+          additionalProperties:
+            type:
+              - string
+              - number
+              - boolean
+              - 'null'
+    TechnicalPanel:
+      type: object
+      additionalProperties: false
+      required:
+        - erroresRecientes
+        - trabajos
+        - outbox
+      properties:
+        erroresRecientes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - momento
+              - metodo
+              - ruta
+              - error
+            properties:
+              momento: *a5
+              metodo:
+                type: string
+              ruta:
+                type: string
+              error:
+                type: string
+        trabajos:
+          type: object
+          additionalProperties: false
+          required:
+            - pendientes
+            - enCurso
+            - fallidos
+          properties:
+            pendientes:
+              type: integer
+            enCurso:
+              type: integer
+            fallidos:
+              type: integer
+        outbox:
+          type: object
+          additionalProperties: false
+          required:
+            - pendientes
+            - conErrores
+            - pendienteMasAntiguo
+          properties:
+            pendientes:
+              type: integer
+            conErrores:
+              type: integer
+            pendienteMasAntiguo:
+              type:
+                - string
+                - 'null'
+              format: date-time

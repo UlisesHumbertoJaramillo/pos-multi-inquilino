@@ -7,6 +7,7 @@ import { ApplicationError } from '../../../compartido/aplicacion/errors.js';
 import type { IdGenerator } from '../../../compartido/aplicacion/id-generator.js';
 import type { UnitOfWork } from '../../../compartido/aplicacion/unit-of-work.js';
 import { assertValidPassword } from '../dominio/credentials.js';
+import { activationEmail } from './accounts.js';
 import type { IdentityConfig } from './config.js';
 import type {
   OneTimeTokenRepository,
@@ -76,6 +77,15 @@ export class ResendEmailValidation extends AccountRecoveryUseCase {
   async execute(input: { email: string }): Promise<void> {
     const account = await this.deps.users.findByEmail(input.email.trim().toLowerCase());
     if (!account || !account.isActive || account.emailValidated) return;
+    // Una cuenta creada por otro todavía no tiene contraseña: el enlace lleva a activarla.
+    if (!account.passwordDefined) {
+      const link = await this.issueToken(account, 'validacion', '/activar-cuenta');
+      await this.deps.email.send({
+        to: account.email,
+        ...activationEmail(account.name, link, this.deps.config.validationTokenTtlMs),
+      });
+      return;
+    }
     const link = await this.issueToken(account, 'validacion', '/validar-correo');
     await this.deps.email.send({
       to: account.email,
@@ -136,7 +146,7 @@ export class ResetPassword extends AccountRecoveryUseCase {
     const userId = await this.deps.uow.run(async () => {
       const owner = await this.deps.oneTimeTokens.consume('recuperacion', hash, now);
       if (owner === undefined) return undefined;
-      await this.deps.users.setPasswordHash(owner, passwordHash);
+      await this.deps.users.definePassword(owner, passwordHash);
       // Recibir el enlace prueba que el correo es suyo.
       await this.deps.users.markEmailValidated(owner);
       // Con la contraseña nueva, se cierran todas las sesiones abiertas.

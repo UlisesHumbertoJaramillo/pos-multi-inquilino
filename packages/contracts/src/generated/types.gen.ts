@@ -123,6 +123,136 @@ export type Authorization = {
   usada: boolean;
 };
 
+export type TenantStatus = 'activo' | 'suspendido' | 'baja';
+
+export type Tenant = {
+  id: string;
+  nombre: string;
+  cuit: string | null;
+  moneda: string;
+  zonaHoraria: string;
+  estado: TenantStatus;
+  tieneOperaciones: boolean;
+  moduloFacturacion: boolean;
+  creadoEn: string;
+};
+
+export type TenantCreateRequest = {
+  nombre: string;
+  /**
+   * CUIT con o sin guiones; se valida el dígito verificador.
+   */
+  cuit?: string | null;
+  /**
+   * Código ISO 4217, por ejemplo ARS.
+   */
+  moneda: string;
+  /**
+   * Zona horaria IANA, por ejemplo America/Argentina/Buenos_Aires.
+   */
+  zonaHoraria: string;
+};
+
+export type TenantUpdateRequest = {
+  nombre?: string;
+  cuit?: string | null;
+  moneda?: string;
+  zonaHoraria?: string;
+};
+
+export type BillingModuleRequest = {
+  activo: boolean;
+};
+
+export type NewAccountRequest = {
+  email: string;
+  nombre: string;
+};
+
+export type CreatedAccount = {
+  usuarioId: string;
+  email: string;
+};
+
+export type TicketStatus = 'abierto' | 'respondido' | 'cerrado';
+
+export type TicketSummary = {
+  id: string;
+  comercioId: string;
+  comercioNombre: string;
+  asunto: string;
+  estado: TicketStatus;
+  creadoEn: string;
+  actualizadoEn: string;
+};
+
+export type TicketMessage = {
+  id: string;
+  /**
+   * true si lo escribió el soporte de la plataforma.
+   */
+  deSoporte: boolean;
+  texto: string;
+  creadoEn: string;
+};
+
+export type TicketDetail = {
+  id: string;
+  comercioId: string;
+  comercioNombre: string;
+  asunto: string;
+  estado: TicketStatus;
+  creadoEn: string;
+  actualizadoEn: string;
+  mensajes: Array<TicketMessage>;
+};
+
+export type TicketCreateRequest = {
+  asunto: string;
+  mensaje: string;
+};
+
+export type TicketReplyRequest = {
+  texto: string;
+};
+
+export type TechnicalAuditEntry = {
+  id: string;
+  momento: string;
+  tipoEvento: string;
+  actorId: string | null;
+  /**
+   * Solo como referencia: nunca acompaña datos comerciales.
+   */
+  comercioId: string | null;
+  ip: string | null;
+  /**
+   * Detalle técnico plano: solo valores simples.
+   */
+  detalle: {
+    [key: string]: string | number | boolean | null;
+  };
+};
+
+export type TechnicalPanel = {
+  erroresRecientes: Array<{
+    momento: string;
+    metodo: string;
+    ruta: string;
+    error: string;
+  }>;
+  trabajos: {
+    pendientes: number;
+    enCurso: number;
+    fallidos: number;
+  };
+  outbox: {
+    pendientes: number;
+    conErrores: number;
+    pendienteMasAntiguo: string | null;
+  };
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -531,3 +661,773 @@ export type GetAuthorizationResponses = {
 };
 
 export type GetAuthorizationResponse = GetAuthorizationResponses[keyof GetAuthorizationResponses];
+
+export type ActivateAccountData = {
+  body: ResetPasswordRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/activacion';
+};
+
+export type ActivateAccountErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type ActivateAccountError = ActivateAccountErrors[keyof ActivateAccountErrors];
+
+export type ActivateAccountResponses = {
+  /**
+   * Cuenta activada.
+   */
+  200: Message;
+};
+
+export type ActivateAccountResponse = ActivateAccountResponses[keyof ActivateAccountResponses];
+
+export type ListTenantsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/plataforma/comercios';
+};
+
+export type ListTenantsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListTenantsError = ListTenantsErrors[keyof ListTenantsErrors];
+
+export type ListTenantsResponses = {
+  /**
+   * Comercios.
+   */
+  200: Array<Tenant>;
+};
+
+export type ListTenantsResponse = ListTenantsResponses[keyof ListTenantsResponses];
+
+export type CreateTenantData = {
+  body: TenantCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/plataforma/comercios';
+};
+
+export type CreateTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateTenantError = CreateTenantErrors[keyof CreateTenantErrors];
+
+export type CreateTenantResponses = {
+  /**
+   * Comercio creado.
+   */
+  201: Tenant;
+};
+
+export type CreateTenantResponse = CreateTenantResponses[keyof CreateTenantResponses];
+
+export type GetTenantData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}';
+};
+
+export type GetTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetTenantError = GetTenantErrors[keyof GetTenantErrors];
+
+export type GetTenantResponses = {
+  /**
+   * El comercio.
+   */
+  200: Tenant;
+};
+
+export type GetTenantResponse = GetTenantResponses[keyof GetTenantResponses];
+
+export type UpdateTenantData = {
+  body: TenantUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}';
+};
+
+export type UpdateTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateTenantError = UpdateTenantErrors[keyof UpdateTenantErrors];
+
+export type UpdateTenantResponses = {
+  /**
+   * Comercio modificado.
+   */
+  200: Tenant;
+};
+
+export type UpdateTenantResponse = UpdateTenantResponses[keyof UpdateTenantResponses];
+
+export type SuspendTenantData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}/suspension';
+};
+
+export type SuspendTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SuspendTenantError = SuspendTenantErrors[keyof SuspendTenantErrors];
+
+export type SuspendTenantResponses = {
+  /**
+   * Comercio actualizado.
+   */
+  200: Tenant;
+};
+
+export type SuspendTenantResponse = SuspendTenantResponses[keyof SuspendTenantResponses];
+
+export type ReactivateTenantData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}/reactivacion';
+};
+
+export type ReactivateTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ReactivateTenantError = ReactivateTenantErrors[keyof ReactivateTenantErrors];
+
+export type ReactivateTenantResponses = {
+  /**
+   * Comercio actualizado.
+   */
+  200: Tenant;
+};
+
+export type ReactivateTenantResponse = ReactivateTenantResponses[keyof ReactivateTenantResponses];
+
+export type CloseTenantData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}/baja';
+};
+
+export type CloseTenantErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CloseTenantError = CloseTenantErrors[keyof CloseTenantErrors];
+
+export type CloseTenantResponses = {
+  /**
+   * Comercio actualizado.
+   */
+  200: Tenant;
+};
+
+export type CloseTenantResponse = CloseTenantResponses[keyof CloseTenantResponses];
+
+export type SetTenantBillingModuleData = {
+  body: BillingModuleRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}/modulo-facturacion';
+};
+
+export type SetTenantBillingModuleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetTenantBillingModuleError =
+  SetTenantBillingModuleErrors[keyof SetTenantBillingModuleErrors];
+
+export type SetTenantBillingModuleResponses = {
+  /**
+   * Comercio actualizado.
+   */
+  200: Tenant;
+};
+
+export type SetTenantBillingModuleResponse =
+  SetTenantBillingModuleResponses[keyof SetTenantBillingModuleResponses];
+
+export type CreateFirstTenantAdminData = {
+  body: NewAccountRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/comercios/{id}/administrador';
+};
+
+export type CreateFirstTenantAdminErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateFirstTenantAdminError =
+  CreateFirstTenantAdminErrors[keyof CreateFirstTenantAdminErrors];
+
+export type CreateFirstTenantAdminResponses = {
+  /**
+   * Cuenta creada.
+   */
+  201: CreatedAccount;
+};
+
+export type CreateFirstTenantAdminResponse =
+  CreateFirstTenantAdminResponses[keyof CreateFirstTenantAdminResponses];
+
+export type CreatePlatformAdminData = {
+  body: NewAccountRequest;
+  path?: never;
+  query?: never;
+  url: '/plataforma/administradores';
+};
+
+export type CreatePlatformAdminErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreatePlatformAdminError = CreatePlatformAdminErrors[keyof CreatePlatformAdminErrors];
+
+export type CreatePlatformAdminResponses = {
+  /**
+   * Cuenta creada.
+   */
+  201: CreatedAccount;
+};
+
+export type CreatePlatformAdminResponse =
+  CreatePlatformAdminResponses[keyof CreatePlatformAdminResponses];
+
+export type ListAllTicketsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    estado?: TicketStatus;
+  };
+  url: '/plataforma/tickets';
+};
+
+export type ListAllTicketsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListAllTicketsError = ListAllTicketsErrors[keyof ListAllTicketsErrors];
+
+export type ListAllTicketsResponses = {
+  /**
+   * Tickets.
+   */
+  200: Array<TicketSummary>;
+};
+
+export type ListAllTicketsResponse = ListAllTicketsResponses[keyof ListAllTicketsResponses];
+
+export type GetTicketForSupportData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/tickets/{id}';
+};
+
+export type GetTicketForSupportErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetTicketForSupportError = GetTicketForSupportErrors[keyof GetTicketForSupportErrors];
+
+export type GetTicketForSupportResponses = {
+  /**
+   * El ticket con su conversación.
+   */
+  200: TicketDetail;
+};
+
+export type GetTicketForSupportResponse =
+  GetTicketForSupportResponses[keyof GetTicketForSupportResponses];
+
+export type ReplyTicketData = {
+  body: TicketReplyRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/tickets/{id}/respuestas';
+};
+
+export type ReplyTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ReplyTicketError = ReplyTicketErrors[keyof ReplyTicketErrors];
+
+export type ReplyTicketResponses = {
+  /**
+   * El ticket con la respuesta.
+   */
+  200: TicketDetail;
+};
+
+export type ReplyTicketResponse = ReplyTicketResponses[keyof ReplyTicketResponses];
+
+export type CloseTicketData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/plataforma/tickets/{id}/cierre';
+};
+
+export type CloseTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type CloseTicketError = CloseTicketErrors[keyof CloseTicketErrors];
+
+export type CloseTicketResponses = {
+  /**
+   * El ticket cerrado.
+   */
+  200: TicketDetail;
+};
+
+export type CloseTicketResponse = CloseTicketResponses[keyof CloseTicketResponses];
+
+export type QueryTechnicalAuditData = {
+  body?: never;
+  path?: never;
+  query?: {
+    desde?: string;
+    hasta?: string;
+    tipo?: string;
+    limite?: number;
+  };
+  url: '/plataforma/auditoria-tecnica';
+};
+
+export type QueryTechnicalAuditErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type QueryTechnicalAuditError = QueryTechnicalAuditErrors[keyof QueryTechnicalAuditErrors];
+
+export type QueryTechnicalAuditResponses = {
+  /**
+   * Registros, del más reciente al más antiguo.
+   */
+  200: Array<TechnicalAuditEntry>;
+};
+
+export type QueryTechnicalAuditResponse =
+  QueryTechnicalAuditResponses[keyof QueryTechnicalAuditResponses];
+
+export type GetTechnicalPanelData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/plataforma/panel';
+};
+
+export type GetTechnicalPanelErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetTechnicalPanelError = GetTechnicalPanelErrors[keyof GetTechnicalPanelErrors];
+
+export type GetTechnicalPanelResponses = {
+  /**
+   * Estado de la plataforma.
+   */
+  200: TechnicalPanel;
+};
+
+export type GetTechnicalPanelResponse =
+  GetTechnicalPanelResponses[keyof GetTechnicalPanelResponses];
+
+export type ListTenantTicketsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/soporte/tickets';
+};
+
+export type ListTenantTicketsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListTenantTicketsError = ListTenantTicketsErrors[keyof ListTenantTicketsErrors];
+
+export type ListTenantTicketsResponses = {
+  /**
+   * Tickets.
+   */
+  200: Array<TicketSummary>;
+};
+
+export type ListTenantTicketsResponse =
+  ListTenantTicketsResponses[keyof ListTenantTicketsResponses];
+
+export type CreateTicketData = {
+  body: TicketCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/soporte/tickets';
+};
+
+export type CreateTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateTicketError = CreateTicketErrors[keyof CreateTicketErrors];
+
+export type CreateTicketResponses = {
+  /**
+   * Ticket creado.
+   */
+  201: TicketDetail;
+};
+
+export type CreateTicketResponse = CreateTicketResponses[keyof CreateTicketResponses];
+
+export type GetTenantTicketData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/soporte/tickets/{id}';
+};
+
+export type GetTenantTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetTenantTicketError = GetTenantTicketErrors[keyof GetTenantTicketErrors];
+
+export type GetTenantTicketResponses = {
+  /**
+   * El ticket con su conversación.
+   */
+  200: TicketDetail;
+};
+
+export type GetTenantTicketResponse = GetTenantTicketResponses[keyof GetTenantTicketResponses];

@@ -6,6 +6,7 @@
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
 import { isRole, type Role } from '../../../compartido/dominio/roles.js';
 import type { AttemptResult } from '../dominio/lockout.js';
+import type { RoleAssignment } from '../dominio/roles.js';
 import type {
   AccessAttemptRepository,
   Authorization,
@@ -14,6 +15,7 @@ import type {
   AuthorizationType,
   CredentialType,
   NewSessionToken,
+  NewUserAccount,
   OneTimeTokenRepository,
   OneTimeTokenType,
   SessionRepository,
@@ -32,13 +34,14 @@ interface UserRow {
   hash_contrasena: string;
   ultimo_rol_activo: string | null;
   is_active: boolean;
+  contrasena_definida: boolean;
   comercio_estado: TenantStatus | null;
   roles: { role: string; branchId: string | null }[];
 }
 
 const USER_SELECT = `
   SELECT u.id, u.tenant_id, u.email, u.nombre, u.email_validado, u.hash_contrasena,
-         u.ultimo_rol_activo, u.is_active, c.estado AS comercio_estado,
+         u.ultimo_rol_activo, u.is_active, u.contrasena_definida, c.estado AS comercio_estado,
          coalesce(json_agg(json_build_object('role', r.rol, 'branchId', r.sucursal_id))
                   FILTER (WHERE r.id IS NOT NULL), '[]') AS roles
     FROM usuario u
@@ -56,6 +59,7 @@ function toAccount(row: UserRow): UserAccount {
     lastActiveRole: isRole(row.ultimo_rol_activo) ? row.ultimo_rol_activo : null,
     isActive: row.is_active,
     tenantStatus: row.comercio_estado,
+    passwordDefined: row.contrasena_definida,
     assignments: row.roles.flatMap((assignment) =>
       isRole(assignment.role) ? [{ role: assignment.role, branchId: assignment.branchId }] : [],
     ),
@@ -63,7 +67,10 @@ function toAccount(row: UserRow): UserAccount {
 }
 
 export class PgUserRepository implements UserRepository {
-  constructor(private readonly db: PgDatabase) {}
+  constructor(
+    private readonly db: PgDatabase,
+    private readonly newId: () => string,
+  ) {}
 
   private async findOne(where: string, values: unknown[]): Promise<UserAccount | undefined> {
     const result = await this.db.query<UserRow>(
@@ -99,6 +106,47 @@ export class PgUserRepository implements UserRepository {
 
   async markEmailValidated(userId: string): Promise<void> {
     await this.db.query('UPDATE usuario SET email_validado = true WHERE id = $1', [userId]);
+  }
+
+  async insert(account: NewUserAccount): Promise<void> {
+    await this.db.query(
+      `INSERT INTO usuario (id, tenant_id, email, nombre, hash_contrasena, contrasena_definida, creado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        account.id,
+        account.tenantId,
+        account.email,
+        account.name,
+        account.passwordHash,
+        account.passwordDefined,
+        account.createdAt,
+      ],
+    );
+  }
+
+  async insertRole(userId: string, assignment: RoleAssignment, at: Date): Promise<void> {
+    await this.db.query(
+      `INSERT INTO usuario_rol (id, usuario_id, rol, sucursal_id, creado_en)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [this.newId(), userId, assignment.role, assignment.branchId, at],
+    );
+  }
+
+  async definePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.db.query(
+      'UPDATE usuario SET hash_contrasena = $2, contrasena_definida = true WHERE id = $1',
+      [userId, passwordHash],
+    );
+  }
+
+  async tenantHasRole(tenantId: string, role: Role): Promise<boolean> {
+    const result = await this.db.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM usuario u JOIN usuario_rol r ON r.usuario_id = u.id
+          WHERE u.tenant_id = $1 AND r.rol = $2 AND u.is_active) AS exists`,
+      [tenantId, role],
+    );
+    return result.rows[0]?.exists === true;
   }
 }
 
@@ -182,6 +230,26 @@ export class PgSessionRepository implements SessionRepository {
       'UPDATE token_renovacion SET rol_activo = $2 WHERE sesion_id = $1 AND revocado_en IS NULL',
       [sessionId, role],
     );
+  }
+
+  async revokeAllForTenant(tenantId: string, at: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE token_renovacion t SET revocado_en = $2
+         FROM usuario u
+        WHERE u.id = t.usuario_id AND u.tenant_id = $1 AND t.revocado_en IS NULL`,
+      [tenantId, at],
+    );
+  }
+
+  // Una sesión sigue vigente mientras su último token de renovación no esté revocado.
+  async isActive(sessionId: string, userId: string): Promise<boolean> {
+    const result = await this.db.query<{ active: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM token_renovacion
+          WHERE sesion_id = $1 AND usuario_id = $2 AND revocado_en IS NULL) AS active`,
+      [sessionId, userId],
+    );
+    return result.rows[0]?.active === true;
   }
 }
 

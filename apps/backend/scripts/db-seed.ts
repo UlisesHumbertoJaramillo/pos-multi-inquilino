@@ -93,7 +93,7 @@ async function main(): Promise<void> {
     await client.query('BEGIN');
     await client.query(
       `INSERT INTO comercio (id, nombre, cuit, moneda, zona_horaria, estado, creado_en)
-       VALUES ($1, 'Demo', '30-71234567-8', 'ARS', 'America/Argentina/Buenos_Aires', 'activo', $2)
+       VALUES ($1, 'Demo', '30-71234567-1', 'ARS', 'America/Argentina/Buenos_Aires', 'activo', $2)
        ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, estado = 'activo'`,
       [DEMO.tenantId, NOW],
     );

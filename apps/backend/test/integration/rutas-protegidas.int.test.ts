@@ -8,7 +8,7 @@ import { bearer, createTestApi } from '../support/app.js';
 const api = createTestApi();
 afterAll(() => api.close());
 
-const routes = allRoutes({ routes: api.identity.routes });
+const routes = allRoutes({ routes: api.routes });
 // Un valor concreto para los parámetros de ruta, como /autorizaciones/:id.
 const concretePath = (path: string) =>
   path.replace(/:\w+/g, '00000000-0000-4000-8000-000000000000');
@@ -46,6 +46,7 @@ describe('rutas protegidas por defecto', () => {
       'POST /auth/renovar (inicio_sesion)',
       'POST /auth/validacion/reenviar (validacion_correo)',
       'POST /auth/validacion/confirmar (validacion_correo)',
+      'POST /auth/activacion (validacion_correo)',
       'POST /auth/recuperacion/solicitar (recuperacion_contrasena)',
       'POST /auth/recuperacion/restablecer (recuperacion_contrasena)',
     ]);

@@ -9,7 +9,9 @@ import { JoseAccessTokens } from '../../src/compartido/adaptadores/auth/jose-acc
 import type { PgDatabase } from '../../src/compartido/adaptadores/postgres/pg-database.js';
 import { systemClock } from '../../src/compartido/adaptadores/clock/system-clock.js';
 import { Argon2SecretHasher } from '../../src/modulos/identidad/adaptadores/crypto.js';
+import type { HttpRoute } from '../../src/compartido/adaptadores/http/routes.js';
 import { createApi, type Api } from '../../src/composition.js';
+import type { FiscalPendingQuery } from '../../src/modulos/plataforma/aplicacion/ports.js';
 import { ManualClock } from './clock.js';
 import { createTestDatabase } from './database.js';
 import { MemoryEmailSender } from './email.js';
@@ -35,6 +37,8 @@ export function createTestApp(overrides: Partial<AppOptions> = {}): Express {
     logger: createMemoryLogger(),
     security: { allowedOrigins: [TEST_FRONTEND_ORIGIN], hsts: false },
     accessTokens: testAccessTokens(),
+    // Sin base de datos: toda sesión con un token válido se considera vigente.
+    sessionStatus: { isActive: () => Promise.resolve(true) },
     ...overrides,
   });
 }
@@ -63,7 +67,13 @@ export interface TestApi extends Api {
   close(): Promise<void>;
 }
 
-export function createTestApi(options: { publicRateLimit?: number } = {}): TestApi {
+export interface TestApiOptions {
+  publicRateLimit?: number;
+  fiscalPending?: FiscalPendingQuery;
+  extraRoutes?: HttpRoute[];
+}
+
+export function createTestApi(options: TestApiOptions = {}): TestApi {
   const db = createTestDatabase();
   const clock = new ManualClock();
   const email = new MemoryEmailSender();
@@ -83,6 +93,8 @@ export function createTestApi(options: { publicRateLimit?: number } = {}): TestA
       hasher: FAST_HASHER,
       email,
       publicRateLimit: { windowMs: 60_000, limit: options.publicRateLimit ?? 10_000 },
+      ...(options.fiscalPending ? { fiscalPending: options.fiscalPending } : {}),
+      ...(options.extraRoutes ? { extraRoutes: options.extraRoutes } : {}),
     },
   );
   return { ...api, db, clock, email, close: () => db.close() };

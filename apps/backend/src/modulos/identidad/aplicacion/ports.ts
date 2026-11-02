@@ -17,6 +17,18 @@ export interface UserAccount {
   // Estado del comercio del usuario. Nulo para el SA.
   tenantStatus: TenantStatus | null;
   assignments: RoleAssignment[];
+  // Falso para una cuenta creada por otro que todavía no eligió su contraseña (se activa por correo).
+  passwordDefined: boolean;
+}
+
+export interface NewUserAccount {
+  id: string;
+  tenantId: string | null;
+  email: string;
+  name: string;
+  passwordHash: string;
+  passwordDefined: boolean;
+  createdAt: Date;
 }
 
 export interface UserRepository {
@@ -27,6 +39,11 @@ export interface UserRepository {
   setLastActiveRole(userId: string, role: Role): Promise<void>;
   setPasswordHash(userId: string, passwordHash: string): Promise<void>;
   markEmailValidated(userId: string): Promise<void>;
+  insert(account: NewUserAccount): Promise<void>;
+  insertRole(userId: string, assignment: RoleAssignment, at: Date): Promise<void>;
+  // Fija la contraseña elegida al activar la cuenta.
+  definePassword(userId: string, passwordHash: string): Promise<void>;
+  tenantHasRole(tenantId: string, role: Role): Promise<boolean>;
 }
 
 export interface SessionToken {
@@ -60,6 +77,9 @@ export interface SessionRepository {
   revokeSession(sessionId: string, at: Date): Promise<void>;
   revokeAllForUser(userId: string, at: Date): Promise<void>;
   setActiveRole(sessionId: string, role: Role): Promise<void>;
+  // Al suspender o dar de baja un comercio, se cierran las sesiones de todos sus usuarios (RF-146).
+  revokeAllForTenant(tenantId: string, at: Date): Promise<void>;
+  isActive(sessionId: string, userId: string): Promise<boolean>;
 }
 
 export type OneTimeTokenType = 'validacion' | 'recuperacion';

@@ -10,6 +10,15 @@ import { PosPage } from './pages/pos/PosPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RoleSelectPage } from './pages/RoleSelectPage';
 import { ValidateEmailPage } from './pages/ValidateEmailPage';
+import { ActivateAccountPage } from './pages/ActivateAccountPage';
+import { AccountsPage } from './pages/platform/AccountsPage';
+import { PanelPage } from './pages/platform/PanelPage';
+import { TechnicalAuditPage } from './pages/platform/TechnicalAuditPage';
+import { TenantsPage } from './pages/platform/TenantsPage';
+import { TicketsPage } from './pages/platform/TicketsPage';
+
+// Pantallas del Super Administrador.
+const saOnly = (element: React.ReactElement) => <RequireAuth roles={['SA']}>{element}</RequireAuth>;
 
 // La raíz lleva a la pantalla del rol activo, o al inicio de sesión.
 function Home() {
@@ -29,6 +38,12 @@ export const routes: RouteObject[] = [
   { path: '/validar-correo', element: <ValidateEmailPage /> },
   { path: '/recuperar-contrasena', element: <ForgotPasswordPage /> },
   { path: '/restablecer-contrasena', element: <ResetPasswordPage /> },
+  { path: '/activar-cuenta', element: <ActivateAccountPage /> },
+  { path: '/admin/comercios', element: saOnly(<TenantsPage />) },
+  { path: '/admin/cuentas', element: saOnly(<AccountsPage />) },
+  { path: '/admin/soporte', element: saOnly(<TicketsPage />) },
+  { path: '/admin/auditoria-tecnica', element: saOnly(<TechnicalAuditPage />) },
+  { path: '/admin/panel', element: saOnly(<PanelPage />) },
   {
     path: '/pos',
     element: (

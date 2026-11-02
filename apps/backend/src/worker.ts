@@ -22,11 +22,21 @@ if (existsSync(ENV_PATH)) {
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_MS ?? '1000');
 const WORKER_ID = `${hostname()}:${String(process.pid)}`;
 
+const logger = createPinoLogger();
+
 // Manejadores por tipo de trabajo y de evento. Cada módulo agrega los suyos cuando los necesita.
 const JOB_HANDLERS: Record<string, JobHandler> = {};
-const EVENT_HANDLERS: Record<string, EventHandler> = {};
+// Eventos de plataforma: todavía sin consumidores. En T-150, ventas descarta los carritos
+// del comercio suspendido; hasta entonces se registran y se marcan procesados.
+const logPlatformEvent: EventHandler = (event) => {
+  logger.info('Evento de plataforma despachado', { type: event.type, tenantId: event.tenantId });
+  return Promise.resolve();
+};
+const EVENT_HANDLERS: Record<string, EventHandler> = {
+  'comercio.suspendido': logPlatformEvent,
+  'comercio.reactivado': logPlatformEvent,
+};
 
-const logger = createPinoLogger();
 const db = new PgDatabase(createPgPool(appDatabaseConfigFromEnv(process.env), logger));
 const jobs = new PgJobWorker(db, systemClock, logger, {
   workerId: WORKER_ID,

@@ -1,8 +1,11 @@
 import express, { Router, type Express } from 'express';
 import { rateLimit } from 'express-rate-limit';
+import type { AccessControl } from './compartido/aplicacion/access-control.js';
 import type { AccessTokens } from './compartido/aplicacion/access-tokens.js';
+import type { TechnicalAuditLog } from './compartido/aplicacion/audit.js';
 import type { Logger } from './compartido/aplicacion/logger.js';
-import { authenticate } from './compartido/adaptadores/http/authentication.js';
+import type { SessionStatus } from './compartido/aplicacion/session-status.js';
+import { authenticate, securityContextOf } from './compartido/adaptadores/http/authentication.js';
 import { createDocsRouter } from './compartido/adaptadores/http/docs.js';
 import { createErrorHandler, notFoundHandler } from './compartido/adaptadores/http/errors.js';
 import { assertValidRoutes, type HttpRoute } from './compartido/adaptadores/http/routes.js';
@@ -24,6 +27,11 @@ export interface AppOptions {
   logger: Logger;
   security: SecurityOptions;
   accessTokens: AccessTokens;
+  sessionStatus: SessionStatus;
+  // Verifica la acción declarada por cada ruta. Sin él, las rutas con acción no se registran.
+  access?: AccessControl;
+  // Si está, los errores internos quedan en la auditoría técnica para el panel del SA (RF-016).
+  technicalAudit?: TechnicalAuditLog;
   // Rutas de los módulos. /salud se agrega siempre.
   routes?: readonly HttpRoute[];
   // Límite de frecuencia de las rutas públicas, por IP (Const. 17).
@@ -86,16 +94,32 @@ export function createApp(options: AppOptions): Express {
   }
 
   // Todo lo que sigue exige un token de acceso válido (Const. 16).
-  app.use(authenticate(options.accessTokens));
+  app.use(authenticate(options.accessTokens, options.sessionStatus));
   const protectedRouter = Router();
   for (const route of routes.filter((r) => r.public === undefined)) {
-    protectedRouter[route.method](route.path, route.handler);
+    const { action } = route;
+    if (action === undefined) {
+      protectedRouter[route.method](route.path, route.handler);
+      continue;
+    }
+    const access = options.access;
+    if (!access)
+      throw new Error(`La ruta ${route.path} declara una acción y falta el control de acceso.`);
+    protectedRouter[route.method](
+      route.path,
+      (_req, res, next) => {
+        access.check(securityContextOf(res), action).then(() => {
+          next();
+        }, next);
+      },
+      route.handler,
+    );
   }
   app.use(protectedRouter);
 
   // Siempre al final: rutas inexistentes y errores, con respuesta uniforme (T-015).
   app.use(notFoundHandler);
-  app.use(createErrorHandler(options.logger));
+  app.use(createErrorHandler(options.logger, options.technicalAudit));
 
   return app;
 }

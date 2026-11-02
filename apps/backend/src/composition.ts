@@ -22,6 +22,13 @@ import {
   type IdentityModule,
 } from './modulos/identidad/adaptadores/module.js';
 import type { EmailSender } from './compartido/aplicacion/email-sender.js';
+import type { HttpRoute } from './compartido/adaptadores/http/routes.js';
+import type { FiscalPendingQuery } from './modulos/plataforma/aplicacion/ports.js';
+import { noFiscalPendingYet } from './modulos/plataforma/adaptadores/fiscal-pending.js';
+import {
+  createPlatformModule,
+  type PlatformModule,
+} from './modulos/plataforma/adaptadores/module.js';
 
 export interface ApiConfig {
   production: boolean;
@@ -56,11 +63,17 @@ export interface ApiDependencies {
   hasher?: SecretHasher;
   email?: EmailSender;
   publicRateLimit?: { windowMs: number; limit: number };
+  // Para las pruebas: comprobantes fiscales pendientes simulados (hasta la Fase 12 no hay).
+  fiscalPending?: FiscalPendingQuery;
+  // Solo para las pruebas: rutas protegidas adicionales (por ejemplo, una que falla a propósito).
+  extraRoutes?: HttpRoute[];
 }
 
 export interface Api {
   app: Express;
   identity: IdentityModule;
+  platform: PlatformModule;
+  routes: HttpRoute[];
 }
 
 export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
@@ -89,13 +102,29 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     },
   });
 
+  const platform = createPlatformModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    technicalAudit,
+    fiscalPending: deps.fiscalPending ?? noFiscalPendingYet,
+    accounts: identity.useCases.registerAccount,
+    tenantSessions: identity.tenantSessions,
+    tenantRoles: identity.tenantRoles,
+  });
+
+  const routes = [...identity.routes, ...platform.routes, ...(deps.extraRoutes ?? [])];
   const app = createApp({
     devRoutes: !config.production,
     logger: deps.logger,
     security: { allowedOrigins: config.frontendOrigins, hsts: config.production },
     accessTokens,
-    routes: identity.routes,
+    sessionStatus: identity.sessionStatus,
+    access,
+    technicalAudit,
+    routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity };
+  return { app, identity, platform, routes };
 }

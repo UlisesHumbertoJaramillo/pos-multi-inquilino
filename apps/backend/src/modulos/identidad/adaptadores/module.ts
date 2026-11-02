@@ -8,6 +8,8 @@ import type {
 import type { Clock } from '../../../compartido/aplicacion/clock.js';
 import type { EmailSender } from '../../../compartido/aplicacion/email-sender.js';
 import type { IdGenerator } from '../../../compartido/aplicacion/id-generator.js';
+import type { SessionStatus } from '../../../compartido/aplicacion/session-status.js';
+import type { Role } from '../../../compartido/dominio/roles.js';
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
 import {
@@ -22,6 +24,7 @@ import {
   GetAuthorization,
   SetAuthorizationPin,
 } from '../aplicacion/authorizations.js';
+import { ActivateAccount, RegisterAccount } from '../aplicacion/accounts.js';
 import type { IdentityConfig } from '../aplicacion/config.js';
 import { CredentialGuard } from '../aplicacion/credential-guard.js';
 import type { SecretHasher } from '../aplicacion/ports.js';
@@ -58,12 +61,21 @@ export interface IdentityModuleDependencies {
 
 export interface IdentityModule {
   routes: HttpRoute[];
-  useCases: IdentityUseCases & { consumeAuthorization: ConsumeAuthorization };
+  useCases: IdentityUseCases & {
+    consumeAuthorization: ConsumeAuthorization;
+    registerAccount: RegisterAccount;
+  };
+  // Para la autenticación HTTP: cada solicitud verifica que su sesión siga vigente.
+  sessionStatus: SessionStatus;
+  // Para plataforma: cerrar las sesiones de todo un comercio al suspenderlo o darlo de baja.
+  tenantSessions: { revokeAllForTenant(tenantId: string, at: Date): Promise<void> };
+  // Para plataforma: si un comercio ya tiene un usuario con ese rol.
+  tenantRoles: { tenantHasRole(tenantId: string, role: Role): Promise<boolean> };
 }
 
 export function createIdentityModule(deps: IdentityModuleDependencies): IdentityModule {
   const newId = () => deps.ids.next();
-  const users = new PgUserRepository(deps.db);
+  const users = new PgUserRepository(deps.db, newId);
   const sessions = new PgSessionRepository(deps.db);
   const guard = new CredentialGuard(
     new PgAccessAttemptRepository(deps.db, newId),
@@ -121,10 +133,18 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     confirmEmail: new ConfirmEmail(recoveryDeps),
     requestPasswordReset: new RequestPasswordReset(recoveryDeps),
     resetPassword: new ResetPassword(recoveryDeps),
+    activateAccount: new ActivateAccount(recoveryDeps),
+    registerAccount: new RegisterAccount(recoveryDeps),
     setPin: new SetAuthorizationPin(authorizationDeps),
     authorize: new AuthorizeOperation(authorizationDeps),
     getAuthorization: new GetAuthorization(authorizationDeps),
     consumeAuthorization: new ConsumeAuthorization(authorizationDeps),
   };
-  return { routes: identityRoutes(useCases), useCases };
+  return {
+    routes: identityRoutes(useCases),
+    useCases,
+    sessionStatus: { isActive: (context) => sessions.isActive(context.sessionId, context.userId) },
+    tenantSessions: sessions,
+    tenantRoles: users,
+  };
 }

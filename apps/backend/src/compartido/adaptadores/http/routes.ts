@@ -1,6 +1,7 @@
 // Registro de rutas de la API (T-031, AD-22). Toda ruta queda protegida por defecto: solo puede
 // ser pública si declara uno de los motivos de la lista blanca de Const. 16.
 import type { RequestHandler } from 'express';
+import type { Action } from '../../aplicacion/permissions.js';
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -22,6 +23,9 @@ export interface HttpRoute {
   handler: RequestHandler;
   // Ausente: la ruta exige un token de acceso válido.
   public?: PublicRouteReason;
+  // Acción de la matriz §5.18: se verifica antes de validar los datos de la solicitud, para no
+  // revelar nada a quien no tiene permiso. El caso de uso la vuelve a verificar.
+  action?: Action;
   // Las rutas públicas tienen límite de frecuencia (Const. 17). Ponerlo en false solo para /salud.
   rateLimited?: boolean;
 }

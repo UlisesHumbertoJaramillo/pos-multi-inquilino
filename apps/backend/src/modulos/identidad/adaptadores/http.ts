@@ -7,6 +7,7 @@ import {
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import { parseInput } from '../../../compartido/adaptadores/http/validation.js';
 import { ROLES } from '../../../compartido/dominio/roles.js';
+import type { ActivateAccount } from '../aplicacion/accounts.js';
 import type {
   ConfirmEmail,
   RequestPasswordReset,
@@ -39,6 +40,7 @@ export interface IdentityUseCases {
   confirmEmail: ConfirmEmail;
   requestPasswordReset: RequestPasswordReset;
   resetPassword: ResetPassword;
+  activateAccount: ActivateAccount;
   setPin: SetAuthorizationPin;
   authorize: AuthorizeOperation;
   getAuthorization: GetAuthorization;
@@ -186,6 +188,19 @@ export function identityRoutes(useCases: IdentityUseCases): HttpRoute[] {
     },
     {
       method: 'post',
+      path: '/auth/activacion',
+      public: 'validacion_correo',
+      handler: async (req, res) => {
+        const body = parseInput(resetBody, req.body);
+        await useCases.activateAccount.execute({
+          token: body.token,
+          newPassword: body.nuevaContrasena,
+        });
+        res.json({ mensaje: 'Tu cuenta quedó activada. Ya podés iniciar sesión.' });
+      },
+    },
+    {
+      method: 'post',
       path: '/auth/recuperacion/solicitar',
       public: 'recuperacion_contrasena',
       handler: async (req, res) => {
@@ -209,6 +224,7 @@ export function identityRoutes(useCases: IdentityUseCases): HttpRoute[] {
     {
       method: 'put',
       path: '/auth/pin',
+      action: 'autorizaciones.autorizar',
       handler: async (req, res) => {
         const body = parseInput(pinBody, req.body);
         await useCases.setPin.execute(securityContextOf(res), body.pin);
