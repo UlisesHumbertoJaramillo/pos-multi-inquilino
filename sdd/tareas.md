@@ -128,7 +128,7 @@
   - Hecho cuando: en https://localhost:5173 se ingresa con el VO demo, se ve el rol activo y se puede salir.
 - [x] **T-047** · Frontend: validación de correo y recuperación de contraseña. · RF: RF-006, RF-007 · Dep: T-046, T-030
   - Hecho cuando: el flujo se completa en el navegador usando los enlaces que muestra la consola del backend.
-- [ ] **T-048** · **[Localhost]** Guion de la Fase 1. · RF: — · Dep: T-047
+- [x] **T-048** · **[Localhost]** Guion de la Fase 1. · RF: — · Dep: T-047
   - Hecho cuando: (1) el login funciona con cada rol demo, (2) el cambio de rol cambia el menú, (3) 5 contraseñas erróneas bloquean la cuenta, (4) el correo de recuperación aparece en la consola del backend, (5) sin token, cualquier ruta de /docs responde 401.
 
 ## Fase 2 — Plataforma (Super Administrador)

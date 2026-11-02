@@ -38,7 +38,7 @@
 - **Demo en localhost:** `npm run dev` levanta todo, https://localhost:3000/salud responde, https://localhost:3000/docs muestra la API y las bases `pos_dev` y `pos_test` existen en el PostgreSQL local.
 - **Criterio de salida:** `npm run verify` pasa en CI, y un import prohibido o un secreto en el código lo hacen fallar.
 
-### ☐ E1 — Acceso seguro
+### ☑ E1 — Acceso seguro
 
 - **Objetivo:** usuarios que ingresan, cambian de rol y se recuperan, con el aislamiento entre comercios y la matriz de permisos funcionando desde abajo.
 - **Tareas:** T-024 a T-048 (Fase 1).
