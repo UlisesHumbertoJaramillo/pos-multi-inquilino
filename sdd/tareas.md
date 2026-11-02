@@ -57,7 +57,7 @@
   - Hecho cuando: un import de `apps/backend` desde el frontend hace fallar `npm run lint:arch`.
 - [x] **T-013** · Crear la especificación OpenAPI base en `packages/contracts`, con generación de tipos y Swagger UI en `/docs` solo en desarrollo. · RF: — (AD-21) · Dep: T-005
   - Hecho cuando: https://localhost:3000/docs muestra `/salud`, y los tipos generados compilan en el frontend.
-- [ ] **T-014** · Validar en las pruebas que las respuestas de la API cumplan la especificación OpenAPI. · RF: — (AD-21) · Dep: T-010, T-013
+- [x] **T-014** · Validar en las pruebas que las respuestas de la API cumplan la especificación OpenAPI. · RF: — (AD-21) · Dep: T-010, T-013
   - Hecho cuando: si `/salud` devuelve un campo no documentado, la prueba falla.
 - [ ] **T-015** · Implementar el manejo uniforme de errores, sin detalles internos, y un logger que redacta contraseñas, PIN, tokens y datos de pago. · RF: — (Const. 17) · Dep: T-005
   - Hecho cuando: un error forzado responde `{codigo, mensaje}` sin traza, y una prueba verifica que un token no aparece en el log.

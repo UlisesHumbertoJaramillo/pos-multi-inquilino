@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
+import { expectToMatchContract } from '../test/support/contract.js';
 import { createApp } from './app.js';
 
 describe('GET /salud', () => {
@@ -7,6 +8,7 @@ describe('GET /salud', () => {
     const response = await request(createApp({ devRoutes: false })).get('/salud');
 
     expect(response.status).toBe(200);
+    expectToMatchContract(response, 'get', '/salud');
     expect(response.body).toStrictEqual({ estado: 'ok' });
     expect(response.headers['x-powered-by']).toBeUndefined();
   });

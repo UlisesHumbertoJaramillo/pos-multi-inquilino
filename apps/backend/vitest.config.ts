@@ -9,7 +9,7 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
-          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'test/**/*.test.ts'],
           exclude: ['**/*.int.test.ts'],
         },
       },
