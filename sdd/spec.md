@@ -1,7 +1,7 @@
 # Spec — Sistema de Punto de Venta (POS) Multi-Inquilino
 
-**Versión:** 1.1 (deriva de la Especificación Funcional v8.5 Master; incorpora la revisión QA del 2026-10-31)
-**Fecha:** 2026-10-31
+**Versión:** 1.2 (deriva de la Especificación Funcional v8.5 Master; incorpora la revisión QA del 2026-10-31 y las decisiones de implementación del 2026-11-02)
+**Fecha:** 2026-11-02
 **Alcance:** sistema completo (RF-01 a RF-20 de la v8.5)
 **Naturaleza del documento:** describe solo el **QUÉ** y el **POR QUÉ**. No se fijan la tecnología, el diseño ni la implementación.
 
@@ -97,6 +97,18 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 | D-53 | Tipo de comprobante | El tipo de comprobante depende de la condición fiscal del comprador. Si no se identifica a nadie, se emite a consumidor final. | Requisito fiscal mínimo para la venta a clientes registrados. |
 | D-54 | Falla del lector de códigos | Si el lector de códigos de barras falla, el VO puede seguir con la búsqueda manual. | Una falla de periférico no debe frenar la venta (Const. 11). |
 
+### 3.3 Decisiones de la implementación (2026-11-02)
+
+Surgieron al construir las fases 3 y 4. El responsable del producto las validó el 2026-11-02.
+
+| # | Tema | Decisión | Por qué |
+| :-- | :-- | :-- | :-- |
+| D-61 | Márgenes de la plataforma | Inactividad del carrito: de 2 a 120 minutos, 15 por defecto. Inactividad de sesión: de 5 a 480 minutos, 30 por defecto. Regularización fiscal: de 24 a 240 horas, 72 por defecto. Plazo de devolución: de 0 a 365 días, 30 por defecto. Facturación posterior: de 0 a 30 días, 0 (la misma jornada) por defecto. Tolerancia de arqueo: de 0 a 100.000, 0 por defecto. Recargo o descuento de un método de pago: de −50 % a +100 %. | D-26 pide márgenes de la plataforma sin fijarlos. Sin un rango, un valor extremo podría bloquear la operación o anular los controles. |
+| D-62 | Cálculo del precio por regla | La regla "porcentaje sobre el costo" calcula el precio final como costo sin IVA × (1 + margen) × (1 + tasa de IVA de la categoría), redondeado al centavo (la mitad hacia arriba). La regla por grupo aplica un margen por categoría y uno por defecto para las categorías sin margen propio. El margen va de −90 % a +1000 %. En una lista de precio fijo, el AC carga cada precio a mano y un cambio de costo no lo modifica. | Vuelve verificables RF-028 y RF-032. Como el costo de compra se registra sin IVA, el IVA se suma al final para llegar al precio final de D-16. |
+| D-63 | Precio de los combos | El precio único de un combo es el mismo en todas las listas de precios, cualquiera sea su regla. | Es la lectura de "precio único" de RF-049. El combo no tiene costo propio sobre el cual aplicar una regla. |
+| D-64 | Bajas en el catálogo | No se puede dar de baja una categoría con productos activos ni una lista de precios que es la activa de alguna sucursal. | Completa D-42: ningún producto queda sin tasa de IVA y ninguna sucursal queda sin lista de precios (D-15). |
+| D-65 | Historial de precios | Cada cambio de un precio de lista queda en un historial con el precio anterior, el nuevo y su causa (alta, cambio de costo, de tasa de IVA, de regla, precio manual o de combo). | Permite reconstruir por qué un producto tenía un precio en una fecha (Const. 7). |
+
 ## 4. Supuestos validados
 
 Estos puntos quedaron fuera de la primera ronda de preguntas. El responsable del producto los validó el 2026-10-31.
@@ -182,7 +194,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-025 | Si se intenta dar de baja una sucursal o una caja con turnos abiertos, ventas en curso o transferencias pendientes, entonces el sistema deberá rechazar la baja e indicar qué la impide. | Integridad |
 | RF-026 | El sistema deberá permitir al AC crear usuarios de su comercio y asignarles roles y sucursales. | RF-04, UC-AC-03 |
 | RF-027 | El sistema deberá mostrar la estructura del comercio como jerarquía Comercio > Sucursales > Cajas. | §3.1 |
-| RF-135 | El sistema deberá permitir al AC configurar los métodos de pago del comercio con su recargo o descuento, el tiempo de inactividad del carrito, el de sesión, el plazo de regularización fiscal, el plazo de facturación posterior y el plazo máximo de devolución, siempre dentro de los márgenes que define la plataforma. | D-26, D-2, D-31, RF-009, RF-105 |
+| RF-135 | El sistema deberá permitir al AC configurar los métodos de pago del comercio con su recargo o descuento, el tiempo de inactividad del carrito, el de sesión, el plazo de regularización fiscal, el plazo de facturación posterior y el plazo máximo de devolución, siempre dentro de los márgenes que define la plataforma. | D-26, D-61, D-2, D-31, RF-009, RF-105 |
 
 ### 5.5 Precios, costos e IVA
 
@@ -192,7 +204,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | :-- | :-- | :-- |
 | RF-130 | El sistema deberá permitir al AC dar de alta, modificar y dar de baja productos, categorías y combos de su comercio. | D-24 |
 | RF-131 | Si se intenta registrar un código de barras que ya usa otro producto activo del mismo comercio, entonces el sistema deberá rechazarlo. | D-24 |
-| RF-028 | El sistema deberá permitir al AC crear listas de precios con una regla de cálculo de precio fijo, porcentaje sobre el costo o regla por grupo. | RF-05, UC-AC-04 |
+| RF-028 | El sistema deberá permitir al AC crear listas de precios con una regla de cálculo de precio fijo, porcentaje sobre el costo o regla por grupo. | RF-05, UC-AC-04, D-62 |
 | RF-029 | El sistema deberá permitir al AC asignar una tasa de IVA a cada categoría de producto. | RF-05, RN-04 |
 | RF-119 | El sistema deberá permitir al AC asignar a cada sucursal una única lista de precios activa, que es la que usan todos sus POS. | D-15 |
 | RF-030 | Cuando un VO agrega un ítem al carrito, el sistema deberá fijar su precio según la lista de precios activa de la sucursal en ese momento y desglosar el IVA según la categoría del producto. | RN-04 (modificada por S-1), S-1, D-15 |
@@ -239,7 +251,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
 | RF-048 | El sistema deberá permitir al AC crear reglas de promoción automáticas (por ejemplo, 2x1) con vigencia definida. | RF-09, UC-AC-08 |
-| RF-049 | El sistema deberá permitir al AC definir combos con un precio único y una lista de componentes con sus cantidades. | RF-09 |
+| RF-049 | El sistema deberá permitir al AC definir combos con un precio único y una lista de componentes con sus cantidades. | RF-09, D-63 |
 | RF-050 | Cuando un carrito cumple las condiciones de una o más promociones vigentes, el sistema deberá aplicar automáticamente a cada ítem como máximo una, la más beneficiosa para el cliente, sin aplicarlas a los componentes de un combo, y resaltarla en pantalla. | RF-13, UC-VO-02, D-33 |
 | RF-143 | Mientras un ítem permanezca en el carrito, el sistema deberá mantener la promoción que se le aplicó aunque esta venza. | D-33, S-1 |
 | RF-051 | Cuando se agrega un combo al carrito, el sistema deberá reservar el stock de cada componente en la cantidad que corresponde. | RF-09, S-3 |

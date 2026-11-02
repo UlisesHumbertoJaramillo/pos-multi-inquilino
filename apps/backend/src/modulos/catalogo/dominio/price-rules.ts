@@ -1,7 +1,7 @@
 // Reglas de cálculo de una lista de precios (T-076; RF-028, RF-032, RF-120).
 // Los precios de lista son finales, con IVA incluido (D-16). El costo se carga sin IVA:
 // precio = costo × (1 + margen) × (1 + IVA de la categoría), redondeado al centavo.
-// Decisión de negocio confirmada con el comercio (Fase 4).
+// La regla por grupo y el rango del margen también son de D-62.
 import {
   divideRoundingHalfUp,
   formatDecimal,

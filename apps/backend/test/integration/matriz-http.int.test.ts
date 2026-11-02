@@ -30,15 +30,23 @@ const routesWithAction = api.routes.filter((route) => route.action !== undefined
 const cases = routesWithAction.flatMap((route) => ROLES.map((role) => ({ route, role })));
 const authorization = new Map<Role, string>();
 
+// Inicia sesión solo con el rol que usa cada caso.
+async function authorize(role: Role): Promise<string> {
+  let value = authorization.get(role);
+  if (value === undefined) {
+    value = (await signIn(api.app, EMAIL_BY_ROLE[role], role)).authorization;
+    authorization.set(role, value);
+  }
+  return value;
+}
+
 // Un valor concreto para los parámetros de ruta.
 const concretePath = (path: string) => path.replace(/:\w+/g, TENANT_A);
 
 // El arnés vacía las tablas antes de cada prueba: las sesiones se crean de nuevo cada vez.
 beforeEach(async () => {
+  authorization.clear();
   await seedIdentity();
-  for (const role of ROLES) {
-    authorization.set(role, (await signIn(api.app, EMAIL_BY_ROLE[role], role)).authorization);
-  }
 });
 
 describe('[RF-004] matriz de permisos en las rutas', () => {
@@ -64,7 +72,7 @@ describe('[RF-004] matriz de permisos en las rutas', () => {
     // Sin cuerpo: la verificación del permiso tiene que ocurrir antes que la de los datos.
     const response = await request(api.app)
       [route.method](concretePath(route.path))
-      .set('Authorization', authorization.get(role) ?? '');
+      .set('Authorization', await authorize(role));
 
     if (allowed) {
       expect(response.status).not.toBe(401);
@@ -82,7 +90,7 @@ describe('[RF-003] un usuario de un comercio no ejecuta acciones del SA', () => 
   it.each(platformRoutes)('el AC recibe 403 en $method $path', async (route) => {
     const response = await request(api.app)
       [route.method](concretePath(route.path))
-      .set('Authorization', authorization.get('AC') ?? '');
+      .set('Authorization', await authorize('AC'));
 
     expect(response.status).toBe(403);
   });
@@ -189,7 +197,7 @@ describe('[RF-004] un AS no modifica precios ni el catálogo', () => {
   it.each(catalogWrites)('el AS recibe 403 en $method $path', async (route) => {
     const response = await request(api.app)
       [route.method](concretePath(route.path))
-      .set('Authorization', authorization.get('AS') ?? '');
+      .set('Authorization', await authorize('AS'));
 
     expect(response.status).toBe(403);
   });

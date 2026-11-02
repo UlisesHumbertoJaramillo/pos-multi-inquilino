@@ -1,7 +1,6 @@
 // Parámetros del comercio dentro de los márgenes de la plataforma (RF-135, D-26).
-// El spec no fija valores: los márgenes y valores por defecto los define la plataforma acá.
-// Los únicos que fija el spec son la tolerancia de arqueo 0 (D-51) y la facturación posterior
-// en la misma jornada (D-59).
+// Los márgenes y valores por defecto son los de D-61. La tolerancia de arqueo 0 viene de D-51 y
+// la facturación posterior en la misma jornada, de D-59.
 import { DomainError } from '../../../compartido/dominio/errors.js';
 
 export const BILLING_POLICIES = [
