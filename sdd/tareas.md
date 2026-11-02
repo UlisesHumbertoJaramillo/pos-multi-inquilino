@@ -151,7 +151,7 @@
   - Hecho cuando: una prueba de esquema verifica que la respuesta no tiene campos comerciales.
 - [x] **T-057** · Panel técnico: errores 5xx recientes y estado de los workers y del outbox. · RF: RF-016 · Dep: T-021, T-022
   - Hecho cuando: un error forzado aparece en el panel y el SA lo ve en /docs. Los periféricos se suman en T-241.
-- [ ] **T-058** · Frontend del SA: comercios (alta, suspensión, módulo de facturación), cuentas, tickets, auditoría técnica y panel. · RF: RF-013, RF-016, RF-017, RF-022, RF-163 · Dep: T-051 a T-057, T-046
+- [x] **T-058** · Frontend del SA: comercios (alta, suspensión, módulo de facturación), cuentas, tickets, auditoría técnica y panel. · RF: RF-013, RF-016, RF-017, RF-022, RF-163 · Dep: T-051 a T-057, T-046
   - Hecho cuando: en https://localhost:5173/admin, logueado como SA, se crea un comercio y se activa su módulo de facturación.
 - [x] **T-059** · Sumar las acciones de plataforma al generador de la matriz. · RF: RF-003, RF-004 · Dep: T-058, T-038
   - Hecho cuando: las pruebas generadas de plataforma pasan y un AC no puede ejecutar ninguna acción del SA.
