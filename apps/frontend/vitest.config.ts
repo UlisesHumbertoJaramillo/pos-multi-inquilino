@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
+    // Las pantallas se prueban en un DOM simulado.
+    environment: 'jsdom',
+    setupFiles: ['src/test/setup.ts'],
   },
 });

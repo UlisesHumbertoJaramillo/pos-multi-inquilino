@@ -28,7 +28,8 @@
     "contracts:check": "tsx scripts/contracts-check.ts",
     "secrets": "secretlint \"**/*\"",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run lint:arch && npm run contracts:check && npm run trazabilidad -- --check && npm run secrets && npm audit && npm test",
-    "worker": "npm run worker -w @pos/backend"
+    "worker": "npm run worker -w @pos/backend",
+    "db:seed": "npm run db:seed -w @pos/backend"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

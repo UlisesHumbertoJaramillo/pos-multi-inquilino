@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createTestApp } from '../test/support/app.js';
+import { bearer, createTestApp } from '../test/support/app.js';
 import { expectToMatchContract } from '../test/support/contract.js';
 
 describe('GET /salud', () => {
@@ -26,8 +26,10 @@ describe('/docs', () => {
     expect(init.text).toContain('/salud');
   });
 
-  it('en producción no se registra', async () => {
-    const response = await request(createTestApp()).get('/docs/');
+  it('en producción no se registra, ni siquiera para un usuario autenticado', async () => {
+    const response = await request(createTestApp())
+      .get('/docs/')
+      .set('Authorization', await bearer());
 
     expect(response.status).toBe(404);
   });

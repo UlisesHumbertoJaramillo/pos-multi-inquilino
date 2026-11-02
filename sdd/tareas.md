@@ -80,53 +80,53 @@
 
 ## Fase 1 — Identidad, aislamiento y permisos
 
-- [ ] **T-024** · Crear las migraciones `comercio` (versión básica), `usuario` y `usuario_rol`, con la restricción de que el rol SA no se combine con roles de comercio. · RF: RF-012 · Dep: T-009
+- [x] **T-024** · Crear las migraciones `comercio` (versión básica), `usuario` y `usuario_rol`, con la restricción de que el rol SA no se combine con roles de comercio. · RF: RF-012 · Dep: T-009
   - Hecho cuando: una prueba intenta asignarle a un SA el rol AC y la base lo rechaza.
-- [ ] **T-025** · Implementar el puerto `HashDeSecretos` con argon2, para contraseñas y PIN. · RF: RF-156 · Dep: T-011
+- [x] **T-025** · Implementar el puerto `HashDeSecretos` con argon2, para contraseñas y PIN. · RF: RF-156 · Dep: T-011
   - Hecho cuando: una prueba verifica que el hash no contiene el secreto y que la verificación acepta el correcto y rechaza otro.
-- [ ] **T-026** · Escribir el seed de desarrollo: SA, comercio Demo y usuarios AC, AS y VO con contraseñas documentadas. · RF: — · Dep: T-024, T-025
+- [x] **T-026** · Escribir el seed de desarrollo: SA, comercio Demo y usuarios AC, AS y VO con contraseñas documentadas. · RF: — · Dep: T-024, T-025
   - Hecho cuando: `npm run db:seed` carga los usuarios y el README lista sus credenciales.
-- [ ] **T-027** · Implementar el inicio de sesión: token de acceso JWT corto y token de renovación opaco guardado con hash. · RF: RF-005 · Dep: T-026
+- [x] **T-027** · Implementar el inicio de sesión: token de acceso JWT corto y token de renovación opaco guardado con hash. · RF: RF-005 · Dep: T-026
   - Hecho cuando: en /docs, `POST /auth/login` con el VO demo devuelve los tokens, y una contraseña errónea devuelve 401 con mensaje genérico.
-- [ ] **T-028** · Rechazar el inicio de sesión de una cuenta con el correo sin validar, indicando que falta la validación. · RF: RF-006 · Dep: T-027
+- [x] **T-028** · Rechazar el inicio de sesión de una cuenta con el correo sin validar, indicando que falta la validación. · RF: RF-006 · Dep: T-027
   - Hecho cuando: una prueba con un usuario sin validar recibe el error específico.
-- [ ] **T-029** · Implementar el puerto `EnvioDeCorreo` con un adaptador de consola, más la validación de correo y su reenvío con token de un solo uso. El adaptador escribe el correo en la consola, separado del logger de la aplicación, y el backend se niega a arrancar en modo producción si está configurado (Const. 17). · RF: RF-006 · Dep: T-028
+- [x] **T-029** · Implementar el puerto `EnvioDeCorreo` con un adaptador de consola, más la validación de correo y su reenvío con token de un solo uso. El adaptador escribe el correo en la consola, separado del logger de la aplicación, y el backend se niega a arrancar en modo producción si está configurado (Const. 17). · RF: RF-006 · Dep: T-028
   - Hecho cuando: el correo con su enlace aparece en la consola del backend, el enlace valida la cuenta una sola vez y una prueba verifica que el arranque en producción con este adaptador falla.
-- [ ] **T-030** · Implementar la recuperación de contraseña: misma respuesta exista o no el correo, token de un solo uso con vencimiento y restablecimiento. · RF: RF-007, RF-008 · Dep: T-029
+- [x] **T-030** · Implementar la recuperación de contraseña: misma respuesta exista o no el correo, token de un solo uso con vencimiento y restablecimiento. · RF: RF-007, RF-008 · Dep: T-029
   - Hecho cuando: hay pruebas de token vencido y de token ya usado, y el correo aparece en la consola del backend.
-- [ ] **T-031** · Implementar el middleware de autenticación con la lista blanca de AD-22, y una prueba que recorre todas las rutas registradas. · RF: — (Const. 16) · Dep: T-027
+- [x] **T-031** · Implementar el middleware de autenticación con la lista blanca de AD-22, y una prueba que recorre todas las rutas registradas. · RF: — (Const. 16) · Dep: T-027
   - Hecho cuando: la prueba verifica que toda ruta fuera de la lista blanca responde 401 sin token, y que `/dev/*` y `/docs` no existen en modo producción.
-- [ ] **T-032** · Implementar la renovación de tokens, el cierre de sesión y la revocación. · RF: RF-009 · Dep: T-031
+- [x] **T-032** · Implementar la renovación de tokens, el cierre de sesión y la revocación. · RF: RF-009 · Dep: T-031
   - Hecho cuando: un token de renovación revocado responde 401.
-- [ ] **T-033** · Cerrar la sesión por inactividad según el parámetro configurado, sin tocar turnos ni carritos. · RF: RF-009 · Dep: T-032
+- [x] **T-033** · Cerrar la sesión por inactividad según el parámetro configurado, sin tocar turnos ni carritos. · RF: RF-009 · Dep: T-032
   - Hecho cuando: una prueba con reloj simulado verifica que la renovación falla tras la inactividad.
-- [ ] **T-034** · Bloquear la contraseña 15 minutos tras 5 intentos fallidos seguidos y limitar la frecuencia de los endpoints públicos. · RF: RF-145 · Dep: T-027
+- [x] **T-034** · Bloquear la contraseña 15 minutos tras 5 intentos fallidos seguidos y limitar la frecuencia de los endpoints públicos. · RF: RF-145 · Dep: T-027
   - Hecho cuando: el sexto intento responde "bloqueado" y, pasados 15 minutos simulados, se puede ingresar.
-- [ ] **T-035** · Armar el contexto de seguridad (usuario, comercio tomado del token, rol activo, sucursales). · RF: RF-001 · Dep: T-031
+- [x] **T-035** · Armar el contexto de seguridad (usuario, comercio tomado del token, rol activo, sucursales). · RF: RF-001 · Dep: T-031
   - Hecho cuando: una prueba envía otro `tenant_id` como parámetro y se ignora.
-- [ ] **T-036** · Implementar el rol activo: último usado al ingresar, elección en el primer ingreso y cambio sin cerrar sesión. · RF: RF-005, RF-010, RF-011 · Dep: T-035
+- [x] **T-036** · Implementar el rol activo: último usado al ingresar, elección en el primer ingreso y cambio sin cerrar sesión. · RF: RF-005, RF-010, RF-011 · Dep: T-035
   - Hecho cuando: una prueba cambia de rol y verifica que una acción del rol anterior se rechaza de inmediato.
-- [ ] **T-037** · Implementar la política de permisos: tabla declarativa de la matriz §5.18 y verificación de ámbito. · RF: RF-004 · Dep: T-035
+- [x] **T-037** · Implementar la política de permisos: tabla declarativa de la matriz §5.18 y verificación de ámbito. · RF: RF-004 · Dep: T-035
   - Hecho cuando: una prueba verifica que una acción que no está en la tabla queda denegada.
-- [ ] **T-038** · Crear el generador de pruebas de la matriz (acción × rol × ámbito), que se amplía en cada módulo. · RF: RF-004 · Dep: T-037
+- [x] **T-038** · Crear el generador de pruebas de la matriz (acción × rol × ámbito), que se amplía en cada módulo. · RF: RF-004 · Dep: T-037
   - Hecho cuando: genera y corre las pruebas de las acciones existentes.
-- [ ] **T-039** · Implementar la seguridad a nivel de fila: la unidad de trabajo fija el comercio por transacción, más una política plantilla para las tablas comerciales. · RF: RF-001 · Dep: T-020, T-035
+- [x] **T-039** · Implementar la seguridad a nivel de fila: la unidad de trabajo fija el comercio por transacción, más una política plantilla para las tablas comerciales. · RF: RF-001 · Dep: T-020, T-035
   - Hecho cuando: una prueba verifica que una consulta sin comercio fijado devuelve 0 filas.
-- [ ] **T-040** · Crear la tabla `auditoria_tecnica` y la respuesta uniforme ante un recurso de otro comercio, que se responde como inexistente y se registra. · RF: RF-002 · Dep: T-039
+- [x] **T-040** · Crear la tabla `auditoria_tecnica` y la respuesta uniforme ante un recurso de otro comercio, que se responde como inexistente y se registra. · RF: RF-002 · Dep: T-039
   - Hecho cuando: una prueba con un usuario del comercio B pidiendo un recurso del A recibe 404 y el intento queda en la auditoría técnica.
-- [ ] **T-041** · Crear la auditoría comercial: tabla de solo inserción, sin UPDATE ni DELETE para la aplicación, escrita por el puerto `RegistroDeAuditoria` en la misma transacción. · RF: RF-018, RF-019 · Dep: T-039
+- [x] **T-041** · Crear la auditoría comercial: tabla de solo inserción, sin UPDATE ni DELETE para la aplicación, escrita por el puerto `RegistroDeAuditoria` en la misma transacción. · RF: RF-018, RF-019 · Dep: T-039
   - Hecho cuando: una prueba verifica que un UPDATE sobre la auditoría falla y que la auditoría se revierte junto con su transacción.
-- [ ] **T-042** · Rechazar en la política todo caso de uso comercial invocado por un SA. · RF: RF-003 · Dep: T-037
+- [x] **T-042** · Rechazar en la política todo caso de uso comercial invocado por un SA. · RF: RF-003 · Dep: T-037
   - Hecho cuando: la matriz generada incluye al SA y todas sus acciones comerciales se rechazan.
-- [ ] **T-043** · Crear la tabla `credencial_autorizacion` y el endpoint para que un AS o un AC fije su PIN. · RF: RF-141 · Dep: T-025, T-037
+- [x] **T-043** · Crear la tabla `credencial_autorizacion` y el endpoint para que un AS o un AC fije su PIN. · RF: RF-141 · Dep: T-025, T-037
   - Hecho cuando: el PIN queda guardado con hash y un VO no puede fijar uno.
-- [ ] **T-044** · Implementar `AutorizarOperacion`: autorización de un solo uso ligada a la operación y al solicitante, que acepta a un AS de la sucursal o a un AC presente y rechaza la autoautorización. · RF: RF-113, RF-141 · Dep: T-043
+- [x] **T-044** · Implementar `AutorizarOperacion`: autorización de un solo uso ligada a la operación y al solicitante, que acepta a un AS de la sucursal o a un AC presente y rechaza la autoautorización. · RF: RF-113, RF-141 · Dep: T-043
   - Hecho cuando: hay pruebas de autoautorización rechazada, de reutilización rechazada y de un AC aceptado.
-- [ ] **T-045** · Bloquear el PIN 15 minutos tras 5 intentos fallidos seguidos y registrarlo en la auditoría técnica. · RF: RF-145 · Dep: T-044
+- [x] **T-045** · Bloquear el PIN 15 minutos tras 5 intentos fallidos seguidos y registrarlo en la auditoría técnica. · RF: RF-145 · Dep: T-044
   - Hecho cuando: el sexto PIN erróneo queda bloqueado. La alerta al AC se conecta en T-209.
-- [ ] **T-046** · Frontend: pantalla de inicio de sesión, selector de rol, manejo de tokens y renovación, y cierre de sesión. · RF: RF-005, RF-010 · Dep: T-036
+- [x] **T-046** · Frontend: pantalla de inicio de sesión, selector de rol, manejo de tokens y renovación, y cierre de sesión. · RF: RF-005, RF-010 · Dep: T-036
   - Hecho cuando: en https://localhost:5173 se ingresa con el VO demo, se ve el rol activo y se puede salir.
-- [ ] **T-047** · Frontend: validación de correo y recuperación de contraseña. · RF: RF-006, RF-007 · Dep: T-046, T-030
+- [x] **T-047** · Frontend: validación de correo y recuperación de contraseña. · RF: RF-006, RF-007 · Dep: T-046, T-030
   - Hecho cuando: el flujo se completa en el navegador usando los enlaces que muestra la consola del backend.
 - [ ] **T-048** · **[Localhost]** Guion de la Fase 1. · RF: — · Dep: T-047
   - Hecho cuando: (1) el login funciona con cada rol demo, (2) el cambio de rol cambia el menú, (3) 5 contraseñas erróneas bloquean la cuenta, (4) el correo de recuperación aparece en la consola del backend, (5) sin token, cualquier ruta de /docs responde 401.

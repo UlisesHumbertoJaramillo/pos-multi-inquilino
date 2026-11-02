@@ -36,6 +36,7 @@ const STATUS_BY_KIND: Record<ErrorKind, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  locked: 423,
 };
 
 // Errores 4xx de Express y sus middlewares (por ejemplo, un JSON mal formado).

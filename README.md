@@ -26,6 +26,7 @@ npm install
 npm run certs        # certificados HTTPS de desarrollo
 npm run db:setup     # una vez por equipo: roles, bases y .env (pide la contraseña de postgres)
 npm run db:reset     # aplica las migraciones en pos_dev
+npm run db:seed      # carga los usuarios de demostración
 npm run dev          # backend, frontend y worker
 ```
 
@@ -36,6 +37,23 @@ npm run dev          # backend, frontend y worker
 | API                                       | https://localhost:3000       |
 | Documentación de la API (solo desarrollo) | https://localhost:3000/docs  |
 
+## Usuarios de demostración
+
+`npm run db:seed` carga el comercio **Demo** (sucursales Centro y Norte) y estos usuarios. **Solo para desarrollo:** el seed se niega a correr en producción.
+
+Todos usan la contraseña **`Demo-2026!`**.
+
+| Correo                 | Rol                             | PIN de autorización | Para probar                                                                  |
+| :--------------------- | :------------------------------ | :------------------ | :--------------------------------------------------------------------------- |
+| `sa@demo.local`        | SA                              | —                   | Plataforma, sin datos comerciales                                            |
+| `ac@demo.local`        | AC                              | `1111`              | Administración del comercio; autoriza en cualquier sucursal                  |
+| `as@demo.local`        | AS (Centro) y VO (Centro)       | `2222`              | Primer ingreso con elección de rol, cambio de rol y segregación de funciones |
+| `vo@demo.local`        | VO (Centro)                     | —                   | Punto de venta                                                               |
+| `vo.norte@demo.local`  | VO (Norte)                      | —                   | Ámbito de otra sucursal                                                      |
+| `pendiente@demo.local` | VO (Centro), correo sin validar | —                   | Validación de correo                                                         |
+
+Los correos de validación y recuperación se muestran en la consola del backend (`[api]` en `npm run dev`).
+
 ## Comandos
 
 | Comando                                   | Qué hace                                                                                                                            |
@@ -45,6 +63,7 @@ npm run dev          # backend, frontend y worker
 | `npm run lint` / `npm run format`         | Lint y formato.                                                                                                                     |
 | `npm run lint:arch`                       | Reglas de dependencias de la arquitectura hexagonal.                                                                                |
 | `npm run db:migrate` / `npm run db:reset` | Aplica migraciones / vacía `pos_dev` y las vuelve a aplicar.                                                                        |
+| `npm run db:seed`                         | Carga los usuarios de demostración en `pos_dev`.                                                                                    |
 | `npm run db:migration:new -- <nombre>`    | Crea una migración vacía.                                                                                                           |
 | `npm run contracts:generate`              | Genera los tipos desde `packages/contracts/openapi.yaml`.                                                                           |
 | `npm run trazabilidad`                    | Regenera `sdd/trazabilidad.md` desde las etiquetas `[RF-xxx]` de las pruebas.                                                       |

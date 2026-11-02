@@ -36,9 +36,10 @@ function loadOrCreateEnv(): DbConfig {
     values.set(match[1] ?? '', (match[2] ?? '').trim());
   }
 
-  for (const key of ['DB_APP_PASSWORD', 'DB_OWNER_PASSWORD']) {
+  // AUTH_TOKEN_SECRET firma los tokens de acceso (AD-11).
+  for (const key of ['DB_APP_PASSWORD', 'DB_OWNER_PASSWORD', 'AUTH_TOKEN_SECRET']) {
     if (!values.get(key)) {
-      const generated = randomBytes(24).toString('base64url');
+      const generated = randomBytes(32).toString('base64url');
       values.set(key, generated);
       content = setEnvValue(content, key, generated);
       console.log(`Se generó ${key} en .env.`);

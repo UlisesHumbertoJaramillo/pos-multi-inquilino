@@ -14,8 +14,13 @@ export interface ContractResponse {
   body: unknown;
 }
 
+interface DocumentedResponse {
+  $ref?: string;
+  content?: Record<string, { schema?: unknown }>;
+}
+
 interface Operation {
-  responses?: Record<string, { content?: Record<string, { schema?: unknown }> } | undefined>;
+  responses?: Record<string, DocumentedResponse | undefined>;
 }
 
 // Los esquemas de components se registran como $defs de un documento propio, porque el
@@ -31,8 +36,19 @@ const spec = JSON.parse(
   ),
 ) as {
   paths?: Record<string, Record<string, Operation | undefined> | undefined>;
-  components?: { schemas?: Record<string, unknown> };
+  components?: {
+    schemas?: Record<string, unknown>;
+    responses?: Record<string, DocumentedResponse | undefined>;
+  };
 };
+
+const RESPONSE_REF = '#/components/responses/';
+
+// Las respuestas reutilizables se declaran con $ref a components.responses.
+function resolveResponse(response: DocumentedResponse | undefined): DocumentedResponse | undefined {
+  if (response?.$ref?.startsWith(RESPONSE_REF) !== true) return response;
+  return spec.components?.responses?.[response.$ref.slice(RESPONSE_REF.length)];
+}
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats.default(ajv);
@@ -66,7 +82,7 @@ export function expectToMatchContract(
 ): void {
   const label = `${method.toUpperCase()} ${path}`;
   const status = String(response.status);
-  const documented = findOperation(method, path).responses?.[status];
+  const documented = resolveResponse(findOperation(method, path).responses?.[status]);
   if (!documented) {
     throw new Error(`El estado ${status} no está documentado para ${label}.`);
   }

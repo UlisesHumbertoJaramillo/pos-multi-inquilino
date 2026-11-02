@@ -1,17 +1,24 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar
     cada endpoint, y los tipos de packages/contracts se generan desde este archivo.
-    Todo endpoint exige token de API, salvo los de la lista blanca de AD-22 (Const. 16).
+    Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22,
+    que declaran `security: []` (Const. 16).
 servers:
   - url: https://localhost:3000
     description: Desarrollo local
+security:
+  - tokenAcceso: []
 tags:
   - name: Sistema
     description: Estado del sistema.
+  - name: Acceso
+    description: Inicio de sesión, rol activo, validación de correo y recuperación de contraseña.
+  - name: Autorizaciones
+    description: PIN y autorizaciones in situ de un solo uso.
 paths:
   /salud:
     get:
@@ -27,7 +34,361 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [Acceso]
+      summary: Iniciar sesión
+      description: >-
+        Público. Con un correo validado y la contraseña correcta, inicia la sesión con el último
+        rol usado; en el primer ingreso con varios roles, `requiereElegirRol` es true (RF-005).
+        5 intentos fallidos seguidos bloquean la credencial 15 minutos (RF-145).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '423':
+          $ref: '#/components/responses/Locked'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/renovar:
+    post:
+      operationId: refreshSession
+      tags: [Acceso]
+      summary: Renovar la sesión
+      description: >-
+        Público (se autentica con el token de renovación). Rota el token de renovación y emite un
+        token de acceso nuevo. Falla tras la inactividad configurada (RF-009).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Sesión renovada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/cerrar-sesion:
+    post:
+      operationId: logout
+      tags: [Acceso]
+      summary: Cerrar la sesión
+      description: 'Revoca la sesión: su token de renovación deja de servir.'
+      responses:
+        '204':
+          description: Sesión cerrada.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/sesion:
+    get:
+      operationId: getCurrentSession
+      tags: [Acceso]
+      summary: Sesión actual
+      description: Usuario, comercio, rol activo y sucursales, tomados del token (T-035).
+      responses:
+        '200':
+          description: Datos de la sesión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/rol-activo:
+    put:
+      operationId: selectActiveRole
+      tags: [Acceso]
+      summary: Elegir o cambiar el rol activo
+      description: >-
+        Cambia el rol activo sin cerrar la sesión. El token nuevo lleva los permisos y el ámbito
+        del rol elegido (RF-010, RF-011).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveRoleRequest'
+      responses:
+        '200':
+          description: Rol activo cambiado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveRoleChange'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/validacion/reenviar:
+    post:
+      operationId: resendEmailValidation
+      tags: [Acceso]
+      summary: Reenviar el correo de validación
+      description: Público. Responde lo mismo exista o no la cuenta (RF-006).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Pedido recibido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/validacion/confirmar:
+    post:
+      operationId: confirmEmail
+      tags: [Acceso]
+      summary: Validar el correo
+      description: Público. El token del enlace sirve una sola vez.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Correo validado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/recuperacion/solicitar:
+    post:
+      operationId: requestPasswordReset
+      tags: [Acceso]
+      summary: Pedir la recuperación de la contraseña
+      description: Público. Responde lo mismo exista o no la cuenta (RF-007).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Pedido recibido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/recuperacion/restablecer:
+    post:
+      operationId: resetPassword
+      tags: [Acceso]
+      summary: Restablecer la contraseña
+      description: Público. Rechaza un token vencido o ya usado (RF-008) y cierra todas las sesiones.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Contraseña cambiada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/pin:
+    put:
+      operationId: setAuthorizationPin
+      tags: [Autorizaciones]
+      summary: Fijar el propio PIN de autorización
+      description: Solo un AS o un AC (RF-141). El PIN se guarda con hash (RF-156).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PinRequest'
+      responses:
+        '204':
+          description: PIN guardado.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /autorizaciones:
+    post:
+      operationId: authorizeOperation
+      tags: [Autorizaciones]
+      summary: Autorizar una operación con PIN
+      description: >-
+        El solicitante es el usuario del token. Autoriza un AS de la sucursal o un AC presente,
+        nunca el propio solicitante (RF-113, RF-141). La autorización es de un solo uso.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        '201':
+          description: Autorización emitida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Authorization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '423':
+          $ref: '#/components/responses/Locked'
+
+  /autorizaciones/{id}:
+    get:
+      operationId: getAuthorization
+      tags: [Autorizaciones]
+      summary: Consultar una autorización
+      description: Un recurso de otro comercio se responde como inexistente (RF-002).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: La autorización.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Authorization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
+  securitySchemes:
+    tokenAcceso:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso de vida corta, obtenido con /auth/login o /auth/renovar.
+
+  responses:
+    BadRequest:
+      description: Datos inválidos o token de un solo uso inválido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Sin token válido, credenciales incorrectas o sesión vencida.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: El rol activo o el ámbito no permiten la acción.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: No existe, o pertenece a otro comercio.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: Una regla de negocio impidió la operación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Locked:
+      description: Credencial bloqueada por intentos fallidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    TooManyRequests:
+      description: Se superó el límite de frecuencia.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
   schemas:
     HealthStatus:
       type: object
@@ -49,3 +410,188 @@ components:
         mensaje:
           type: string
           description: Mensaje para el usuario, en español.
+    Message:
+      type: object
+      additionalProperties: false
+      required: [mensaje]
+      properties:
+        mensaje:
+          type: string
+    Role:
+      type: string
+      enum: [SA, AC, AS, VO]
+    SessionUser:
+      type: object
+      additionalProperties: false
+      required: [id, email, nombre, comercioId, roles, rolActivo, sucursales]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        nombre:
+          type: string
+        comercioId:
+          description: Nulo para el Super Administrador.
+          type: [string, 'null']
+          format: uuid
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        rolActivo:
+          description: Nulo hasta que el usuario elige su rol en el primer ingreso.
+          oneOf:
+            - $ref: '#/components/schemas/Role'
+            - type: 'null'
+        sucursales:
+          description: Sucursales del rol activo.
+          type: array
+          items:
+            type: string
+            format: uuid
+    SessionTokens:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          tokenAcceso,
+          tokenAccesoVenceEn,
+          tokenRenovacion,
+          sesionVenceEn,
+          usuario,
+          requiereElegirRol,
+        ]
+      properties:
+        tokenAcceso:
+          type: string
+        tokenAccesoVenceEn:
+          type: string
+          format: date-time
+        tokenRenovacion:
+          type: string
+        sesionVenceEn:
+          type: string
+          format: date-time
+        usuario:
+          $ref: '#/components/schemas/SessionUser'
+        requiereElegirRol:
+          type: boolean
+    ActiveRoleChange:
+      type: object
+      additionalProperties: false
+      required: [tokenAcceso, tokenAccesoVenceEn, usuario]
+      properties:
+        tokenAcceso:
+          type: string
+        tokenAccesoVenceEn:
+          type: string
+          format: date-time
+        usuario:
+          $ref: '#/components/schemas/SessionUser'
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, contrasena]
+      properties:
+        email:
+          type: string
+          format: email
+        contrasena:
+          type: string
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [tokenRenovacion]
+      properties:
+        tokenRenovacion:
+          type: string
+    ActiveRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [rol]
+      properties:
+        rol:
+          $ref: '#/components/schemas/Role'
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [token, nuevaContrasena]
+      properties:
+        token:
+          type: string
+        nuevaContrasena:
+          type: string
+          minLength: 10
+          maxLength: 128
+    PinRequest:
+      type: object
+      additionalProperties: false
+      required: [pin]
+      properties:
+        pin:
+          type: string
+          pattern: '^[0-9]{4,6}$'
+    AuthorizationType:
+      type: string
+      enum: [descuento, credito, anulacion, reembolso, retiro, pago_por_verificar, cierre_forzado]
+    AuthorizeRequest:
+      type: object
+      additionalProperties: false
+      required: [tipo, operacionRef, sucursalId, autorizanteId, pin]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/AuthorizationType'
+        operacionRef:
+          type: string
+          description: Operación concreta que se autoriza (por ejemplo, el id de la venta).
+        sucursalId:
+          type: string
+          format: uuid
+        autorizanteId:
+          type: string
+          format: uuid
+        pin:
+          type: string
+    Authorization:
+      type: object
+      additionalProperties: false
+      required: [id, tipo, operacionRef, sucursalId, solicitanteId, autorizanteId, emitidaEn, usada]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tipo:
+          $ref: '#/components/schemas/AuthorizationType'
+        operacionRef:
+          type: string
+        sucursalId:
+          type: string
+          format: uuid
+        solicitanteId:
+          type: string
+          format: uuid
+        autorizanteId:
+          type: string
+          format: uuid
+        emitidaEn:
+          type: string
+          format: date-time
+        usada:
+          type: boolean

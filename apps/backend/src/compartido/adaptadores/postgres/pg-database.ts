@@ -29,6 +29,15 @@ export class PgDatabase implements UnitOfWork {
     return executor.query<R>(text, values);
   }
 
+  // Siempre con una conexión propia, fuera de la transacción en curso: lo que escribe queda
+  // aunque esa transacción se revierta (por ejemplo, la auditoría técnica de un acceso denegado).
+  queryOutsideTransaction<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): Promise<pg.QueryResult<R>> {
+    return this.pool.query<R>(text, values);
+  }
+
   async run<T>(work: () => Promise<T>, options: TransactionOptions = {}): Promise<T> {
     const current = this.transactions.getStore();
     if (current) {

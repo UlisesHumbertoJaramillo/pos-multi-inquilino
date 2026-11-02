@@ -29,3 +29,7 @@ CONSTRAINT <tabla>_baja_completa CHECK (
 ```
 
 Los repositorios usan `PgSoftDeleteTable`, que filtra los activos por defecto.
+
+## Aislamiento por comercio
+
+Toda tabla comercial lleva `tenant_id` y, en su migración, `SELECT aplicar_aislamiento_por_comercio('tabla');`. Los casos de uso abren la transacción con `uow.run(..., { tenantId })`, y los permisos se verifican con `AccessControl.check(contexto, acción, recurso)`.

@@ -22,6 +22,107 @@ export type ApiError = {
   mensaje: string;
 };
 
+export type Message = {
+  mensaje: string;
+};
+
+export type Role = 'SA' | 'AC' | 'AS' | 'VO';
+
+export type SessionUser = {
+  id: string;
+  email: string;
+  nombre: string;
+  /**
+   * Nulo para el Super Administrador.
+   */
+  comercioId: string | null;
+  roles: Array<Role>;
+  /**
+   * Nulo hasta que el usuario elige su rol en el primer ingreso.
+   */
+  rolActivo: Role | null;
+  /**
+   * Sucursales del rol activo.
+   */
+  sucursales: Array<string>;
+};
+
+export type SessionTokens = {
+  tokenAcceso: string;
+  tokenAccesoVenceEn: string;
+  tokenRenovacion: string;
+  sesionVenceEn: string;
+  usuario: SessionUser;
+  requiereElegirRol: boolean;
+};
+
+export type ActiveRoleChange = {
+  tokenAcceso: string;
+  tokenAccesoVenceEn: string;
+  usuario: SessionUser;
+};
+
+export type LoginRequest = {
+  email: string;
+  contrasena: string;
+};
+
+export type RefreshRequest = {
+  tokenRenovacion: string;
+};
+
+export type ActiveRoleRequest = {
+  rol: Role;
+};
+
+export type EmailRequest = {
+  email: string;
+};
+
+export type TokenRequest = {
+  token: string;
+};
+
+export type ResetPasswordRequest = {
+  token: string;
+  nuevaContrasena: string;
+};
+
+export type PinRequest = {
+  pin: string;
+};
+
+export type AuthorizationType =
+  | 'descuento'
+  | 'credito'
+  | 'anulacion'
+  | 'reembolso'
+  | 'retiro'
+  | 'pago_por_verificar'
+  | 'cierre_forzado';
+
+export type AuthorizeRequest = {
+  tipo: AuthorizationType;
+  /**
+   * Operación concreta que se autoriza (por ejemplo, el id de la venta).
+   */
+  operacionRef: string;
+  sucursalId: string;
+  autorizanteId: string;
+  pin: string;
+};
+
+export type Authorization = {
+  id: string;
+  tipo: AuthorizationType;
+  operacionRef: string;
+  sucursalId: string;
+  solicitanteId: string;
+  autorizanteId: string;
+  emitidaEn: string;
+  usada: boolean;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -37,3 +138,396 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type LoginData = {
+  body: LoginRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/login';
+};
+
+export type LoginErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Credencial bloqueada por intentos fallidos.
+   */
+  423: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type LoginError = LoginErrors[keyof LoginErrors];
+
+export type LoginResponses = {
+  /**
+   * Sesión iniciada.
+   */
+  200: SessionTokens;
+};
+
+export type LoginResponse = LoginResponses[keyof LoginResponses];
+
+export type RefreshSessionData = {
+  body: RefreshRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/renovar';
+};
+
+export type RefreshSessionErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type RefreshSessionError = RefreshSessionErrors[keyof RefreshSessionErrors];
+
+export type RefreshSessionResponses = {
+  /**
+   * Sesión renovada.
+   */
+  200: SessionTokens;
+};
+
+export type RefreshSessionResponse = RefreshSessionResponses[keyof RefreshSessionResponses];
+
+export type LogoutData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/auth/cerrar-sesion';
+};
+
+export type LogoutErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+};
+
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
+
+export type LogoutResponses = {
+  /**
+   * Sesión cerrada.
+   */
+  204: void;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
+export type GetCurrentSessionData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/auth/sesion';
+};
+
+export type GetCurrentSessionErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+};
+
+export type GetCurrentSessionError = GetCurrentSessionErrors[keyof GetCurrentSessionErrors];
+
+export type GetCurrentSessionResponses = {
+  /**
+   * Datos de la sesión.
+   */
+  200: SessionUser;
+};
+
+export type GetCurrentSessionResponse =
+  GetCurrentSessionResponses[keyof GetCurrentSessionResponses];
+
+export type SelectActiveRoleData = {
+  body: ActiveRoleRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/rol-activo';
+};
+
+export type SelectActiveRoleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type SelectActiveRoleError = SelectActiveRoleErrors[keyof SelectActiveRoleErrors];
+
+export type SelectActiveRoleResponses = {
+  /**
+   * Rol activo cambiado.
+   */
+  200: ActiveRoleChange;
+};
+
+export type SelectActiveRoleResponse = SelectActiveRoleResponses[keyof SelectActiveRoleResponses];
+
+export type ResendEmailValidationData = {
+  body: EmailRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/validacion/reenviar';
+};
+
+export type ResendEmailValidationErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type ResendEmailValidationError =
+  ResendEmailValidationErrors[keyof ResendEmailValidationErrors];
+
+export type ResendEmailValidationResponses = {
+  /**
+   * Pedido recibido.
+   */
+  202: Message;
+};
+
+export type ResendEmailValidationResponse =
+  ResendEmailValidationResponses[keyof ResendEmailValidationResponses];
+
+export type ConfirmEmailData = {
+  body: TokenRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/validacion/confirmar';
+};
+
+export type ConfirmEmailErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type ConfirmEmailError = ConfirmEmailErrors[keyof ConfirmEmailErrors];
+
+export type ConfirmEmailResponses = {
+  /**
+   * Correo validado.
+   */
+  200: Message;
+};
+
+export type ConfirmEmailResponse = ConfirmEmailResponses[keyof ConfirmEmailResponses];
+
+export type RequestPasswordResetData = {
+  body: EmailRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/recuperacion/solicitar';
+};
+
+export type RequestPasswordResetErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type RequestPasswordResetError =
+  RequestPasswordResetErrors[keyof RequestPasswordResetErrors];
+
+export type RequestPasswordResetResponses = {
+  /**
+   * Pedido recibido.
+   */
+  202: Message;
+};
+
+export type RequestPasswordResetResponse =
+  RequestPasswordResetResponses[keyof RequestPasswordResetResponses];
+
+export type ResetPasswordData = {
+  body: ResetPasswordRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/recuperacion/restablecer';
+};
+
+export type ResetPasswordErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+  /**
+   * Se superó el límite de frecuencia.
+   */
+  429: ApiError;
+};
+
+export type ResetPasswordError = ResetPasswordErrors[keyof ResetPasswordErrors];
+
+export type ResetPasswordResponses = {
+  /**
+   * Contraseña cambiada.
+   */
+  200: Message;
+};
+
+export type ResetPasswordResponse = ResetPasswordResponses[keyof ResetPasswordResponses];
+
+export type SetAuthorizationPinData = {
+  body: PinRequest;
+  path?: never;
+  query?: never;
+  url: '/auth/pin';
+};
+
+export type SetAuthorizationPinErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetAuthorizationPinError = SetAuthorizationPinErrors[keyof SetAuthorizationPinErrors];
+
+export type SetAuthorizationPinResponses = {
+  /**
+   * PIN guardado.
+   */
+  204: void;
+};
+
+export type SetAuthorizationPinResponse =
+  SetAuthorizationPinResponses[keyof SetAuthorizationPinResponses];
+
+export type AuthorizeOperationData = {
+  body: AuthorizeRequest;
+  path?: never;
+  query?: never;
+  url: '/autorizaciones';
+};
+
+export type AuthorizeOperationErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Credencial bloqueada por intentos fallidos.
+   */
+  423: ApiError;
+};
+
+export type AuthorizeOperationError = AuthorizeOperationErrors[keyof AuthorizeOperationErrors];
+
+export type AuthorizeOperationResponses = {
+  /**
+   * Autorización emitida.
+   */
+  201: Authorization;
+};
+
+export type AuthorizeOperationResponse =
+  AuthorizeOperationResponses[keyof AuthorizeOperationResponses];
+
+export type GetAuthorizationData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/autorizaciones/{id}';
+};
+
+export type GetAuthorizationErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetAuthorizationError = GetAuthorizationErrors[keyof GetAuthorizationErrors];
+
+export type GetAuthorizationResponses = {
+  /**
+   * La autorización.
+   */
+  200: Authorization;
+};
+
+export type GetAuthorizationResponse = GetAuthorizationResponses[keyof GetAuthorizationResponses];

@@ -40,8 +40,16 @@ export async function withAppClient<T>(work: (client: pg.Client) => Promise<T>):
 }
 
 // Solo para preparar datos o estructuras de prueba que la aplicación no puede crear.
-export async function ownerQuery(sql: string): Promise<void> {
-  await getOwnerPool().query(sql);
+export async function ownerQuery(sql: string, values?: unknown[]): Promise<void> {
+  await getOwnerPool().query(sql, values);
+}
+
+// Lectura como dueño, sin seguridad a nivel de fila: para verificar lo que quedó en la base.
+export async function ownerSelect<R extends pg.QueryResultRow>(
+  sql: string,
+  values?: unknown[],
+): Promise<R[]> {
+  return (await getOwnerPool().query<R>(sql, values)).rows;
 }
 
 export async function truncateAllTables(): Promise<void> {

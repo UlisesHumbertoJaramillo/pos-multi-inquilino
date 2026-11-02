@@ -2,25 +2,25 @@
 
 > Generado por `npm run trazabilidad` desde las etiquetas `[RF-xxx]` de las pruebas. No se edita a mano.
 
-**Cobertura:** 2 de 169 RF con al menos una prueba.
+**Cobertura:** 20 de 169 RF con al menos una prueba.
 
 | RF | Sección | Requisito | Pruebas |
 | :-- | :-- | :-- | :-- |
-| RF-001 | §5.1 | El sistema deberá restringir toda lectura y escritura de datos comerciales al comercio (t… | — |
-| RF-002 | §5.1 | Si un usuario solicita datos o acciones de otro comercio, entonces el sistema deberá rech… | — |
-| RF-003 | §5.1 | El sistema deberá impedir que el SA consulte datos comerciales de cualquier comercio: ven… | — |
-| RF-004 | §5.1 | El sistema deberá verificar en cada acción que el rol activo del usuario la permite según… | — |
-| RF-005 | §5.1 | Cuando un usuario ingresa con un correo validado y la contraseña correcta, el sistema deb… | — |
-| RF-006 | §5.1 | Si un usuario intenta ingresar sin haber validado su correo, entonces el sistema deberá d… | — |
-| RF-007 | §5.1 | Cuando se solicita recuperar la contraseña de un correo, el sistema deberá enviar a ese c… | — |
-| RF-145 | §5.1 | Si se ingresan una contraseña o un PIN incorrectos 5 veces seguidas, entonces el sistema … | — |
-| RF-008 | §5.1 | Si se usa un token de recuperación vencido o ya utilizado, entonces el sistema deberá rec… | — |
-| RF-009 | §5.1 | Mientras una sesión permanezca inactiva más allá del tiempo configurado, el sistema deber… | — |
-| RF-010 | §5.1 | Donde un usuario tenga más de un rol asignado, el sistema deberá permitirle cambiar de ro… | — |
-| RF-011 | §5.1 | Cuando un usuario cambia de rol activo, el sistema deberá aplicar de inmediato los permis… | — |
-| RF-012 | §5.1 | El sistema deberá impedir que se asigne el rol SA junto con cualquier rol de un comercio … | — |
-| RF-141 | §5.1 | Cuando una operación exige el PIN o la credencial de un AS de la sucursal, el sistema deb… | — |
-| RF-113 | §5.1 | Si el PIN o la credencial de autorización pertenece al mismo usuario que solicitó la oper… | — |
+| RF-001 | §5.1 | El sistema deberá restringir toda lectura y escritura de datos comerciales al comercio (t… | [aislamiento-rls.int.test.ts](../apps/backend/test/integration/aislamiento-rls.int.test.ts): [RF-001] aislamiento por comercio en la base<br>[sesiones.int.test.ts](../apps/backend/test/integration/sesiones.int.test.ts): [RF-001] contexto de seguridad |
+| RF-002 | §5.1 | Si un usuario solicita datos o acciones de otro comercio, entonces el sistema deberá rech… | [autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-002] recurso de otro comercio |
+| RF-003 | §5.1 | El sistema deberá impedir que el SA consulte datos comerciales de cualquier comercio: ven… | [permissions.test.ts](../apps/backend/src/compartido/aplicacion/permissions.test.ts): [RF-003] el SA no accede a datos comerciales |
+| RF-004 | §5.1 | El sistema deberá verificar en cada acción que el rol activo del usuario la permite según… | [permissions.test.ts](../apps/backend/src/compartido/aplicacion/permissions.test.ts): [RF-004] matriz de permisos §5.18 |
+| RF-005 | §5.1 | Cuando un usuario ingresa con un correo validado y la contraseña correcta, el sistema deb… | [roles.test.ts](../apps/backend/src/modulos/identidad/dominio/roles.test.ts): [RF-005] rol activo al ingresar<br>[login.int.test.ts](../apps/backend/test/integration/login.int.test.ts): [RF-005] inicio de sesión<br>[sesiones.int.test.ts](../apps/backend/test/integration/sesiones.int.test.ts): [RF-005] [RF-010] [RF-011] rol activo<br>[LoginPage.test.tsx](../apps/frontend/src/pages/LoginPage.test.tsx): [RF-005] pantalla de inicio de sesión |
+| RF-006 | §5.1 | Si un usuario intenta ingresar sin haber validado su correo, entonces el sistema deberá d… | [login.int.test.ts](../apps/backend/test/integration/login.int.test.ts): [RF-006] correo sin validar<br>[recuperacion.int.test.ts](../apps/backend/test/integration/recuperacion.int.test.ts): [RF-006] validación de correo<br>[LoginPage.test.tsx](../apps/frontend/src/pages/LoginPage.test.tsx): [RF-006] con el correo sin validar ofrece reenviar la validación |
+| RF-007 | §5.1 | Cuando se solicita recuperar la contraseña de un correo, el sistema deberá enviar a ese c… | [recuperacion.int.test.ts](../apps/backend/test/integration/recuperacion.int.test.ts): [RF-007] [RF-008] recuperación de contraseña |
+| RF-145 | §5.1 | Si se ingresan una contraseña o un PIN incorrectos 5 veces seguidas, entonces el sistema … | [lockout.test.ts](../apps/backend/src/modulos/identidad/dominio/lockout.test.ts): [RF-145] bloqueo de credenciales<br>[autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-145] bloqueo del PIN<br>[login.int.test.ts](../apps/backend/test/integration/login.int.test.ts): [RF-145] bloqueo de la contraseña |
+| RF-008 | §5.1 | Si se usa un token de recuperación vencido o ya utilizado, entonces el sistema deberá rec… | [recuperacion.int.test.ts](../apps/backend/test/integration/recuperacion.int.test.ts): [RF-007] [RF-008] recuperación de contraseña |
+| RF-009 | §5.1 | Mientras una sesión permanezca inactiva más allá del tiempo configurado, el sistema deber… | [sesiones.int.test.ts](../apps/backend/test/integration/sesiones.int.test.ts): [RF-009] renovación, cierre y revocación de la sesión |
+| RF-010 | §5.1 | Donde un usuario tenga más de un rol asignado, el sistema deberá permitirle cambiar de ro… | [sesiones.int.test.ts](../apps/backend/test/integration/sesiones.int.test.ts): [RF-005] [RF-010] [RF-011] rol activo<br>[LoginPage.test.tsx](../apps/frontend/src/pages/LoginPage.test.tsx): [RF-010] rol activo en la interfaz |
+| RF-011 | §5.1 | Cuando un usuario cambia de rol activo, el sistema deberá aplicar de inmediato los permis… | [roles.test.ts](../apps/backend/src/modulos/identidad/dominio/roles.test.ts): [RF-011] ámbito del rol activo<br>[sesiones.int.test.ts](../apps/backend/test/integration/sesiones.int.test.ts): [RF-005] [RF-010] [RF-011] rol activo |
+| RF-012 | §5.1 | El sistema deberá impedir que se asigne el rol SA junto con cualquier rol de un comercio … | [identidad-esquema.int.test.ts](../apps/backend/test/integration/identidad-esquema.int.test.ts): [RF-012] el rol SA no se combina con roles de un comercio |
+| RF-141 | §5.1 | Cuando una operación exige el PIN o la credencial de un AS de la sucursal, el sistema deb… | [autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-141] PIN de autorización<br>[autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-113] [RF-141] autorización in situ |
+| RF-113 | §5.1 | Si el PIN o la credencial de autorización pertenece al mismo usuario que solicitó la oper… | [autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-113] [RF-141] autorización in situ |
 | RF-013 | §5.2 | El sistema deberá permitir al SA dar de alta, modificar y suspender comercios, y fijar en… | — |
 | RF-134 | §5.2 | Si se intenta cambiar la moneda de un comercio que ya tiene operaciones registradas, ento… | — |
 | RF-014 | §5.2 | Mientras un comercio esté suspendido, el sistema deberá impedir el acceso de todos sus us… | — |
@@ -31,8 +31,8 @@
 | RF-015 | §5.2 | El sistema deberá permitir al SA crear otros usuarios SA y el primer AC de cada comercio.… | — |
 | RF-016 | §5.2 | El sistema deberá mostrar al SA un panel técnico con alertas de servidores, de periférico… | — |
 | RF-017 | §5.2 | Cuando un AC o un AS envía un ticket de soporte, el sistema deberá ponerlo a disposición … | — |
-| RF-018 | §5.3 | Cuando se ejecuta una acción crítica (venta, anulación, devolución, movimiento o cierre d… | — |
-| RF-019 | §5.3 | El sistema deberá impedir que cualquier usuario modifique o elimine registros de auditorí… | — |
+| RF-018 | §5.3 | Cuando se ejecuta una acción crítica (venta, anulación, devolución, movimiento o cierre d… | [autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-018] [RF-019] auditoría comercial |
+| RF-019 | §5.3 | El sistema deberá impedir que cualquier usuario modifique o elimine registros de auditorí… | [autorizaciones.int.test.ts](../apps/backend/test/integration/autorizaciones.int.test.ts): [RF-018] [RF-019] auditoría comercial |
 | RF-020 | §5.3 | Cuando un usuario da de baja una entidad, el sistema deberá desactivarla de forma lógica … | [soft-delete.test.ts](../apps/backend/src/compartido/dominio/soft-delete.test.ts): [RF-020] baja lógica<br>[soft-delete.int.test.ts](../apps/backend/test/integration/soft-delete.int.test.ts): [RF-020] [RF-021] bajas lógicas |
 | RF-021 | §5.3 | El sistema deberá impedir la eliminación física de registros de operaciones, entidades y … | [privilegios.int.test.ts](../apps/backend/test/integration/privilegios.int.test.ts): [RF-021] privilegios de pos_app sobre las tablas nuevas<br>[soft-delete.int.test.ts](../apps/backend/test/integration/soft-delete.int.test.ts): [RF-020] [RF-021] bajas lógicas |
 | RF-148 | §5.3 | Si se intenta dar de baja un producto con reservas, compras o transferencias pendientes, … | — |
@@ -171,7 +171,7 @@
 | RF-109 | §5.16 | El sistema deberá generar a demanda un informe diario de ventas por sucursal, agrupado po… | — |
 | RF-110 | §5.16 | El sistema deberá mostrar al AC un dashboard con las métricas de D-50 y las alertas, cons… | — |
 | RF-111 | §5.16 | El sistema deberá mostrar al AS un dashboard con las métricas de D-50, las ventas diarias… | — |
-| RF-156 | §5.17 | El sistema deberá guardar contraseñas y PIN de forma irreversible, de modo que nadie, ni … | — |
+| RF-156 | §5.17 | El sistema deberá guardar contraseñas y PIN de forma irreversible, de modo que nadie, ni … | [crypto.test.ts](../apps/backend/src/modulos/identidad/adaptadores/crypto.test.ts): [RF-156] HashDeSecretos con argon2 |
 | RF-157 | §5.17 | El sistema deberá permitir operar el POS completo en pantallas táctiles de tablet, y la a… | — |
 | RF-158 | §5.17 | El sistema deberá comunicarse con la impresora de tickets, el lector de códigos y la term… | — |
 | RF-159 | §5.17 | El sistema deberá permitir asociar una imagen a cada producto. | — |

@@ -2,7 +2,7 @@ import { Writable } from 'node:stream';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createTestApp } from '../../../../test/support/app.js';
+import { bearer, createTestApp } from '../../../../test/support/app.js';
 import { createMemoryLogger } from '../../../../test/support/logger.js';
 import { ApplicationError } from '../../aplicacion/errors.js';
 import type { Logger } from '../../aplicacion/logger.js';
@@ -97,10 +97,12 @@ describe('manejo uniforme de errores', () => {
     expect(logger.entries).toHaveLength(0);
   });
 
-  it('una ruta inexistente responde 404 con el formato uniforme', async () => {
+  it('una ruta inexistente responde 404 con el formato uniforme, a un usuario autenticado', async () => {
     const app = createTestApp();
 
-    const response = await request(app).get('/no-existe');
+    const response = await request(app)
+      .get('/no-existe')
+      .set('Authorization', await bearer());
 
     expect(response.status).toBe(404);
     expect(response.body).toStrictEqual(NOT_FOUND_ERROR);
