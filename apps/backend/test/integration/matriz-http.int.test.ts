@@ -90,24 +90,36 @@ describe('[RF-003] un usuario de un comercio no ejecuta acciones del SA', () => 
 
 // Acceso cruzado: el AC del comercio B usa ids de recursos del A en cada ruta de organización que
 // recibe un id. Al agregar una ruta así, su caso se agrega solo.
-describe('[RF-001] acceso cruzado entre comercios en las rutas de organización', () => {
+describe('[RF-001] acceso cruzado entre comercios en las rutas de organización y catálogo', () => {
   const REGISTER_A = 'a2000000-0000-4000-8000-000000000001';
   const PAYMENT_METHOD_A = 'a3000000-0000-4000-8000-000000000001';
+  const CATEGORY_A = 'a4000000-0000-4000-8000-000000000001';
+  const PRODUCT_A = 'a5000000-0000-4000-8000-000000000001';
+  const PRICE_LIST_A = 'a6000000-0000-4000-8000-000000000001';
+  // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
     cajas: { resourceType: 'caja', id: REGISTER_A },
     usuarios: { resourceType: 'usuario', id: USERS.vo.id },
     'metodos-pago': { resourceType: 'metodo_pago', id: PAYMENT_METHOD_A },
+    categorias: { resourceType: 'categoria', id: CATEGORY_A },
+    productos: { resourceType: 'producto', id: PRODUCT_A },
+    combos: { resourceType: 'producto', id: PRODUCT_A },
+    listas: { resourceType: 'lista_precio', id: PRICE_LIST_A },
   };
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
-  const bodyFor = (path: string) =>
-    path.endsWith('/cajas')
-      ? { nombre: 'Intrusa' }
-      : path.endsWith('/roles')
-        ? { roles: [{ rol: 'VO', sucursalId: BRANCH_B }] }
-        : {};
+  const bodyFor = (path: string): object => {
+    if (path.endsWith('/cajas')) return { nombre: 'Intrusa' };
+    if (path.endsWith('/roles')) return { roles: [{ rol: 'VO', sucursalId: BRANCH_B }] };
+    if (path.endsWith('/precios/:productoId')) return { precio: '1' };
+    if (path.endsWith('/lista')) return { listaId: PRICE_LIST_A };
+    return {};
+  };
   const crossTenantRoutes = routesWithAction.filter(
-    (route) => route.path.startsWith('/organizacion/') && route.path.includes(':id'),
+    (route) =>
+      (route.path.startsWith('/organizacion/') || route.path.startsWith('/catalogo/')) &&
+      route.path.includes(':id'),
   );
 
   beforeEach(async () => {
@@ -121,10 +133,25 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización'
        VALUES ($1, $2, 'Efectivo', 'efectivo', 0, now())`,
       [PAYMENT_METHOD_A, TENANT_A],
     );
+    await ownerQuery(
+      `INSERT INTO categoria (id, tenant_id, nombre, tasa_iva, creado_en)
+       VALUES ($1, $2, 'Bebidas', 21, now())`,
+      [CATEGORY_A, TENANT_A],
+    );
+    await ownerQuery(
+      `INSERT INTO producto (id, tenant_id, tipo, nombre, categoria_id, costo, creado_en)
+       VALUES ($1, $2, 'simple', 'Agua', $3, 100, now())`,
+      [PRODUCT_A, TENANT_A, CATEGORY_A],
+    );
+    await ownerQuery(
+      `INSERT INTO lista_precio (id, tenant_id, nombre, regla, creado_en)
+       VALUES ($1, $2, 'Minorista', 'fijo', now())`,
+      [PRICE_LIST_A, TENANT_A],
+    );
   });
 
-  it('cubre todas las rutas de organización con id', () => {
-    expect(crossTenantRoutes.length).toBeGreaterThanOrEqual(9);
+  it('cubre todas las rutas de organización y catálogo con id', () => {
+    expect(crossTenantRoutes.length).toBeGreaterThanOrEqual(20);
     for (const route of crossTenantRoutes) {
       expect(FOREIGN[route.path.split('/')[2] ?? '']).toBeDefined();
     }
@@ -134,11 +161,12 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización'
     const target = FOREIGN[route.path.split('/')[2] ?? ''];
     if (!target) throw new Error(`Falta un recurso para ${route.path}`);
     const acB = (await signIn(api.app, USERS.acB.email)).authorization;
+    const path = route.path.replace(':id', target.id).replace(':productoId', PRODUCT_A);
 
-    const response = await request(api.app)
-      [route.method](route.path.replace(':id', target.id))
-      .set('Authorization', acB)
-      .send(bodyFor(route.path));
+    const pending = request(api.app)[route.method](path).set('Authorization', acB);
+    const response = route.binaryBody
+      ? await pending.set('Content-Type', 'image/png').send(PNG)
+      : await pending.send(bodyFor(route.path));
 
     expect(response.status).toBe(404);
     const audit = await ownerSelect<{ actor_id: string; detalle: unknown }>(
@@ -150,5 +178,19 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización'
         detalle: { resourceType: target.resourceType, resourceId: target.id },
       },
     ]);
+  });
+});
+
+describe('[RF-004] un AS no modifica precios ni el catálogo', () => {
+  const catalogWrites = routesWithAction.filter(
+    (route) => route.path.startsWith('/catalogo/') && route.method !== 'get',
+  );
+
+  it.each(catalogWrites)('el AS recibe 403 en $method $path', async (route) => {
+    const response = await request(api.app)
+      [route.method](concretePath(route.path))
+      .set('Authorization', authorization.get('AS') ?? '');
+
+    expect(response.status).toBe(403);
   });
 });

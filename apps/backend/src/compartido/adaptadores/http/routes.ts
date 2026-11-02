@@ -28,6 +28,9 @@ export interface HttpRoute {
   action?: Action;
   // Las rutas públicas tienen límite de frecuencia (Const. 17). Ponerlo en false solo para /salud.
   rateLimited?: boolean;
+  // Cuerpo binario (por ejemplo, una imagen) en lugar de JSON: tipos admitidos y tamaño máximo.
+  // Se lee después de verificar el permiso.
+  binaryBody?: { types: readonly string[]; maxBytes: number };
 }
 
 export function assertValidRoutes(routes: readonly HttpRoute[]): void {

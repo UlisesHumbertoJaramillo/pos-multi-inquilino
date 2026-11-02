@@ -25,6 +25,9 @@ import type { EmailSender } from './compartido/aplicacion/email-sender.js';
 import type { HttpRoute } from './compartido/adaptadores/http/routes.js';
 import type { FiscalPendingQuery } from './modulos/plataforma/aplicacion/ports.js';
 import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js';
+import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
+import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
+import { noProductDependenciesYet } from './modulos/catalogo/adaptadores/postgres.js';
 import {
   createOrganizationModule,
   type OrganizationModule,
@@ -78,6 +81,7 @@ export interface ApiDependencies {
   extraRoutes?: HttpRoute[];
   // Para las pruebas: dependencias simuladas de sucursales, cajas y usuarios (hasta las Fases 9 y 10).
   dependencies?: DependencyQuery;
+  productDependencies?: ProductDependencyQuery;
 }
 
 export interface Api {
@@ -85,6 +89,7 @@ export interface Api {
   identity: IdentityModule;
   platform: PlatformModule;
   organization: OrganizationModule;
+  catalog: CatalogModule;
   routes: HttpRoute[];
 }
 
@@ -139,10 +144,20 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     accounts: identity.useCases.registerAccount,
   });
 
+  const catalog = createCatalogModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    productDependencies: deps.productDependencies ?? noProductDependenciesYet,
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
     ...organization.routes,
+    ...catalog.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -156,5 +171,5 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity, platform, organization, routes };
+  return { app, identity, platform, organization, catalog, routes };
 }

@@ -29,12 +29,13 @@ Todo puerto o adaptador nuevo o modificado se registra aquí en el mismo cambio 
 
 ## Dominio compartido
 
-| Pieza              | Ubicación                           | Qué hace                                                                                                       |
-| :----------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------- |
-| Roles              | `compartido/dominio/roles.ts`       | SA, AC, AS y VO.                                                                                               |
-| `DomainError`      | `compartido/dominio/errors.ts`      | Violación de una regla de negocio. El adaptador HTTP la responde con 409.                                      |
-| Bajas lógicas      | `compartido/dominio/soft-delete.ts` | Estado de activación y regla de baja: no se da de baja dos veces (RF-020).                                     |
-| `ApplicationError` | `compartido/aplicacion/errors.ts`   | Errores esperados de los casos de uso (no encontrado, sin permiso, conflicto, bloqueado...), sin conocer HTTP. |
+| Pieza              | Ubicación                           | Qué hace                                                                                                             |
+| :----------------- | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
+| Roles              | `compartido/dominio/roles.ts`       | SA, AC, AS y VO.                                                                                                     |
+| `DomainError`      | `compartido/dominio/errors.ts`      | Violación de una regla de negocio. El adaptador HTTP la responde con 409.                                            |
+| Bajas lógicas      | `compartido/dominio/soft-delete.ts` | Estado de activación y regla de baja: no se da de baja dos veces (RF-020).                                           |
+| Decimales          | `compartido/dominio/decimal.ts`     | Dinero, tasas y cantidades como enteros con escala fija (BigInt), sin coma flotante, con redondeo comercial (AD-08). |
+| `ApplicationError` | `compartido/aplicacion/errors.ts`   | Errores esperados de los casos de uso (no encontrado, sin permiso, conflicto, bloqueado...), sin conocer HTTP.       |
 
 ## Módulo de identidad (`modulos/identidad`)
 
@@ -85,20 +86,34 @@ Todo puerto o adaptador nuevo o modificado se registra aquí en el mismo cambio 
 | `tenantSessionIdlePolicy`                | adaptador (`policies.ts`)      | Implementa `SessionPolicy` leyendo `parametro_comercio` en una transacción independiente (`PgDatabase.runIndependent`).                                                            |
 | Rutas HTTP                               | adaptador (`http.ts`)          | `/organizacion/*` (solo el AC de su comercio).                                                                                                                                     |
 
+## Módulo de catálogo (`modulos/catalogo`)
+
+| Pieza                    | Capa                         | Qué hace                                                                                                                                                                                      |
+| :----------------------- | :--------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catálogo                 | dominio (`catalog.ts`)       | Categoría con tasa de IVA, producto (simple o combo), costo sin IVA, código de barras y tipo de imagen verificado por su contenido (RF-029, RF-130, RF-159).                                  |
+| Reglas de lista          | dominio (`price-rules.ts`)   | Precio fijo, porcentaje sobre el costo y por categoría: precio final = costo × (1 + margen) × (1 + IVA), redondeado al centavo (RF-028, RF-120). Decisión de negocio confirmada en la Fase 4. |
+| Combos                   | dominio (`combos.ts`)        | Componentes simples con cantidad, disponibilidad si todos están activos (RF-149) y stock derivado del mínimo de sus componentes (RF-052).                                                     |
+| `PriceBook`              | aplicación (`price-book.ts`) | Materializa `precio_lista` y escribe `historial_precio` ante un alta, un cambio de costo, de categoría, de regla o del precio de un combo (RF-032). Respeta los precios cargados a mano.      |
+| Casos de uso             | aplicación                   | `products.ts` (categorías, productos e imágenes), `combos.ts` y `price-lists.ts` (listas, precios a mano, hoja de precios para imprimir y lista activa de cada sucursal, RF-033, RF-119).     |
+| `ProductDependencyQuery` | aplicación (`ports.ts`)      | Reservas, compras y transferencias pendientes que impiden dar de baja un producto (D-42). Adaptador provisorio `noProductDependenciesYet` hasta las Fases 5, 6 y 9.                           |
+| Otros puertos            | aplicación (`ports.ts`)      | `CategoryRepository`, `ProductRepository`, `ComboRepository`, `PriceListRepository`, `PriceRepository`, `BranchPriceLists`.                                                                   |
+| Repositorios PostgreSQL  | adaptador (`postgres.ts`)    | Tablas aisladas por comercio. La imagen va en `producto_imagen`, aparte, para no leerla al listar. `PgBranchPriceLists` escribe la columna `lista_precio_activa_id` de `sucursal`.            |
+| Rutas HTTP               | adaptador (`http.ts`)        | `/catalogo/*` (solo el AC). La imagen se sube como cuerpo binario (`binaryBody` del registro de rutas) y se descarga con el token.                                                            |
+
 ## Adaptadores de entrada
 
-| Adaptador              | Ubicación                                               | Qué hace                                                                                                                                                                          |
-| :--------------------- | :------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Aplicación HTTP        | `app.ts`, `server.ts`, `composition.ts`                 | Raíces de composición de la API. `composition.ts` arma módulos y adaptadores, y falla al arrancar con una configuración insegura (por ejemplo, correo por consola en producción). |
-| Registro de rutas      | `compartido/adaptadores/http/routes.ts`                 | Toda ruta es protegida por defecto; solo puede ser pública con un motivo de la lista blanca de AD-22.                                                                             |
-| Autenticación HTTP     | `compartido/adaptadores/http/authentication.ts`         | Verifica el token de acceso de toda solicitud que no sea pública, incluidas las rutas inexistentes (Const. 16).                                                                   |
-| Validación de entradas | `compartido/adaptadores/http/validation.ts`             | Valida cuerpos y parámetros con zod, sin repetir los valores recibidos en el error (Const. 17).                                                                                   |
-| Seguridad HTTP         | `compartido/adaptadores/http/security.ts`               | Cabeceras de seguridad, CORS limitado al frontend y límite del cuerpo JSON (T-016). Las rutas públicas tienen límite de frecuencia por IP (`app.ts`).                             |
-| Errores HTTP           | `compartido/adaptadores/http/errors.ts`                 | Convierte errores en `{codigo, mensaje}` sin detalles internos (T-015).                                                                                                           |
-| Documentación          | `compartido/adaptadores/http/docs.ts`                   | Swagger UI en `/docs`, solo en desarrollo (T-013).                                                                                                                                |
-| Proceso worker         | `worker.ts`                                             | Raíz de composición del worker: ejecuta trabajos programados y despacha el outbox. `npm run worker`.                                                                              |
-| `PgJobWorker`          | `compartido/adaptadores/jobs/pg-job-worker.ts`          | Toma trabajos con `FOR UPDATE SKIP LOCKED`, reintenta con espera creciente y retoma los abandonados (T-021).                                                                      |
-| `PgOutboxDispatcher`   | `compartido/adaptadores/outbox/pg-outbox-dispatcher.ts` | Entrega cada evento a su manejador y lo marca procesado en la misma transacción. Nunca descarta un evento (T-022).                                                                |
+| Adaptador              | Ubicación                                               | Qué hace                                                                                                                                                                                                      |
+| :--------------------- | :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Aplicación HTTP        | `app.ts`, `server.ts`, `composition.ts`                 | Raíces de composición de la API. `composition.ts` arma módulos y adaptadores, y falla al arrancar con una configuración insegura (por ejemplo, correo por consola en producción).                             |
+| Registro de rutas      | `compartido/adaptadores/http/routes.ts`                 | Toda ruta es protegida por defecto; solo puede ser pública con un motivo de la lista blanca de AD-22. Una ruta puede declarar un cuerpo binario (tipos y tamaño), que se lee después de verificar el permiso. |
+| Autenticación HTTP     | `compartido/adaptadores/http/authentication.ts`         | Verifica el token de acceso de toda solicitud que no sea pública, incluidas las rutas inexistentes (Const. 16).                                                                                               |
+| Validación de entradas | `compartido/adaptadores/http/validation.ts`             | Valida cuerpos y parámetros con zod, sin repetir los valores recibidos en el error (Const. 17).                                                                                                               |
+| Seguridad HTTP         | `compartido/adaptadores/http/security.ts`               | Cabeceras de seguridad, CORS limitado al frontend y límite del cuerpo JSON (T-016). Las rutas públicas tienen límite de frecuencia por IP (`app.ts`).                                                         |
+| Errores HTTP           | `compartido/adaptadores/http/errors.ts`                 | Convierte errores en `{codigo, mensaje}` sin detalles internos (T-015).                                                                                                                                       |
+| Documentación          | `compartido/adaptadores/http/docs.ts`                   | Swagger UI en `/docs`, solo en desarrollo (T-013).                                                                                                                                                            |
+| Proceso worker         | `worker.ts`                                             | Raíz de composición del worker: ejecuta trabajos programados y despacha el outbox. `npm run worker`.                                                                                                          |
+| `PgJobWorker`          | `compartido/adaptadores/jobs/pg-job-worker.ts`          | Toma trabajos con `FOR UPDATE SKIP LOCKED`, reintenta con espera creciente y retoma los abandonados (T-021).                                                                                                  |
+| `PgOutboxDispatcher`   | `compartido/adaptadores/outbox/pg-outbox-dispatcher.ts` | Entrega cada evento a su manejador y lo marca procesado en la misma transacción. Nunca descarta un evento (T-022).                                                                                            |
 
 ## Adaptadores de salida
 
@@ -121,4 +136,4 @@ Todo puerto o adaptador nuevo o modificado se registra aquí en el mismo cambio 
 
 ## Seguridad a nivel de fila
 
-La migración `aislamiento_por_comercio` define la política plantilla: una tabla comercial se aísla con `SELECT aplicar_aislamiento_por_comercio('tabla')`. Hoy la usan `auditoria_comercial`, `credencial_autorizacion`, `autorizacion`, `sucursal`, `caja`, `parametro_comercio` y `metodo_pago`. Las tablas de plataforma e identidad (`comercio`, `usuario`, `usuario_rol`, tokens, intentos, `auditoria_tecnica`, `trabajo_programado`, `outbox`) no la usan.
+La migración `aislamiento_por_comercio` define la política plantilla: una tabla comercial se aísla con `SELECT aplicar_aislamiento_por_comercio('tabla')`. Hoy la usan `auditoria_comercial`, `credencial_autorizacion`, `autorizacion`, `sucursal`, `caja`, `parametro_comercio`, `metodo_pago`, `categoria`, `producto`, `producto_imagen`, `combo_componente`, `lista_precio`, `precio_lista` e `historial_precio` (esta última, sin UPDATE para la aplicación). Las tablas de plataforma e identidad (`comercio`, `usuario`, `usuario_rol`, tokens, intentos, `auditoria_tecnica`, `trabajo_programado`, `outbox`) no la usan.

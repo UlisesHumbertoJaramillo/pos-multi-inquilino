@@ -48,5 +48,9 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (response.status === 204) {
     return undefined as T;
   }
+  // Un archivo (por ejemplo, la imagen de un producto) llega como Blob.
+  if (!(response.headers.get('Content-Type') ?? '').includes('json')) {
+    return (await response.blob()) as T;
+  }
   return (await response.json()) as T;
 }

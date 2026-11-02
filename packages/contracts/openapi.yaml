@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.4.0
+  version: 0.5.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -21,6 +21,8 @@ tags:
     description: Tickets de soporte del comercio.
   - name: Organización
     description: Sucursales, cajas, usuarios, parámetros y métodos de pago del comercio (AC).
+  - name: Catálogo
+    description: Categorías con IVA, productos con imagen, combos, listas de precios y su asignación a sucursales (AC).
 paths:
   /salud:
     get:
@@ -1209,6 +1211,500 @@ paths:
         '403': *a5
         '404': *a9
         '409': *a7
+  /catalogo/categorias:
+    get:
+      operationId: listCategories
+      tags:
+        - Catálogo
+      summary: Categorías
+      description: RF-029. Solo el AC de su comercio.
+      parameters: &a18
+        - name: incluirBajas
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+      responses:
+        '200':
+          description: Categorías.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': &a12
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a13
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createCategory
+      tags:
+        - Catálogo
+      summary: Crear una categoría
+      description: Con su tasa de IVA (RF-029). Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+      responses:
+        '201':
+          description: Categoría creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400': &a14
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+        '409': &a15
+          $ref: '#/components/responses/Conflict'
+  /catalogo/categorias/{id}:
+    patch:
+      operationId: updateCategory
+      tags:
+        - Catálogo
+      summary: Modificar una categoría
+      description: Un cambio de IVA recalcula los precios de sus productos. Solo el AC de su comercio.
+      parameters: &a16
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+      responses:
+        '200':
+          description: Categoría modificada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': &a17
+          $ref: '#/components/responses/NotFound'
+        '409': *a15
+  /catalogo/categorias/{id}/baja:
+    post:
+      operationId: deactivateCategory
+      tags:
+        - Catálogo
+      summary: Dar de baja una categoría
+      description: Se rechaza si tiene productos activos. Solo el AC de su comercio.
+      parameters: *a16
+      responses:
+        '204': &a19
+          description: Hecho.
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/productos:
+    get:
+      operationId: listProducts
+      tags:
+        - Catálogo
+      summary: Productos y combos
+      description: 'Con su disponibilidad: un combo con un componente dado de baja no se puede vender (RF-149). Solo el AC de su comercio.'
+      parameters: *a18
+      responses:
+        '200':
+          description: Productos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+    post:
+      operationId: createProduct
+      tags:
+        - Catálogo
+      summary: Crear un producto
+      description: El código de barras es único entre los productos activos (RF-130, RF-131). El costo se carga sin IVA. Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Producto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '409': *a15
+  /catalogo/productos/{id}:
+    patch:
+      operationId: updateProduct
+      tags:
+        - Catálogo
+      summary: Modificar un producto
+      description: Un cambio de costo o de categoría recalcula sus precios y queda en el historial (RF-032). Solo el AC de su comercio.
+      parameters: *a16
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Producto modificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/productos/{id}/baja:
+    post:
+      operationId: deactivateProduct
+      tags:
+        - Catálogo
+      summary: Dar de baja un producto o un combo
+      description: Se rechaza con reservas, compras o transferencias pendientes (D-42). Sus combos dejan de estar disponibles (RF-149). Solo el AC de su comercio.
+      parameters: *a16
+      responses:
+        '204': *a19
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/productos/{id}/imagen:
+    put:
+      operationId: setProductImage
+      tags:
+        - Catálogo
+      summary: Cargar la imagen de un producto
+      description: PNG, JPEG o WebP de hasta 1 MB; el tipo se verifica por el contenido (RF-159). Solo el AC de su comercio.
+      parameters: *a16
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: &a20
+              type: string
+              format: binary
+          image/jpeg:
+            schema: *a20
+          image/webp:
+            schema: *a20
+      responses:
+        '204': *a19
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    get:
+      operationId: getProductImage
+      tags:
+        - Catálogo
+      summary: Descargar la imagen de un producto
+      description: RF-159. Solo el AC de su comercio.
+      parameters: *a16
+      responses:
+        '200':
+          description: La imagen.
+          content:
+            image/png:
+              schema: *a20
+            image/jpeg:
+              schema: *a20
+            image/webp:
+              schema: *a20
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /catalogo/combos:
+    get:
+      operationId: listCombos
+      tags:
+        - Catálogo
+      summary: Combos
+      description: Con sus componentes y su disponibilidad (RF-049, RF-149). Solo el AC de su comercio.
+      parameters: *a18
+      responses:
+        '200':
+          description: Combos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Combo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+    post:
+      operationId: createCombo
+      tags:
+        - Catálogo
+      summary: Crear un combo
+      description: Precio único y componentes simples con sus cantidades; un combo no puede ser componente (RF-049). Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComboCreateRequest'
+      responses:
+        '201':
+          description: Combo creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '409': *a15
+  /catalogo/combos/{id}:
+    patch:
+      operationId: updateCombo
+      tags:
+        - Catálogo
+      summary: Modificar un combo
+      description: Los componentes enviados reemplazan a los anteriores. Solo el AC de su comercio.
+      parameters: *a16
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComboUpdateRequest'
+      responses:
+        '200':
+          description: Combo modificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/listas:
+    get:
+      operationId: listPriceLists
+      tags:
+        - Catálogo
+      summary: Listas de precios
+      description: RF-028. Solo el AC de su comercio.
+      parameters: *a18
+      responses:
+        '200':
+          description: Listas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+    post:
+      operationId: createPriceList
+      tags:
+        - Catálogo
+      summary: Crear una lista de precios
+      description: Con su regla; los precios se calculan al crearla (RF-028). Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListCreateRequest'
+      responses:
+        '201':
+          description: Lista creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceList'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '409': *a15
+  /catalogo/listas/{id}:
+    patch:
+      operationId: updatePriceList
+      tags:
+        - Catálogo
+      summary: Modificar una lista de precios
+      description: Un cambio de regla recalcula sus precios (RF-032). Solo el AC de su comercio.
+      parameters: *a16
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PriceListUpdateRequest'
+      responses:
+        '200':
+          description: Lista modificada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceList'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/listas/{id}/baja:
+    post:
+      operationId: deactivatePriceList
+      tags:
+        - Catálogo
+      summary: Dar de baja una lista de precios
+      description: Se rechaza si es la activa de alguna sucursal. Solo el AC de su comercio.
+      parameters: *a16
+      responses:
+        '204': *a19
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/listas/{id}/precios:
+    get:
+      operationId: getPriceSheet
+      tags:
+        - Catálogo
+      summary: Precios de una lista
+      description: Precio final con IVA de cada producto, para consultarla e imprimirla (RF-033). Solo el AC de su comercio.
+      parameters: *a16
+      responses:
+        '200':
+          description: Precios.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceSheet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a12
+        '403': *a13
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /catalogo/listas/{id}/precios/{productoId}:
+    put:
+      operationId: setManualPrice
+      tags:
+        - Catálogo
+      summary: Cargar el precio de un producto
+      description: Solo en una lista de precio fijo; null lo quita. Queda en el historial. Solo el AC de su comercio.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: productoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualPriceRequest'
+      responses:
+        '204': *a19
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
+  /catalogo/sucursales:
+    get:
+      operationId: listBranchPriceLists
+      tags:
+        - Catálogo
+      summary: Lista activa de cada sucursal
+      description: RF-119. Solo el AC de su comercio.
+      responses:
+        '200':
+          description: Sucursales.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BranchPriceList'
+        '401': *a12
+        '403': *a13
+  /catalogo/sucursales/{id}/lista:
+    put:
+      operationId: assignBranchPriceList
+      tags:
+        - Catálogo
+      summary: Asignar la lista activa de una sucursal
+      description: Cada sucursal tiene una única lista activa, que usan todos sus POS (RF-119). Solo el AC de su comercio.
+      parameters: *a16
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchPriceListRequest'
+      responses:
+        '200':
+          description: Sucursal actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchPriceList'
+        '400': *a14
+        '401': *a12
+        '403': *a13
+        '404': *a17
+        '409': *a15
 components:
   securitySchemes:
     tokenAcceso:
@@ -1255,6 +1751,12 @@ components:
             $ref: '#/components/schemas/ApiError'
     TooManyRequests:
       description: Se superó el límite de frecuencia.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    PayloadTooLarge:
+      description: El cuerpo de la solicitud supera el tamaño permitido.
       content:
         application/json:
           schema:
@@ -1532,7 +2034,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a12
+        id: &a21
           type: string
           format: uuid
         nombre:
@@ -1552,7 +2054,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a13
+        creadoEn: &a22
           type: string
           format: date-time
     TenantCreateRequest:
@@ -1626,7 +2128,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a12
+        usuarioId: *a21
         email:
           type: string
     TicketStatus:
@@ -1647,16 +2149,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a12
-        comercioId: *a12
+        id: *a21
+        comercioId: *a21
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a13
-        actualizadoEn: *a13
+        creadoEn: *a22
+        actualizadoEn: *a22
     TicketMessage:
       type: object
       additionalProperties: false
@@ -1666,13 +2168,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a12
+        id: *a21
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a13
+        creadoEn: *a22
     TicketDetail:
       type: object
       additionalProperties: false
@@ -1686,16 +2188,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a12
-        comercioId: *a12
+        id: *a21
+        comercioId: *a21
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a13
-        actualizadoEn: *a13
+        creadoEn: *a22
+        actualizadoEn: *a22
         mensajes:
           type: array
           items:
@@ -1737,17 +2239,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a12
-        momento: *a13
+        id: *a21
+        momento: *a22
         tipoEvento:
           type: string
         actorId:
-          type: &a14
+          type: &a23
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a14
+          type: *a23
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -1782,7 +2284,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a13
+              momento: *a22
               metodo:
                 type: string
               ruta:
@@ -1829,7 +2331,7 @@ components:
         - direccion
         - activa
       properties:
-        id: &a15
+        id: &a24
           type: string
           format: uuid
         nombre:
@@ -1850,8 +2352,8 @@ components:
         - puntoVentaFiscal
         - activa
       properties:
-        id: *a15
-        sucursalId: *a15
+        id: *a24
+        sucursalId: *a24
         nombre:
           type: string
         puntoVentaFiscal:
@@ -1876,7 +2378,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a15
+            id: *a24
             nombre:
               type: string
         sucursales:
@@ -1891,7 +2393,7 @@ components:
               - activa
               - cajas
             properties:
-              id: *a15
+              id: *a24
               nombre:
                 type: string
               direccion:
@@ -1990,7 +2492,7 @@ components:
         - correoValidado
         - roles
       properties:
-        id: *a15
+        id: *a24
         email:
           type: string
         nombre:
@@ -2114,7 +2616,7 @@ components:
         - recargoPct
         - activo
       properties:
-        id: *a15
+        id: *a24
         nombre:
           type: string
         tipo:
@@ -2153,3 +2655,356 @@ components:
           maxLength: 60
         recargoPct:
           type: string
+    Category:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - tasaIva
+        - activa
+      properties:
+        id: &a26
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        tasaIva:
+          type: string
+          pattern: ^-?\d+\.\d{4}$
+          description: Porcentaje con cuatro decimales.
+        activa:
+          type: boolean
+    CategoryCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - tasaIva
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 80
+        tasaIva: &a25
+          type: string
+          description: Número decimal, por ejemplo "21" o "10.5".
+    CategoryUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 80
+        tasaIva: *a25
+    Product:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tipo
+        - nombre
+        - codigoBarras
+        - categoriaId
+        - costo
+        - precioCombo
+        - activo
+        - tieneImagen
+        - disponible
+      properties:
+        id: *a26
+        tipo: &a29
+          type: string
+          enum:
+            - simple
+            - combo
+        nombre: &a30
+          type: string
+        codigoBarras: &a31
+          type:
+            - string
+            - 'null'
+        categoriaId: &a32
+          type:
+            - string
+            - 'null'
+          format: uuid
+        costo: &a33
+          type: &a27
+            - string
+            - 'null'
+          pattern: ^\d+\.\d{2}$
+          description: Costo sin IVA; null en un combo.
+        precioCombo: &a34
+          type: *a27
+          pattern: ^\d+\.\d{2}$
+          description: Precio único del combo; null en un producto simple.
+        activo: &a35
+          type: boolean
+        tieneImagen: &a36
+          type: boolean
+        disponible: &a37
+          type: boolean
+          description: 'Se puede vender: activo y, si es combo, con todos sus componentes activos.'
+    ProductCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - categoriaId
+        - costo
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigoBarras: &a28
+          type:
+            - string
+            - 'null'
+          maxLength: 48
+          description: 'Letras, números y guiones. Vacío o null: sin código.'
+        categoriaId: *a26
+        costo: *a25
+    ProductUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigoBarras: *a28
+        categoriaId: *a26
+        costo: *a25
+    ComboComponent:
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - nombre
+        - cantidad
+        - activo
+      properties:
+        productoId: *a26
+        nombre:
+          type: string
+        cantidad:
+          type: string
+          pattern: ^\d+\.\d{3}$
+          description: Cantidad con tres decimales.
+        activo:
+          type: boolean
+    Combo:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tipo
+        - nombre
+        - codigoBarras
+        - categoriaId
+        - costo
+        - precioCombo
+        - activo
+        - tieneImagen
+        - disponible
+        - componentes
+      properties:
+        id: *a26
+        tipo: *a29
+        nombre: *a30
+        codigoBarras: *a31
+        categoriaId: *a32
+        costo: *a33
+        precioCombo: *a34
+        activo: *a35
+        tieneImagen: *a36
+        disponible: *a37
+        componentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboComponent'
+    ComboCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - precio
+        - componentes
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigoBarras: *a28
+        precio: *a25
+        componentes:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: &a38
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - cantidad
+            properties:
+              productoId: *a26
+              cantidad: *a25
+    ComboUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        codigoBarras: *a28
+        precio: *a25
+        componentes:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: *a38
+    PriceRuleType:
+      type: string
+      enum:
+        - fijo
+        - porcentaje_costo
+        - por_grupo
+      description: 'fijo: precio cargado a mano. porcentaje_costo: costo × (1 + margen) × (1 + IVA). por_grupo: igual, con un margen por categoría.'
+    PriceRule:
+      type: object
+      additionalProperties: false
+      required:
+        - tipo
+      properties:
+        tipo:
+          $ref: '#/components/schemas/PriceRuleType'
+        porcentaje:
+          type: string
+          description: Margen sobre el costo. Obligatorio salvo en precio fijo.
+        porCategoria:
+          type: object
+          additionalProperties:
+            type: string
+          propertyNames:
+            format: uuid
+          description: Margen por categoría (regla por grupo).
+    PriceList:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - regla
+        - activa
+      properties:
+        id: *a26
+        nombre:
+          type: string
+        regla:
+          $ref: '#/components/schemas/PriceRule'
+        activa:
+          type: boolean
+    PriceListCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - regla
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 80
+        regla:
+          $ref: '#/components/schemas/PriceRule'
+    PriceListUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 80
+        regla:
+          $ref: '#/components/schemas/PriceRule'
+    PriceSheet:
+      type: object
+      additionalProperties: false
+      required:
+        - lista
+        - precios
+      properties:
+        lista:
+          $ref: '#/components/schemas/PriceList'
+        precios:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - nombre
+              - codigoBarras
+              - tipo
+              - categoria
+              - precioFinal
+            properties:
+              productoId: *a26
+              nombre:
+                type: string
+              codigoBarras:
+                type:
+                  - string
+                  - 'null'
+              tipo:
+                type: string
+                enum:
+                  - simple
+                  - combo
+              categoria:
+                type:
+                  - string
+                  - 'null'
+              precioFinal:
+                type: *a27
+                pattern: ^\d+\.\d{2}$
+                description: Precio final con IVA; null si no tiene precio en esta lista.
+    ManualPriceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - precio
+      properties:
+        precio:
+          type:
+            - string
+            - 'null'
+          description: Precio final con IVA, o null para quitarlo.
+    BranchPriceList:
+      type: object
+      additionalProperties: false
+      required:
+        - sucursalId
+        - nombre
+        - listaId
+      properties:
+        sucursalId: *a26
+        nombre:
+          type: string
+        listaId: *a32
+    BranchPriceListRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - listaId
+      properties:
+        listaId: *a26

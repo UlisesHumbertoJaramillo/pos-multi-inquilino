@@ -11,6 +11,10 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RoleSelectPage } from './pages/RoleSelectPage';
 import { ValidateEmailPage } from './pages/ValidateEmailPage';
 import { ActivateAccountPage } from './pages/ActivateAccountPage';
+import { CatalogPage } from './pages/catalog/CatalogPage';
+import { CombosPage } from './pages/catalog/CombosPage';
+import { PriceListPrintPage } from './pages/catalog/PriceListPrintPage';
+import { PriceListsPage } from './pages/catalog/PriceListsPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -52,6 +56,10 @@ export const routes: RouteObject[] = [
   { path: '/admin/estructura', element: acOnly(<StructurePage />) },
   { path: '/admin/usuarios', element: acOnly(<UsersPage />) },
   { path: '/admin/parametros', element: acOnly(<SettingsPage />) },
+  { path: '/admin/catalogo', element: acOnly(<CatalogPage />) },
+  { path: '/admin/combos', element: acOnly(<CombosPage />) },
+  { path: '/admin/listas', element: acOnly(<PriceListsPage />) },
+  { path: '/admin/listas/:id/imprimir', element: acOnly(<PriceListPrintPage />) },
   {
     path: '/pos',
     element: (

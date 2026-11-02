@@ -13,6 +13,7 @@ import type { HttpRoute } from '../../src/compartido/adaptadores/http/routes.js'
 import { createApi, type Api } from '../../src/composition.js';
 import type { FiscalPendingQuery } from '../../src/modulos/plataforma/aplicacion/ports.js';
 import type { DependencyQuery } from '../../src/modulos/organizacion/aplicacion/ports.js';
+import type { ProductDependencyQuery } from '../../src/modulos/catalogo/aplicacion/ports.js';
 import { ManualClock } from './clock.js';
 import { createTestDatabase } from './database.js';
 import { MemoryEmailSender } from './email.js';
@@ -73,6 +74,7 @@ export interface TestApiOptions {
   fiscalPending?: FiscalPendingQuery;
   extraRoutes?: HttpRoute[];
   dependencies?: DependencyQuery;
+  productDependencies?: ProductDependencyQuery;
 }
 
 export function createTestApi(options: TestApiOptions = {}): TestApi {
@@ -98,6 +100,7 @@ export function createTestApi(options: TestApiOptions = {}): TestApi {
       ...(options.fiscalPending ? { fiscalPending: options.fiscalPending } : {}),
       ...(options.extraRoutes ? { extraRoutes: options.extraRoutes } : {}),
       ...(options.dependencies ? { dependencies: options.dependencies } : {}),
+      ...(options.productDependencies ? { productDependencies: options.productDependencies } : {}),
     },
   );
   return { ...api, db, clock, email, close: () => db.close() };

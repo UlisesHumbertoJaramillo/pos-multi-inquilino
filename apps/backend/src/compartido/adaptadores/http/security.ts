@@ -56,3 +56,12 @@ export function corsPolicy(options: Pick<SecurityOptions, 'allowedOrigins'>): Re
 export function jsonBody(): RequestHandler {
   return express.json({ limit: MAX_JSON_BODY });
 }
+
+// Cuerpo binario de una ruta que lo declara: solo los tipos admitidos y hasta el tamaño indicado.
+// Con otro tipo de contenido, el cuerpo queda vacío y la ruta lo rechaza.
+export function binaryBody(options: {
+  types: readonly string[];
+  maxBytes: number;
+}): RequestHandler {
+  return express.raw({ type: [...options.types], limit: options.maxBytes });
+}

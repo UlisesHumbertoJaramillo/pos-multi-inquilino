@@ -3,6 +3,7 @@
 import pg from 'pg';
 import { Argon2SecretHasher } from '../src/modulos/identidad/adaptadores/crypto.js';
 import { DEFAULT_PARAMETERS as P } from '../src/modulos/organizacion/dominio/parameters.js';
+import { seedCatalog } from './db-seed-catalog.js';
 import { ownerConnection } from './db/migrations.js';
 
 const DEMO_PASSWORD = 'Demo-2026!';
@@ -226,18 +227,23 @@ async function main(): Promise<void> {
         );
       }
     }
+    const catalog = await seedCatalog(
+      client,
+      { tenantId: DEMO.tenantId, branches: DEMO.branches },
+      NOW,
+    );
     // Los intentos fallidos de pruebas anteriores no deben dejar bloqueadas las cuentas demo.
     await client.query("DELETE FROM intento_acceso WHERE identificador LIKE '%@demo.local'");
     await client.query('COMMIT');
+    console.log(
+      `Datos de demostración cargados: comercio Demo, ${String(BRANCHES.length)} sucursales, ${String(USERS.length)} usuarios y ${String(catalog.products)} productos.`,
+    );
   } catch (error: unknown) {
     await client.query('ROLLBACK');
     throw error;
   } finally {
     await client.end();
   }
-  console.log(
-    `Datos de demostración cargados: comercio Demo, ${String(BRANCHES.length)} sucursales y ${String(USERS.length)} usuarios.`,
-  );
   console.log('Las credenciales están en el README (sección "Usuarios de demostración").');
 }
 

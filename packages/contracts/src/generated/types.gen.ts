@@ -384,6 +384,219 @@ export type PaymentMethodUpdateRequest = {
   recargoPct?: string;
 };
 
+export type Category = {
+  id: string;
+  nombre: string;
+  /**
+   * Porcentaje con cuatro decimales.
+   */
+  tasaIva: string;
+  activa: boolean;
+};
+
+export type CategoryCreateRequest = {
+  nombre: string;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  tasaIva: string;
+};
+
+export type CategoryUpdateRequest = {
+  nombre?: string;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  tasaIva?: string;
+};
+
+export type Product = {
+  id: string;
+  tipo: 'simple' | 'combo';
+  nombre: string;
+  codigoBarras: string | null;
+  categoriaId: string | null;
+  /**
+   * Costo sin IVA; null en un combo.
+   */
+  costo: string | null;
+  /**
+   * Precio único del combo; null en un producto simple.
+   */
+  precioCombo: string | null;
+  activo: boolean;
+  tieneImagen: boolean;
+  /**
+   * Se puede vender: activo y, si es combo, con todos sus componentes activos.
+   */
+  disponible: boolean;
+};
+
+export type ProductCreateRequest = {
+  nombre: string;
+  /**
+   * Letras, números y guiones. Vacío o null: sin código.
+   */
+  codigoBarras?: string | null;
+  categoriaId: string;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  costo: string;
+};
+
+export type ProductUpdateRequest = {
+  nombre?: string;
+  /**
+   * Letras, números y guiones. Vacío o null: sin código.
+   */
+  codigoBarras?: string | null;
+  categoriaId?: string;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  costo?: string;
+};
+
+export type ComboComponent = {
+  productoId: string;
+  nombre: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  cantidad: string;
+  activo: boolean;
+};
+
+export type Combo = {
+  id: string;
+  tipo: 'simple' | 'combo';
+  nombre: string;
+  codigoBarras: string | null;
+  categoriaId: string | null;
+  /**
+   * Costo sin IVA; null en un combo.
+   */
+  costo: string | null;
+  /**
+   * Precio único del combo; null en un producto simple.
+   */
+  precioCombo: string | null;
+  activo: boolean;
+  tieneImagen: boolean;
+  /**
+   * Se puede vender: activo y, si es combo, con todos sus componentes activos.
+   */
+  disponible: boolean;
+  componentes: Array<ComboComponent>;
+};
+
+export type ComboCreateRequest = {
+  nombre: string;
+  /**
+   * Letras, números y guiones. Vacío o null: sin código.
+   */
+  codigoBarras?: string | null;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  precio: string;
+  componentes: Array<{
+    productoId: string;
+    /**
+     * Número decimal, por ejemplo "21" o "10.5".
+     */
+    cantidad: string;
+  }>;
+};
+
+export type ComboUpdateRequest = {
+  nombre?: string;
+  /**
+   * Letras, números y guiones. Vacío o null: sin código.
+   */
+  codigoBarras?: string | null;
+  /**
+   * Número decimal, por ejemplo "21" o "10.5".
+   */
+  precio?: string;
+  componentes?: Array<{
+    productoId: string;
+    /**
+     * Número decimal, por ejemplo "21" o "10.5".
+     */
+    cantidad: string;
+  }>;
+};
+
+/**
+ * fijo: precio cargado a mano. porcentaje_costo: costo × (1 + margen) × (1 + IVA). por_grupo: igual, con un margen por categoría.
+ */
+export type PriceRuleType = 'fijo' | 'porcentaje_costo' | 'por_grupo';
+
+export type PriceRule = {
+  tipo: PriceRuleType;
+  /**
+   * Margen sobre el costo. Obligatorio salvo en precio fijo.
+   */
+  porcentaje?: string;
+  /**
+   * Margen por categoría (regla por grupo).
+   */
+  porCategoria?: {
+    [key: string]: string;
+  };
+};
+
+export type PriceList = {
+  id: string;
+  nombre: string;
+  regla: PriceRule;
+  activa: boolean;
+};
+
+export type PriceListCreateRequest = {
+  nombre: string;
+  regla: PriceRule;
+};
+
+export type PriceListUpdateRequest = {
+  nombre?: string;
+  regla?: PriceRule;
+};
+
+export type PriceSheet = {
+  lista: PriceList;
+  precios: Array<{
+    productoId: string;
+    nombre: string;
+    codigoBarras: string | null;
+    tipo: 'simple' | 'combo';
+    categoria: string | null;
+    /**
+     * Precio final con IVA; null si no tiene precio en esta lista.
+     */
+    precioFinal: string | null;
+  }>;
+};
+
+export type ManualPriceRequest = {
+  /**
+   * Precio final con IVA, o null para quitarlo.
+   */
+  precio: string | null;
+};
+
+export type BranchPriceList = {
+  sucursalId: string;
+  nombre: string;
+  listaId: string | null;
+};
+
+export type BranchPriceListRequest = {
+  listaId: string;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -2236,3 +2449,840 @@ export type DeactivatePaymentMethodResponses = {
 
 export type DeactivatePaymentMethodResponse =
   DeactivatePaymentMethodResponses[keyof DeactivatePaymentMethodResponses];
+
+export type ListCategoriesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/catalogo/categorias';
+};
+
+export type ListCategoriesErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListCategoriesError = ListCategoriesErrors[keyof ListCategoriesErrors];
+
+export type ListCategoriesResponses = {
+  /**
+   * Categorías.
+   */
+  200: Array<Category>;
+};
+
+export type ListCategoriesResponse = ListCategoriesResponses[keyof ListCategoriesResponses];
+
+export type CreateCategoryData = {
+  body: CategoryCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/catalogo/categorias';
+};
+
+export type CreateCategoryErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateCategoryError = CreateCategoryErrors[keyof CreateCategoryErrors];
+
+export type CreateCategoryResponses = {
+  /**
+   * Categoría creada.
+   */
+  201: Category;
+};
+
+export type CreateCategoryResponse = CreateCategoryResponses[keyof CreateCategoryResponses];
+
+export type UpdateCategoryData = {
+  body: CategoryUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/categorias/{id}';
+};
+
+export type UpdateCategoryErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateCategoryError = UpdateCategoryErrors[keyof UpdateCategoryErrors];
+
+export type UpdateCategoryResponses = {
+  /**
+   * Categoría modificada.
+   */
+  200: Category;
+};
+
+export type UpdateCategoryResponse = UpdateCategoryResponses[keyof UpdateCategoryResponses];
+
+export type DeactivateCategoryData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/categorias/{id}/baja';
+};
+
+export type DeactivateCategoryErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateCategoryError = DeactivateCategoryErrors[keyof DeactivateCategoryErrors];
+
+export type DeactivateCategoryResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateCategoryResponse =
+  DeactivateCategoryResponses[keyof DeactivateCategoryResponses];
+
+export type ListProductsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/catalogo/productos';
+};
+
+export type ListProductsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListProductsError = ListProductsErrors[keyof ListProductsErrors];
+
+export type ListProductsResponses = {
+  /**
+   * Productos.
+   */
+  200: Array<Product>;
+};
+
+export type ListProductsResponse = ListProductsResponses[keyof ListProductsResponses];
+
+export type CreateProductData = {
+  body: ProductCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/catalogo/productos';
+};
+
+export type CreateProductErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateProductError = CreateProductErrors[keyof CreateProductErrors];
+
+export type CreateProductResponses = {
+  /**
+   * Producto creado.
+   */
+  201: Product;
+};
+
+export type CreateProductResponse = CreateProductResponses[keyof CreateProductResponses];
+
+export type UpdateProductData = {
+  body: ProductUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/productos/{id}';
+};
+
+export type UpdateProductErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateProductError = UpdateProductErrors[keyof UpdateProductErrors];
+
+export type UpdateProductResponses = {
+  /**
+   * Producto modificado.
+   */
+  200: Product;
+};
+
+export type UpdateProductResponse = UpdateProductResponses[keyof UpdateProductResponses];
+
+export type DeactivateProductData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/productos/{id}/baja';
+};
+
+export type DeactivateProductErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateProductError = DeactivateProductErrors[keyof DeactivateProductErrors];
+
+export type DeactivateProductResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateProductResponse =
+  DeactivateProductResponses[keyof DeactivateProductResponses];
+
+export type GetProductImageData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/productos/{id}/imagen';
+};
+
+export type GetProductImageErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetProductImageError = GetProductImageErrors[keyof GetProductImageErrors];
+
+export type GetProductImageResponses = {
+  /**
+   * La imagen.
+   */
+  200: Blob | File;
+};
+
+export type GetProductImageResponse = GetProductImageResponses[keyof GetProductImageResponses];
+
+export type SetProductImageData = {
+  body: Blob | File;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/productos/{id}/imagen';
+};
+
+export type SetProductImageErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type SetProductImageError = SetProductImageErrors[keyof SetProductImageErrors];
+
+export type SetProductImageResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type SetProductImageResponse = SetProductImageResponses[keyof SetProductImageResponses];
+
+export type ListCombosData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/catalogo/combos';
+};
+
+export type ListCombosErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListCombosError = ListCombosErrors[keyof ListCombosErrors];
+
+export type ListCombosResponses = {
+  /**
+   * Combos.
+   */
+  200: Array<Combo>;
+};
+
+export type ListCombosResponse = ListCombosResponses[keyof ListCombosResponses];
+
+export type CreateComboData = {
+  body: ComboCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/catalogo/combos';
+};
+
+export type CreateComboErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateComboError = CreateComboErrors[keyof CreateComboErrors];
+
+export type CreateComboResponses = {
+  /**
+   * Combo creado.
+   */
+  201: Combo;
+};
+
+export type CreateComboResponse = CreateComboResponses[keyof CreateComboResponses];
+
+export type UpdateComboData = {
+  body: ComboUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/combos/{id}';
+};
+
+export type UpdateComboErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateComboError = UpdateComboErrors[keyof UpdateComboErrors];
+
+export type UpdateComboResponses = {
+  /**
+   * Combo modificado.
+   */
+  200: Combo;
+};
+
+export type UpdateComboResponse = UpdateComboResponses[keyof UpdateComboResponses];
+
+export type ListPriceListsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/catalogo/listas';
+};
+
+export type ListPriceListsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListPriceListsError = ListPriceListsErrors[keyof ListPriceListsErrors];
+
+export type ListPriceListsResponses = {
+  /**
+   * Listas.
+   */
+  200: Array<PriceList>;
+};
+
+export type ListPriceListsResponse = ListPriceListsResponses[keyof ListPriceListsResponses];
+
+export type CreatePriceListData = {
+  body: PriceListCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/catalogo/listas';
+};
+
+export type CreatePriceListErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreatePriceListError = CreatePriceListErrors[keyof CreatePriceListErrors];
+
+export type CreatePriceListResponses = {
+  /**
+   * Lista creada.
+   */
+  201: PriceList;
+};
+
+export type CreatePriceListResponse = CreatePriceListResponses[keyof CreatePriceListResponses];
+
+export type UpdatePriceListData = {
+  body: PriceListUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/listas/{id}';
+};
+
+export type UpdatePriceListErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdatePriceListError = UpdatePriceListErrors[keyof UpdatePriceListErrors];
+
+export type UpdatePriceListResponses = {
+  /**
+   * Lista modificada.
+   */
+  200: PriceList;
+};
+
+export type UpdatePriceListResponse = UpdatePriceListResponses[keyof UpdatePriceListResponses];
+
+export type DeactivatePriceListData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/listas/{id}/baja';
+};
+
+export type DeactivatePriceListErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivatePriceListError = DeactivatePriceListErrors[keyof DeactivatePriceListErrors];
+
+export type DeactivatePriceListResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivatePriceListResponse =
+  DeactivatePriceListResponses[keyof DeactivatePriceListResponses];
+
+export type GetPriceSheetData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/listas/{id}/precios';
+};
+
+export type GetPriceSheetErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetPriceSheetError = GetPriceSheetErrors[keyof GetPriceSheetErrors];
+
+export type GetPriceSheetResponses = {
+  /**
+   * Precios.
+   */
+  200: PriceSheet;
+};
+
+export type GetPriceSheetResponse = GetPriceSheetResponses[keyof GetPriceSheetResponses];
+
+export type SetManualPriceData = {
+  body: ManualPriceRequest;
+  path: {
+    id: string;
+    productoId: string;
+  };
+  query?: never;
+  url: '/catalogo/listas/{id}/precios/{productoId}';
+};
+
+export type SetManualPriceErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetManualPriceError = SetManualPriceErrors[keyof SetManualPriceErrors];
+
+export type SetManualPriceResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type SetManualPriceResponse = SetManualPriceResponses[keyof SetManualPriceResponses];
+
+export type ListBranchPriceListsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/catalogo/sucursales';
+};
+
+export type ListBranchPriceListsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListBranchPriceListsError =
+  ListBranchPriceListsErrors[keyof ListBranchPriceListsErrors];
+
+export type ListBranchPriceListsResponses = {
+  /**
+   * Sucursales.
+   */
+  200: Array<BranchPriceList>;
+};
+
+export type ListBranchPriceListsResponse =
+  ListBranchPriceListsResponses[keyof ListBranchPriceListsResponses];
+
+export type AssignBranchPriceListData = {
+  body: BranchPriceListRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/catalogo/sucursales/{id}/lista';
+};
+
+export type AssignBranchPriceListErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type AssignBranchPriceListError =
+  AssignBranchPriceListErrors[keyof AssignBranchPriceListErrors];
+
+export type AssignBranchPriceListResponses = {
+  /**
+   * Sucursal actualizada.
+   */
+  200: BranchPriceList;
+};
+
+export type AssignBranchPriceListResponse =
+  AssignBranchPriceListResponses[keyof AssignBranchPriceListResponses];

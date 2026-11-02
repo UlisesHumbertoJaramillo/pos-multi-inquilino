@@ -11,6 +11,7 @@ import { createErrorHandler, notFoundHandler } from './compartido/adaptadores/ht
 import { assertValidRoutes, type HttpRoute } from './compartido/adaptadores/http/routes.js';
 import {
   corsPolicy,
+  binaryBody,
   jsonBody,
   securityHeaders,
   type SecurityOptions,
@@ -98,8 +99,11 @@ export function createApp(options: AppOptions): Express {
   const protectedRouter = Router();
   for (const route of routes.filter((r) => r.public === undefined)) {
     const { action } = route;
+    const handlers = route.binaryBody
+      ? [binaryBody(route.binaryBody), route.handler]
+      : [route.handler];
     if (action === undefined) {
-      protectedRouter[route.method](route.path, route.handler);
+      protectedRouter[route.method](route.path, ...handlers);
       continue;
     }
     const access = options.access;
@@ -112,7 +116,7 @@ export function createApp(options: AppOptions): Express {
           next();
         }, next);
       },
-      route.handler,
+      ...handlers,
     );
   }
   app.use(protectedRouter);

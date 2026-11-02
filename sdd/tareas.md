@@ -185,37 +185,37 @@
 
 ## Fase 4 — Catálogo y precios
 
-- [ ] **T-072** · Crear las migraciones `categoria`, `producto` (con código de barras único entre los activos), `combo_componente`, `lista_precio`, `precio_lista` e `historial_precio`. · RF: RF-131 · Dep: T-060
+- [x] **T-072** · Crear las migraciones `categoria`, `producto` (con código de barras único entre los activos), `combo_componente`, `lista_precio`, `precio_lista` e `historial_precio`. · RF: RF-131 · Dep: T-060
   - Hecho cuando: las migraciones aplican y la seguridad a nivel de fila cubre las tablas nuevas.
-- [ ] **T-073** · ABM de categorías con tasa de IVA. · RF: RF-029 · Dep: T-072
+- [x] **T-073** · ABM de categorías con tasa de IVA. · RF: RF-029 · Dep: T-072
   - Hecho cuando: en /docs, el AC crea "Bebidas 21%" y "Libros 0%".
-- [ ] **T-074** · ABM de productos con imagen. · RF: RF-130, RF-159 · Dep: T-073
+- [x] **T-074** · ABM de productos con imagen. · RF: RF-130, RF-159 · Dep: T-073
   - Hecho cuando: en /docs se crea un producto con imagen y la imagen se puede descargar.
-- [ ] **T-075** · Rechazar un código de barras repetido entre productos activos. · RF: RF-131 · Dep: T-074
+- [x] **T-075** · Rechazar un código de barras repetido entre productos activos. · RF: RF-131 · Dep: T-074
   - Hecho cuando: una prueba verifica que repetir el código se rechaza, y que reutilizarlo tras la baja del producto anterior se permite.
-- [ ] **T-076** · Dominio: reglas de lista (precio fijo, porcentaje sobre costo y por grupo), con una tabla de casos esperados. · RF: RF-028 · Dep: T-011
+- [x] **T-076** · Dominio: reglas de lista (precio fijo, porcentaje sobre costo y por grupo), con una tabla de casos esperados. · RF: RF-028 · Dep: T-011
   - Hecho cuando: pasan las pruebas parametrizadas de las tres reglas.
-- [ ] **T-077** · ABM de listas de precios y materialización de `precio_lista`. · RF: RF-028 · Dep: T-076, T-074
+- [x] **T-077** · ABM de listas de precios y materialización de `precio_lista`. · RF: RF-028 · Dep: T-076, T-074
   - Hecho cuando: al crear una lista "costo + 40%", cada producto tiene su precio calculado.
-- [ ] **T-078** · Recalcular los precios ante un cambio de costo o de regla y registrar el historial. · RF: RF-032 · Dep: T-077
+- [x] **T-078** · Recalcular los precios ante un cambio de costo o de regla y registrar el historial. · RF: RF-032 · Dep: T-077
   - Hecho cuando: una prueba cambia el costo de un producto y su precio de lista cambia, con la fila de historial correspondiente.
-- [ ] **T-079** · Asignar la lista activa de cada sucursal. · RF: RF-119 · Dep: T-077, T-061
+- [x] **T-079** · Asignar la lista activa de cada sucursal. · RF: RF-119 · Dep: T-077, T-061
   - Hecho cuando: cada sucursal demo tiene su lista y una sucursal no puede tener dos.
-- [ ] **T-080** · Definir combos con sus componentes y su precio único. · RF: RF-049 · Dep: T-074
+- [x] **T-080** · Definir combos con sus componentes y su precio único. · RF: RF-049 · Dep: T-074
   - Hecho cuando: se crea un combo de dos productos y no se puede usar un combo como componente.
-- [ ] **T-081** · Dominio: disponibilidad de un combo como el mínimo, redondeado hacia abajo, del stock de cada componente dividido por la cantidad que requiere. · RF: RF-052 · Dep: T-011
+- [x] **T-081** · Dominio: disponibilidad de un combo como el mínimo, redondeado hacia abajo, del stock de cada componente dividido por la cantidad que requiere. · RF: RF-052 · Dep: T-011
   - Hecho cuando: pasa una tabla de casos con componentes que requieren distintas cantidades.
-- [ ] **T-082** · Dejar no disponible un combo cuando se da de baja uno de sus componentes. · RF: RF-149 · Dep: T-080, T-023
+- [x] **T-082** · Dejar no disponible un combo cuando se da de baja uno de sus componentes. · RF: RF-149 · Dep: T-080, T-023
   - Hecho cuando: una prueba da de baja un componente y el combo deja de poder venderse.
-- [ ] **T-083** · Vista imprimible de una lista de precios. · RF: RF-033 · Dep: T-077
+- [x] **T-083** · Vista imprimible de una lista de precios. · RF: RF-033 · Dep: T-077
   - Hecho cuando: https://localhost:5173/admin/listas/:id/imprimir abre una vista lista para imprimir.
-- [ ] **T-084** · Actualizar el seed con categorías, unos 20 productos con código de barras, dos listas y un combo. · RF: — · Dep: T-079, T-080
+- [x] **T-084** · Actualizar el seed con categorías, unos 20 productos con código de barras, dos listas y un combo. · RF: — · Dep: T-079, T-080
   - Hecho cuando: el AC demo ve el catálogo completo.
-- [ ] **T-085** · Frontend del AC: categorías y productos. · RF: RF-029, RF-130 · Dep: T-084, T-070
+- [x] **T-085** · Frontend del AC: categorías y productos. · RF: RF-029, RF-130 · Dep: T-084, T-070
   - Hecho cuando: desde /admin se crea un producto con imagen.
-- [ ] **T-086** · Frontend del AC: listas de precios, asignación a sucursales, combos e impresión. · RF: RF-028, RF-049, RF-119 · Dep: T-085, T-083
+- [x] **T-086** · Frontend del AC: listas de precios, asignación a sucursales, combos e impresión. · RF: RF-028, RF-049, RF-119 · Dep: T-085, T-083
   - Hecho cuando: desde /admin se cambia la regla de una lista y se ven los precios recalculados.
-- [ ] **T-087** · Sumar las acciones de catálogo al generador de la matriz. · RF: RF-004 · Dep: T-086
+- [x] **T-087** · Sumar las acciones de catálogo al generador de la matriz. · RF: RF-004 · Dep: T-086
   - Hecho cuando: las pruebas generadas pasan y un AS no puede modificar precios.
 
 ## Fase 5 — Inventario
