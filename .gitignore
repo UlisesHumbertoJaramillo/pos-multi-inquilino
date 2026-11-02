@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secretos y certificados locales (Const. 17)
+.env
+.env.*
+!.env.example
+*.pem
+certs/

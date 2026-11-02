@@ -1,0 +1,37 @@
+{
+  "name": "@pos/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "db:setup": "tsx scripts/db-setup.ts",
+    "certs": "tsx scripts/certs.ts",
+    "dev:check": "tsx scripts/dev-check.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts up",
+    "db:migrate:down": "tsx scripts/db-migrate.ts down",
+    "db:reset": "tsx scripts/db-migrate.ts reset",
+    "db:migration:new": "tsx scripts/db-migrate.ts new",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@pos/contracts": "*",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
+    "node-pg-migrate": "^9.0.0",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.5"
+  }
+}

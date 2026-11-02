@@ -1,0 +1,2 @@
+# Finales de línea LF en el repositorio, para que Prettier no falle en Windows.
+* text=auto eol=lf

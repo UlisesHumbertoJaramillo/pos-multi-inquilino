@@ -1,0 +1,47 @@
+{
+  "name": "pos-multi-inquilino",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "npm run dev:check -w @pos/backend --silent && concurrently --kill-others --names api,web --prefix-colors blue,magenta \"npm run dev -w @pos/backend\" \"npm run dev -w @pos/frontend\"",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:setup": "npm run db:setup -w @pos/backend",
+    "certs": "npm run certs -w @pos/backend",
+    "db:migrate": "npm run db:migrate -w @pos/backend --",
+    "db:migrate:down": "npm run db:migrate:down -w @pos/backend --",
+    "db:reset": "npm run db:reset -w @pos/backend --",
+    "db:migration:new": "npm run db:migration:new -w @pos/backend --",
+    "test": "npm run test --workspaces --if-present",
+    "lint:arch": "depcruise apps/backend/src apps/frontend/src --config .dependency-cruiser.cjs",
+    "contracts:generate": "npm run generate -w @pos/contracts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
+    "dependency-cruiser": "^18.7.0",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.72.1"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1",
+    "glob": "^14.0.2",
+    "js-yaml": "4.3.2",
+    "@hey-api/json-schema-ref-parser": {
+      "js-yaml": "4.3.2"
+    }
+  }
+}
