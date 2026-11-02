@@ -59,23 +59,23 @@
   - Hecho cuando: https://localhost:3000/docs muestra `/salud`, y los tipos generados compilan en el frontend.
 - [x] **T-014** · Validar en las pruebas que las respuestas de la API cumplan la especificación OpenAPI. · RF: — (AD-21) · Dep: T-010, T-013
   - Hecho cuando: si `/salud` devuelve un campo no documentado, la prueba falla.
-- [ ] **T-015** · Implementar el manejo uniforme de errores, sin detalles internos, y un logger que redacta contraseñas, PIN, tokens y datos de pago. · RF: — (Const. 17) · Dep: T-005
+- [x] **T-015** · Implementar el manejo uniforme de errores, sin detalles internos, y un logger que redacta contraseñas, PIN, tokens y datos de pago. · RF: — (Const. 17) · Dep: T-005
   - Hecho cuando: un error forzado responde `{codigo, mensaje}` sin traza, y una prueba verifica que un token no aparece en el log.
-- [ ] **T-016** · Configurar cabeceras de seguridad, CORS limitado al origen del frontend y límite de tamaño de las solicitudes. · RF: — (Const. 17) · Dep: T-005
+- [x] **T-016** · Configurar cabeceras de seguridad, CORS limitado al origen del frontend y límite de tamaño de las solicitudes. · RF: — (Const. 17) · Dep: T-005
   - Hecho cuando: `curl -I` muestra las cabeceras de seguridad y una solicitud desde un origen no permitido se rechaza.
-- [ ] **T-017** · Crear `docs/arquitectura` con los diagramas de contexto y de contenedores, el catálogo de puertos y adaptadores (vacío) y las decisiones AD-01 a AD-26. · RF: — (Const. 14) · Dep: T-011
+- [x] **T-017** · Crear `docs/arquitectura` con los diagramas de contexto y de contenedores, el catálogo de puertos y adaptadores (vacío) y las decisiones AD-01 a AD-26. · RF: — (Const. 14) · Dep: T-011
   - Hecho cuando: los archivos existen y el README los enlaza.
-- [ ] **T-018** · Escribir el script de trazabilidad, que lee las etiquetas `[RF-xxx]` de las pruebas y genera `sdd/trazabilidad.md`, con un modo estricto que falla si falta algún RF. · RF: — (criterio 1) · Dep: T-010
+- [x] **T-018** · Escribir el script de trazabilidad, que lee las etiquetas `[RF-xxx]` de las pruebas y genera `sdd/trazabilidad.md`, con un modo estricto que falla si falta algún RF. · RF: — (criterio 1) · Dep: T-010
   - Hecho cuando: genera una tabla de 169 filas, la mayoría todavía vacía.
-- [ ] **T-019** · Crear `npm run verify` (formato, lint, tipos, arquitectura, pruebas, auditoría de dependencias y búsqueda de secretos) y conectarlo a CI. · RF: — (Const. 8, 17) · Dep: T-002, T-010, T-011, T-018
+- [x] **T-019** · Crear `npm run verify` (formato, lint, tipos, arquitectura, pruebas, auditoría de dependencias y búsqueda de secretos) y conectarlo a CI. · RF: — (Const. 8, 17) · Dep: T-002, T-010, T-011, T-018
   - Hecho cuando: `npm run verify` pasa, y un secreto falso agregado a un archivo lo hace fallar.
-- [ ] **T-020** · Implementar los puertos transversales `Reloj` (con versión simulada para pruebas), `GeneradorDeId` y `UnidadDeTrabajo` (transacción en PostgreSQL). · RF: — · Dep: T-010, T-011
+- [x] **T-020** · Implementar los puertos transversales `Reloj` (con versión simulada para pruebas), `GeneradorDeId` y `UnidadDeTrabajo` (transacción en PostgreSQL). · RF: — · Dep: T-010, T-011
   - Hecho cuando: una prueba de integración verifica que un rollback de la unidad de trabajo deshace una inserción.
-- [ ] **T-021** · Implementar los trabajos programados: tabla `trabajo_programado`, worker con bloqueo que omite filas tomadas y el script `npm run worker`. · RF: — (AD-19) · Dep: T-020
+- [x] **T-021** · Implementar los trabajos programados: tabla `trabajo_programado`, worker con bloqueo que omite filas tomadas y el script `npm run worker`. · RF: — (AD-19) · Dep: T-020
   - Hecho cuando: una prueba con dos workers verifica que el mismo trabajo no se ejecuta dos veces.
-- [ ] **T-022** · Implementar el outbox: tabla y despachador. · RF: — (AD-07) · Dep: T-021
+- [x] **T-022** · Implementar el outbox: tabla y despachador. · RF: — (AD-07) · Dep: T-021
   - Hecho cuando: un evento escrito en una transacción revertida no se despacha, y uno escrito en una transacción confirmada sí.
-- [ ] **T-023** · Implementar la base reutilizable de bajas lógicas (`is_active`, `desactivado_en`, `desactivado_por`), con filtro de activos por defecto en los repositorios. · RF: RF-020, RF-021 · Dep: T-020
+- [x] **T-023** · Implementar la base reutilizable de bajas lógicas (`is_active`, `desactivado_en`, `desactivado_por`), con filtro de activos por defecto en los repositorios. · RF: RF-020, RF-021 · Dep: T-020
   - Hecho cuando: una prueba da de baja una entidad de ejemplo, que deja de listarse pero sigue en la base con su historial.
 
 ## Fase 1 — Identidad, aislamiento y permisos

@@ -9,3 +9,6 @@ coverage/
 !.env.example
 *.pem
 certs/
+
+# Carpeta temporal de contracts:check
+.generated-check/

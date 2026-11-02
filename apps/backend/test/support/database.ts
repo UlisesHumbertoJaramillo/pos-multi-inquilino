@@ -2,6 +2,7 @@
 // Todas apuntan a pos_test. La conexión de pos_owner existe solo aquí, para vaciar tablas entre pruebas.
 import pg from 'pg';
 import { MIGRATIONS_TABLE, ownerConnection } from '../../scripts/db/migrations.js';
+import { PgDatabase } from '../../src/compartido/adaptadores/postgres/pg-database.js';
 
 export const TEST_DATABASE = 'pos_test';
 const APP_ROLE = 'pos_app';
@@ -21,6 +22,11 @@ export function appConnection(): pg.ClientConfig {
     throw new Error('Falta DB_APP_PASSWORD. Corré `npm run db:setup`.');
   }
   return { ...owner, user: APP_ROLE, password };
+}
+
+// PgDatabase con el rol de la aplicación sobre pos_test. La prueba la cierra al terminar.
+export function createTestDatabase(): PgDatabase {
+  return new PgDatabase(new pg.Pool({ ...appConnection(), max: 5 }));
 }
 
 export async function withAppClient<T>(work: (client: pg.Client) => Promise<T>): Promise<T> {

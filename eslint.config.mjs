@@ -32,6 +32,15 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['scripts/**/*.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    // La aplicación registra solo con el puerto Logger, que oculta datos sensibles (Const. 17).
+    files: ['apps/backend/src/**/*.ts'],
+    rules: { 'no-console': 'error' },
+  },
+  {
     files: ['apps/frontend/src/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat.recommended],
     languageOptions: { globals: globals.browser },

@@ -5,7 +5,8 @@ import { defineConfig } from '@hey-api/openapi-ts';
 export default defineConfig({
   input: 'openapi.yaml',
   output: {
-    path: 'src/generated',
+    // contracts:check genera en otra carpeta para comparar.
+    path: process.env.CONTRACTS_OUTPUT ?? 'src/generated',
     entryFile: false,
     // El backend resuelve módulos con NodeNext, que exige la extensión.
     module: { extension: '.js' },

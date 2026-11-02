@@ -1,8 +1,9 @@
 // Verifica el entorno local antes de `npm run dev` (T-007).
 // PostgreSQL corre como servicio de Windows: este script no lo levanta, solo comprueba que responda.
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
+import { MIGRATIONS_DIR, MIGRATIONS_TABLE, ownerConnection } from './db/migrations.js';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 const ENV_PATH = resolve(ROOT, '.env');
@@ -74,7 +75,41 @@ async function main(): Promise<void> {
     await client.end().catch(() => undefined);
   }
 
-  console.log(`✔ PostgreSQL responde en ${host}:${String(port)} y los certificados están listos.`);
+  const pending = await pendingMigrations();
+  if (pending.length > 0) {
+    fail(
+      `Hay ${String(pending.length)} migración(es) sin aplicar en ${DEV_DATABASE}: ${pending.join(', ')}.`,
+      'Corré `npm run db:migrate`.',
+    );
+  }
+
+  console.log(
+    `✔ PostgreSQL responde en ${host}:${String(port)}, las migraciones están al día y los certificados están listos.`,
+  );
+}
+
+// Migraciones del repositorio que todavía no figuran en la tabla de control de pos_dev.
+async function pendingMigrations(): Promise<string[]> {
+  const files = readdirSync(MIGRATIONS_DIR)
+    .filter((file) => file.endsWith('.sql'))
+    .map((file) => file.replace(/\.sql$/, ''));
+  const owner = new pg.Client({
+    ...ownerConnection(DEV_DATABASE),
+    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+  });
+  try {
+    await owner.connect();
+    const table = await owner.query<{ exists: boolean }>(
+      'SELECT to_regclass($1) IS NOT NULL AS exists',
+      [MIGRATIONS_TABLE],
+    );
+    if (!table.rows[0]?.exists) return files;
+    const applied = await owner.query<{ name: string }>(`SELECT name FROM ${MIGRATIONS_TABLE}`);
+    const appliedNames = new Set(applied.rows.map((row) => row.name));
+    return files.filter((name) => !appliedNames.has(name));
+  } finally {
+    await owner.end().catch(() => undefined);
+  }
 }
 
 await main();

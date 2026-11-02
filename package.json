@@ -9,8 +9,8 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "dev": "npm run dev:check -w @pos/backend --silent && concurrently --kill-others --names api,web --prefix-colors blue,magenta \"npm run dev -w @pos/backend\" \"npm run dev -w @pos/frontend\"",
-    "typecheck": "npm run typecheck --workspaces",
+    "dev": "npm run dev:check -w @pos/backend --silent && concurrently --kill-others --names api,web,worker --prefix-colors blue,magenta,yellow \"npm run dev -w @pos/backend\" \"npm run dev -w @pos/frontend\" \"npm run worker:dev -w @pos/backend\"",
+    "typecheck": "npm run typecheck --workspaces && tsc --noEmit -p scripts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -20,12 +20,20 @@
     "db:migrate:down": "npm run db:migrate:down -w @pos/backend --",
     "db:reset": "npm run db:reset -w @pos/backend --",
     "db:migration:new": "npm run db:migration:new -w @pos/backend --",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && npm run test:scripts",
     "lint:arch": "depcruise apps/backend/src apps/frontend/src --config .dependency-cruiser.cjs",
-    "contracts:generate": "npm run generate -w @pos/contracts"
+    "contracts:generate": "npm run generate -w @pos/contracts",
+    "test:scripts": "vitest run --root scripts",
+    "trazabilidad": "tsx scripts/trazabilidad.ts",
+    "contracts:check": "tsx scripts/contracts-check.ts",
+    "secrets": "secretlint \"**/*\"",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run lint:arch && npm run contracts:check && npm run trazabilidad -- --check && npm run secrets && npm audit && npm test",
+    "worker": "npm run worker -w @pos/backend"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@secretlint/secretlint-rule-pattern": "^13.1.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.1.0",
     "concurrently": "^10.0.6",
     "dependency-cruiser": "^18.7.0",
     "eslint": "^10.14.0",
@@ -33,8 +41,11 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "prettier": "^3.9.10",
+    "secretlint": "^13.1.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.0",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "minimatch": "^11.0.1",
