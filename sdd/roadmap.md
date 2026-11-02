@@ -30,7 +30,7 @@
 
 ## Entregas
 
-### ☐ E0 — Base técnica
+### ☑ E0 — Base técnica
 
 - **Objetivo:** que el proyecto compile, se pruebe y se verifique solo desde el primer día, con la arquitectura hexagonal protegida por reglas automáticas.
 - **Tareas:** T-001 a T-023 (Fase 0).
