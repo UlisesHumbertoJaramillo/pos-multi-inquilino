@@ -51,6 +51,13 @@ export interface SessionDependencies {
   clock: Clock;
   ids: IdGenerator;
   config: IdentityConfig;
+  sessionPolicy: SessionPolicy;
+}
+
+// Inactividad de sesión de cada comercio (RF-009, RF-135). La provee el módulo de organización;
+// para el SA, o sin parámetro configurado, rige el valor de la plataforma.
+export interface SessionPolicy {
+  idleMs(tenantId: string | null): Promise<number>;
 }
 
 function invalidCredentials(): ApplicationError {
@@ -239,16 +246,18 @@ export class RefreshSession extends SessionUseCase {
         }
         return { kind: 'invalid' as const };
       }
-      // RF-009: inactividad o vencimiento absoluto. No toca turnos ni carritos (D-11).
-      const idle = now.getTime() - current.lastActivity.getTime() > this.deps.config.sessionIdleMs;
-      if (idle || now >= current.expiresAt) {
-        await this.deps.sessions.revokeSession(current.sessionId, now);
-        return { kind: 'expired' as const };
-      }
       const account = await this.deps.users.findById(current.userId);
       if (!account || !account.isActive || accessBlocker(account) !== null) {
         await this.deps.sessions.revokeSession(current.sessionId, now);
         return { kind: 'invalid' as const };
+      }
+      // RF-009: inactividad según el parámetro del comercio, o vencimiento absoluto.
+      // No toca turnos ni carritos (D-11).
+      const idleMs = await this.deps.sessionPolicy.idleMs(account.tenantId);
+      const idle = now.getTime() - current.lastActivity.getTime() > idleMs;
+      if (idle || now >= current.expiresAt) {
+        await this.deps.sessions.revokeSession(current.sessionId, now);
+        return { kind: 'expired' as const };
       }
       const roles = assignedRoles(account.assignments);
       const activeRole =

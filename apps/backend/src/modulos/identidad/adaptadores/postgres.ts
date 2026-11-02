@@ -46,7 +46,7 @@ const USER_SELECT = `
                   FILTER (WHERE r.id IS NOT NULL), '[]') AS roles
     FROM usuario u
     LEFT JOIN comercio c ON c.id = u.tenant_id
-    LEFT JOIN usuario_rol r ON r.usuario_id = u.id`;
+    LEFT JOIN usuario_rol r ON r.usuario_id = u.id AND r.is_active`;
 
 function toAccount(row: UserRow): UserAccount {
   return {
@@ -91,6 +91,37 @@ export class PgUserRepository implements UserRepository {
 
   findInTenant(tenantId: string, id: string) {
     return this.findOne('u.id = $1 AND u.tenant_id = $2', [id, tenantId]);
+  }
+
+  async listByTenant(tenantId: string): Promise<UserAccount[]> {
+    const result = await this.db.query<UserRow>(
+      `${USER_SELECT} WHERE u.tenant_id = $1 GROUP BY u.id, c.estado ORDER BY u.nombre`,
+      [tenantId],
+    );
+    return result.rows.map(toAccount);
+  }
+
+  // Los roles que se quitan quedan dados de baja, con quién y cuándo (RF-018).
+  async replaceRoles(
+    userId: string,
+    assignments: RoleAssignment[],
+    by: string,
+    at: Date,
+  ): Promise<void> {
+    await this.db.query(
+      `UPDATE usuario_rol SET is_active = false, desactivado_en = $2, desactivado_por = $3
+        WHERE usuario_id = $1 AND is_active`,
+      [userId, at, by],
+    );
+    for (const assignment of assignments) await this.insertRole(userId, assignment, at);
+  }
+
+  async deactivate(userId: string, by: string, at: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE usuario SET is_active = false, desactivado_en = $2, desactivado_por = $3
+        WHERE id = $1 AND is_active`,
+      [userId, at, by],
+    );
   }
 
   async setLastActiveRole(userId: string, role: Role): Promise<void> {
@@ -143,7 +174,7 @@ export class PgUserRepository implements UserRepository {
     const result = await this.db.query<{ exists: boolean }>(
       `SELECT EXISTS (
          SELECT 1 FROM usuario u JOIN usuario_rol r ON r.usuario_id = u.id
-          WHERE u.tenant_id = $1 AND r.rol = $2 AND u.is_active) AS exists`,
+          WHERE u.tenant_id = $1 AND r.rol = $2 AND r.is_active AND u.is_active) AS exists`,
       [tenantId, role],
     );
     return result.rows[0]?.exists === true;

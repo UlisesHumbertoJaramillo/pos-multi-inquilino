@@ -44,6 +44,9 @@ export interface UserRepository {
   // Fija la contraseña elegida al activar la cuenta.
   definePassword(userId: string, passwordHash: string): Promise<void>;
   tenantHasRole(tenantId: string, role: Role): Promise<boolean>;
+  listByTenant(tenantId: string): Promise<UserAccount[]>;
+  replaceRoles(userId: string, assignments: RoleAssignment[], by: string, at: Date): Promise<void>;
+  deactivate(userId: string, by: string, at: Date): Promise<void>;
 }
 
 export interface SessionToken {

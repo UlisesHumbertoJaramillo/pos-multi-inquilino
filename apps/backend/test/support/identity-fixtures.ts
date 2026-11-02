@@ -24,6 +24,7 @@ export const USERS = {
   // AS solo de Norte: no puede autorizar en Centro.
   asNorte: { id: 'a0000000-0000-4000-8000-0000000000a6', email: 'as.norte@prueba.local' },
   voB: { id: 'b0000000-0000-4000-8000-0000000000f0', email: 'vo@otro.local' },
+  acB: { id: 'b0000000-0000-4000-8000-0000000000ac', email: 'ac@otro.local' },
   pendiente: { id: 'a0000000-0000-4000-8000-0000000000e0', email: 'pendiente@prueba.local' },
 } as const;
 
@@ -44,6 +45,13 @@ export async function seedIdentity(): Promise<void> {
     [TENANT_A, TENANT_B, CREATED_AT],
   );
 
+  // Las sucursales existen antes que los roles AS y VO que apuntan a ellas.
+  await ownerQuery(
+    `INSERT INTO sucursal (id, tenant_id, nombre, creado_en) VALUES
+       ($1, $4, 'Centro', $6), ($2, $4, 'Norte', $6), ($3, $5, 'Única', $6)`,
+    [BRANCH_CENTRO, BRANCH_NORTE, BRANCH_B, TENANT_A, TENANT_B, CREATED_AT],
+  );
+
   const users: [string, string | null, string, string, boolean][] = [
     [USERS.sa.id, null, USERS.sa.email, 'Super Admin', true],
     [USERS.ac.id, TENANT_A, USERS.ac.email, 'Admin Comercio', true],
@@ -51,6 +59,7 @@ export async function seedIdentity(): Promise<void> {
     [USERS.vo.id, TENANT_A, USERS.vo.email, 'Vendedor', true],
     [USERS.asNorte.id, TENANT_A, USERS.asNorte.email, 'Admin Norte', true],
     [USERS.voB.id, TENANT_B, USERS.voB.email, 'Vendedor B', true],
+    [USERS.acB.id, TENANT_B, USERS.acB.email, 'Admin Comercio B', true],
     [USERS.pendiente.id, TENANT_A, USERS.pendiente.email, 'Pendiente', false],
   ];
   for (const [id, tenant, email, name, validated] of users) {
@@ -70,6 +79,7 @@ export async function seedIdentity(): Promise<void> {
     [USERS.vo.id, 'VO', BRANCH_CENTRO],
     [USERS.asNorte.id, 'AS', BRANCH_NORTE],
     [USERS.voB.id, 'VO', BRANCH_B],
+    [USERS.acB.id, 'AC', null],
     [USERS.pendiente.id, 'VO', BRANCH_CENTRO],
   ];
   for (const [index, [userId, role, branch]] of roles.entries()) {

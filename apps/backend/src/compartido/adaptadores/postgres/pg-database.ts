@@ -38,6 +38,11 @@ export class PgDatabase implements UnitOfWork {
     return this.pool.query<R>(text, values);
   }
 
+  // Una unidad de trabajo propia, independiente de la que esté en curso (otra conexión).
+  runIndependent<T>(work: () => Promise<T>, options: TransactionOptions = {}): Promise<T> {
+    return this.transactions.exit(() => this.run(work, options));
+  }
+
   async run<T>(work: () => Promise<T>, options: TransactionOptions = {}): Promise<T> {
     const current = this.transactions.getStore();
     if (current) {

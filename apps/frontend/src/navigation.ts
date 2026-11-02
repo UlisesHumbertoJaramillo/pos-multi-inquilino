@@ -26,7 +26,9 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
   ],
   AC: [
     { label: 'Inicio', path: '/admin', available: true },
-    { label: 'Sucursales y usuarios', path: '/admin/organizacion', available: false },
+    { label: 'Estructura', path: '/admin/estructura', available: true },
+    { label: 'Usuarios', path: '/admin/usuarios', available: true },
+    { label: 'Parámetros y pagos', path: '/admin/parametros', available: true },
     { label: 'Catálogo y precios', path: '/admin/catalogo', available: false },
     { label: 'Proveedores', path: '/admin/proveedores', available: false },
     { label: 'Dashboard', path: '/admin/dashboard', available: false },

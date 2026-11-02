@@ -27,13 +27,14 @@ import {
 import { ActivateAccount, RegisterAccount } from '../aplicacion/accounts.js';
 import type { IdentityConfig } from '../aplicacion/config.js';
 import { CredentialGuard } from '../aplicacion/credential-guard.js';
-import type { SecretHasher } from '../aplicacion/ports.js';
+import type { SecretHasher, UserRepository } from '../aplicacion/ports.js';
 import {
   GetCurrentSession,
   Login,
   Logout,
   RefreshSession,
   SelectActiveRole,
+  type SessionPolicy,
 } from '../aplicacion/sessions.js';
 import { cryptoOpaqueTokens } from './crypto.js';
 import { identityRoutes, type IdentityUseCases } from './http.js';
@@ -57,6 +58,8 @@ export interface IdentityModuleDependencies {
   commercialAudit: CommercialAuditLog;
   access: AccessControl;
   config: IdentityConfig;
+  // Inactividad de sesión por comercio. Sin ella, rige el valor de la plataforma.
+  sessionPolicy?: SessionPolicy;
 }
 
 export interface IdentityModule {
@@ -71,6 +74,13 @@ export interface IdentityModule {
   tenantSessions: { revokeAllForTenant(tenantId: string, at: Date): Promise<void> };
   // Para plataforma: si un comercio ya tiene un usuario con ese rol.
   tenantRoles: { tenantHasRole(tenantId: string, role: Role): Promise<boolean> };
+  // Para organización: usuarios del comercio, sus roles y su baja.
+  tenantUsers: Pick<
+    UserRepository,
+    'listByTenant' | 'findInTenant' | 'replaceRoles' | 'deactivate'
+  > & {
+    revokeSessions(userId: string, at: Date): Promise<void>;
+  };
 }
 
 export function createIdentityModule(deps: IdentityModuleDependencies): IdentityModule {
@@ -96,6 +106,9 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     clock: deps.clock,
     ids: deps.ids,
     config: deps.config,
+    sessionPolicy: deps.sessionPolicy ?? {
+      idleMs: () => Promise.resolve(deps.config.sessionIdleMs),
+    },
   };
   const recoveryDeps = {
     uow: deps.db,
@@ -146,5 +159,13 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     sessionStatus: { isActive: (context) => sessions.isActive(context.sessionId, context.userId) },
     tenantSessions: sessions,
     tenantRoles: users,
+    tenantUsers: {
+      listByTenant: (tenantId) => users.listByTenant(tenantId),
+      findInTenant: (tenantId, id) => users.findInTenant(tenantId, id),
+      replaceRoles: (userId, assignments, by, at) =>
+        users.replaceRoles(userId, assignments, by, at),
+      deactivate: (userId, by, at) => users.deactivate(userId, by, at),
+      revokeSessions: (userId, at) => sessions.revokeAllForUser(userId, at),
+    },
   };
 }

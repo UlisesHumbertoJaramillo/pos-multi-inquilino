@@ -2,6 +2,7 @@
 // Se puede volver a ejecutar: actualiza lo que ya existe. Las credenciales están en el README.
 import pg from 'pg';
 import { Argon2SecretHasher } from '../src/modulos/identidad/adaptadores/crypto.js';
+import { DEFAULT_PARAMETERS as P } from '../src/modulos/organizacion/dominio/parameters.js';
 import { ownerConnection } from './db/migrations.js';
 
 const DEMO_PASSWORD = 'Demo-2026!';
@@ -14,6 +15,41 @@ export const DEMO = {
     norte: 'de000000-0000-4000-8000-0000000000c2',
   },
 };
+
+// Sucursales con una caja cada una (T-068).
+const BRANCHES = [
+  {
+    id: DEMO.branches.centro,
+    name: 'Centro',
+    address: 'San Martín 100',
+    register: { id: 'de000000-0000-4000-8000-0000000000d1', name: 'Caja 1', pointOfSale: 1 },
+  },
+  {
+    id: DEMO.branches.norte,
+    name: 'Norte',
+    address: 'Av. Belgrano 2500',
+    register: { id: 'de000000-0000-4000-8000-0000000000d2', name: 'Caja 1', pointOfSale: 2 },
+  },
+];
+
+const PAYMENT_METHODS = [
+  { id: 'de000000-0000-4000-8000-0000000000e1', name: 'Efectivo', type: 'efectivo', pct: '0' },
+  { id: 'de000000-0000-4000-8000-0000000000e2', name: 'Débito', type: 'electronico', pct: '0' },
+  {
+    id: 'de000000-0000-4000-8000-0000000000e3',
+    name: 'Tarjeta de crédito',
+    type: 'electronico',
+    pct: '10',
+  },
+  {
+    id: 'de000000-0000-4000-8000-0000000000e4',
+    name: 'Cuenta corriente',
+    type: 'cuenta_corriente',
+    pct: '0',
+  },
+];
+
+const DEMO_AC_ID = 'de000000-0000-4000-8000-0000000000a1';
 
 interface DemoUser {
   id: string;
@@ -35,7 +71,7 @@ const USERS: DemoUser[] = [
     roles: [{ role: 'SA', branch: null }],
   },
   {
-    id: 'de000000-0000-4000-8000-0000000000a1',
+    id: DEMO_AC_ID,
     email: 'ac@demo.local',
     name: 'Ana Comercio',
     tenant: true,
@@ -98,6 +134,62 @@ async function main(): Promise<void> {
       [DEMO.tenantId, NOW],
     );
 
+    // Las sucursales existen antes que los roles AS y VO que apuntan a ellas.
+    for (const branch of BRANCHES) {
+      await client.query(
+        `INSERT INTO sucursal (id, tenant_id, nombre, direccion, creado_en)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, direccion = EXCLUDED.direccion,
+           is_active = true, desactivado_en = NULL, desactivado_por = NULL`,
+        [branch.id, DEMO.tenantId, branch.name, branch.address, NOW],
+      );
+      await client.query(
+        `INSERT INTO caja (id, tenant_id, sucursal_id, nombre, punto_venta_fiscal, creado_en)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre,
+           punto_venta_fiscal = EXCLUDED.punto_venta_fiscal,
+           is_active = true, desactivado_en = NULL, desactivado_por = NULL`,
+        [
+          branch.register.id,
+          DEMO.tenantId,
+          branch.id,
+          branch.register.name,
+          branch.register.pointOfSale,
+          NOW,
+        ],
+      );
+    }
+    for (const method of PAYMENT_METHODS) {
+      await client.query(
+        `INSERT INTO metodo_pago (id, tenant_id, nombre, tipo, recargo_pct, creado_en)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, recargo_pct = EXCLUDED.recargo_pct,
+           is_active = true, desactivado_en = NULL, desactivado_por = NULL`,
+        [method.id, DEMO.tenantId, method.name, method.type, method.pct, NOW],
+      );
+    }
+    // Los valores por defecto, guardados para que el AC los vea y los modifique.
+    await client.query(
+      `INSERT INTO parametro_comercio
+         (tenant_id, inactividad_carrito_min, inactividad_sesion_min, plazo_regularizacion_horas,
+          plazo_devolucion_dias, tolerancia_arqueo, politica_facturacion,
+          plazo_facturacion_posterior_dias, actualizado_en, actualizado_por)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (tenant_id) DO NOTHING`,
+      [
+        DEMO.tenantId,
+        P.cartIdleMinutes,
+        P.sessionIdleMinutes,
+        P.fiscalRegularizationHours,
+        P.returnWindowDays,
+        P.cashCountTolerance,
+        P.billingPolicy,
+        P.laterInvoicingDays,
+        NOW,
+        DEMO_AC_ID,
+      ],
+    );
+
     const passwordHash = await hasher.hash(DEMO_PASSWORD);
     for (const user of USERS) {
       await client.query(
@@ -120,7 +212,7 @@ async function main(): Promise<void> {
         await client.query(
           `INSERT INTO usuario_rol (id, usuario_id, rol, sucursal_id, creado_en)
            VALUES (gen_random_uuid(), $1, $2, $3, $4)
-           ON CONFLICT (usuario_id, rol, sucursal_id) DO NOTHING`,
+           ON CONFLICT (usuario_id, rol, sucursal_id) WHERE is_active DO NOTHING`,
           [user.id, role, branch, NOW],
         );
       }
@@ -143,7 +235,9 @@ async function main(): Promise<void> {
   } finally {
     await client.end();
   }
-  console.log(`Datos de demostración cargados: comercio Demo y ${String(USERS.length)} usuarios.`);
+  console.log(
+    `Datos de demostración cargados: comercio Demo, ${String(BRANCHES.length)} sucursales y ${String(USERS.length)} usuarios.`,
+  );
   console.log('Las credenciales están en el README (sección "Usuarios de demostración").');
 }
 

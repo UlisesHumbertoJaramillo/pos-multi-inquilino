@@ -11,6 +11,9 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RoleSelectPage } from './pages/RoleSelectPage';
 import { ValidateEmailPage } from './pages/ValidateEmailPage';
 import { ActivateAccountPage } from './pages/ActivateAccountPage';
+import { SettingsPage } from './pages/organization/SettingsPage';
+import { StructurePage } from './pages/organization/StructurePage';
+import { UsersPage } from './pages/organization/UsersPage';
 import { AccountsPage } from './pages/platform/AccountsPage';
 import { PanelPage } from './pages/platform/PanelPage';
 import { TechnicalAuditPage } from './pages/platform/TechnicalAuditPage';
@@ -19,6 +22,8 @@ import { TicketsPage } from './pages/platform/TicketsPage';
 
 // Pantallas del Super Administrador.
 const saOnly = (element: React.ReactElement) => <RequireAuth roles={['SA']}>{element}</RequireAuth>;
+// Pantallas del Administrador de Comercio.
+const acOnly = (element: React.ReactElement) => <RequireAuth roles={['AC']}>{element}</RequireAuth>;
 
 // La raíz lleva a la pantalla del rol activo, o al inicio de sesión.
 function Home() {
@@ -44,6 +49,9 @@ export const routes: RouteObject[] = [
   { path: '/admin/soporte', element: saOnly(<TicketsPage />) },
   { path: '/admin/auditoria-tecnica', element: saOnly(<TechnicalAuditPage />) },
   { path: '/admin/panel', element: saOnly(<PanelPage />) },
+  { path: '/admin/estructura', element: acOnly(<StructurePage />) },
+  { path: '/admin/usuarios', element: acOnly(<UsersPage />) },
+  { path: '/admin/parametros', element: acOnly(<SettingsPage />) },
   {
     path: '/pos',
     element: (

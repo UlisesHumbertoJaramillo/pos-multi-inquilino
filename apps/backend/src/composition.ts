@@ -24,6 +24,15 @@ import {
 import type { EmailSender } from './compartido/aplicacion/email-sender.js';
 import type { HttpRoute } from './compartido/adaptadores/http/routes.js';
 import type { FiscalPendingQuery } from './modulos/plataforma/aplicacion/ports.js';
+import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js';
+import {
+  createOrganizationModule,
+  type OrganizationModule,
+} from './modulos/organizacion/adaptadores/module.js';
+import {
+  noDependenciesYet,
+  tenantSessionIdlePolicy,
+} from './modulos/organizacion/adaptadores/policies.js';
 import { noFiscalPendingYet } from './modulos/plataforma/adaptadores/fiscal-pending.js';
 import {
   createPlatformModule,
@@ -67,12 +76,15 @@ export interface ApiDependencies {
   fiscalPending?: FiscalPendingQuery;
   // Solo para las pruebas: rutas protegidas adicionales (por ejemplo, una que falla a propósito).
   extraRoutes?: HttpRoute[];
+  // Para las pruebas: dependencias simuladas de sucursales, cajas y usuarios (hasta las Fases 9 y 10).
+  dependencies?: DependencyQuery;
 }
 
 export interface Api {
   app: Express;
   identity: IdentityModule;
   platform: PlatformModule;
+  organization: OrganizationModule;
   routes: HttpRoute[];
 }
 
@@ -95,6 +107,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     technicalAudit,
     commercialAudit,
     access,
+    sessionPolicy: tenantSessionIdlePolicy(deps.db),
     config: {
       ...DEFAULT_IDENTITY_CONFIG,
       sessionIdleMs: config.sessionIdleMinutes * 60_000,
@@ -114,7 +127,24 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     tenantRoles: identity.tenantRoles,
   });
 
-  const routes = [...identity.routes, ...platform.routes, ...(deps.extraRoutes ?? [])];
+  const organization = createOrganizationModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    dependencies: deps.dependencies ?? noDependenciesYet,
+    tenants: platform.tenantDirectory,
+    users: identity.tenantUsers,
+    accounts: identity.useCases.registerAccount,
+  });
+
+  const routes = [
+    ...identity.routes,
+    ...platform.routes,
+    ...organization.routes,
+    ...(deps.extraRoutes ?? []),
+  ];
   const app = createApp({
     devRoutes: !config.production,
     logger: deps.logger,
@@ -126,5 +156,5 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity, platform, routes };
+  return { app, identity, platform, organization, routes };
 }

@@ -253,6 +253,137 @@ export type TechnicalPanel = {
   };
 };
 
+export type Branch = {
+  id: string;
+  nombre: string;
+  direccion: string | null;
+  activa: boolean;
+};
+
+export type Register = {
+  id: string;
+  sucursalId: string;
+  nombre: string;
+  puntoVentaFiscal: number | null;
+  activa: boolean;
+};
+
+export type Structure = {
+  comercio: {
+    id: string;
+    nombre: string;
+  };
+  sucursales: Array<{
+    id: string;
+    nombre: string;
+    direccion: string | null;
+    activa: boolean;
+    cajas: Array<Register>;
+  }>;
+};
+
+export type BranchCreateRequest = {
+  nombre: string;
+  direccion?: string | null;
+};
+
+export type BranchUpdateRequest = {
+  nombre?: string;
+  direccion?: string | null;
+};
+
+export type RegisterCreateRequest = {
+  nombre: string;
+  puntoVentaFiscal?: number | null;
+};
+
+export type RegisterUpdateRequest = {
+  nombre?: string;
+  puntoVentaFiscal?: number | null;
+};
+
+export type RoleAssignment = {
+  rol: Role;
+  /**
+   * Sucursal del AS o del VO; nula para el AC.
+   */
+  sucursalId: string | null;
+};
+
+export type TenantUser = {
+  id: string;
+  email: string;
+  nombre: string;
+  activo: boolean;
+  correoValidado: boolean;
+  roles: Array<RoleAssignment>;
+};
+
+export type TenantUserCreateRequest = {
+  email: string;
+  nombre: string;
+  roles: Array<RoleAssignment>;
+};
+
+export type UserRolesRequest = {
+  roles: Array<RoleAssignment>;
+};
+
+export type BillingPolicy = 'siempre' | 'opcional_con_factura' | 'opcional_sin_factura';
+
+export type TenantParameters = {
+  inactividadCarritoMin: number;
+  inactividadSesionMin: number;
+  plazoRegularizacionHoras: number;
+  plazoDevolucionDias: number;
+  /**
+   * Monto en la moneda del comercio.
+   */
+  toleranciaArqueo: string;
+  politicaFacturacion: BillingPolicy;
+  /**
+   * 0 = dentro de la misma jornada.
+   */
+  plazoFacturacionPosteriorDias: number;
+};
+
+export type TenantParametersUpdateRequest = {
+  inactividadCarritoMin?: number;
+  inactividadSesionMin?: number;
+  plazoRegularizacionHoras?: number;
+  plazoDevolucionDias?: number;
+  toleranciaArqueo?: string;
+  politicaFacturacion?: BillingPolicy;
+  plazoFacturacionPosteriorDias?: number;
+};
+
+export type PaymentType = 'efectivo' | 'electronico' | 'cuenta_corriente';
+
+export type PaymentMethod = {
+  id: string;
+  nombre: string;
+  tipo: PaymentType;
+  /**
+   * Porcentaje: positivo es recargo, negativo es descuento.
+   */
+  recargoPct: string;
+  activo: boolean;
+};
+
+export type PaymentMethodCreateRequest = {
+  nombre: string;
+  tipo: PaymentType;
+  /**
+   * Por ejemplo "10" o "-5".
+   */
+  recargoPct: string;
+};
+
+export type PaymentMethodUpdateRequest = {
+  nombre?: string;
+  recargoPct?: string;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -1431,3 +1562,677 @@ export type GetTenantTicketResponses = {
 };
 
 export type GetTenantTicketResponse = GetTenantTicketResponses[keyof GetTenantTicketResponses];
+
+export type GetStructureData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/organizacion/estructura';
+};
+
+export type GetStructureErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetStructureError = GetStructureErrors[keyof GetStructureErrors];
+
+export type GetStructureResponses = {
+  /**
+   * La estructura.
+   */
+  200: Structure;
+};
+
+export type GetStructureResponse = GetStructureResponses[keyof GetStructureResponses];
+
+export type CreateBranchData = {
+  body: BranchCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/organizacion/sucursales';
+};
+
+export type CreateBranchErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateBranchError = CreateBranchErrors[keyof CreateBranchErrors];
+
+export type CreateBranchResponses = {
+  /**
+   * Sucursal creada.
+   */
+  201: Branch;
+};
+
+export type CreateBranchResponse = CreateBranchResponses[keyof CreateBranchResponses];
+
+export type UpdateBranchData = {
+  body: BranchUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/sucursales/{id}';
+};
+
+export type UpdateBranchErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateBranchError = UpdateBranchErrors[keyof UpdateBranchErrors];
+
+export type UpdateBranchResponses = {
+  /**
+   * Sucursal modificada.
+   */
+  200: Branch;
+};
+
+export type UpdateBranchResponse = UpdateBranchResponses[keyof UpdateBranchResponses];
+
+export type DeactivateBranchData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/sucursales/{id}/baja';
+};
+
+export type DeactivateBranchErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateBranchError = DeactivateBranchErrors[keyof DeactivateBranchErrors];
+
+export type DeactivateBranchResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateBranchResponse = DeactivateBranchResponses[keyof DeactivateBranchResponses];
+
+export type CreateRegisterData = {
+  body: RegisterCreateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/sucursales/{id}/cajas';
+};
+
+export type CreateRegisterErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateRegisterError = CreateRegisterErrors[keyof CreateRegisterErrors];
+
+export type CreateRegisterResponses = {
+  /**
+   * Caja creada.
+   */
+  201: Register;
+};
+
+export type CreateRegisterResponse = CreateRegisterResponses[keyof CreateRegisterResponses];
+
+export type UpdateRegisterData = {
+  body: RegisterUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/cajas/{id}';
+};
+
+export type UpdateRegisterErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateRegisterError = UpdateRegisterErrors[keyof UpdateRegisterErrors];
+
+export type UpdateRegisterResponses = {
+  /**
+   * Caja modificada.
+   */
+  200: Register;
+};
+
+export type UpdateRegisterResponse = UpdateRegisterResponses[keyof UpdateRegisterResponses];
+
+export type DeactivateRegisterData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/cajas/{id}/baja';
+};
+
+export type DeactivateRegisterErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateRegisterError = DeactivateRegisterErrors[keyof DeactivateRegisterErrors];
+
+export type DeactivateRegisterResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateRegisterResponse =
+  DeactivateRegisterResponses[keyof DeactivateRegisterResponses];
+
+export type ListTenantUsersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/organizacion/usuarios';
+};
+
+export type ListTenantUsersErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListTenantUsersError = ListTenantUsersErrors[keyof ListTenantUsersErrors];
+
+export type ListTenantUsersResponses = {
+  /**
+   * Usuarios.
+   */
+  200: Array<TenantUser>;
+};
+
+export type ListTenantUsersResponse = ListTenantUsersResponses[keyof ListTenantUsersResponses];
+
+export type CreateTenantUserData = {
+  body: TenantUserCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/organizacion/usuarios';
+};
+
+export type CreateTenantUserErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateTenantUserError = CreateTenantUserErrors[keyof CreateTenantUserErrors];
+
+export type CreateTenantUserResponses = {
+  /**
+   * Cuenta creada.
+   */
+  201: CreatedAccount;
+};
+
+export type CreateTenantUserResponse = CreateTenantUserResponses[keyof CreateTenantUserResponses];
+
+export type ChangeUserRolesData = {
+  body: UserRolesRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/usuarios/{id}/roles';
+};
+
+export type ChangeUserRolesErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ChangeUserRolesError = ChangeUserRolesErrors[keyof ChangeUserRolesErrors];
+
+export type ChangeUserRolesResponses = {
+  /**
+   * Usuario actualizado.
+   */
+  200: TenantUser;
+};
+
+export type ChangeUserRolesResponse = ChangeUserRolesResponses[keyof ChangeUserRolesResponses];
+
+export type DeactivateTenantUserData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/usuarios/{id}/baja';
+};
+
+export type DeactivateTenantUserErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateTenantUserError =
+  DeactivateTenantUserErrors[keyof DeactivateTenantUserErrors];
+
+export type DeactivateTenantUserResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateTenantUserResponse =
+  DeactivateTenantUserResponses[keyof DeactivateTenantUserResponses];
+
+export type GetTenantParametersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/organizacion/parametros';
+};
+
+export type GetTenantParametersErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetTenantParametersError = GetTenantParametersErrors[keyof GetTenantParametersErrors];
+
+export type GetTenantParametersResponses = {
+  /**
+   * Parámetros vigentes.
+   */
+  200: TenantParameters;
+};
+
+export type GetTenantParametersResponse =
+  GetTenantParametersResponses[keyof GetTenantParametersResponses];
+
+export type UpdateTenantParametersData = {
+  body: TenantParametersUpdateRequest;
+  path?: never;
+  query?: never;
+  url: '/organizacion/parametros';
+};
+
+export type UpdateTenantParametersErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateTenantParametersError =
+  UpdateTenantParametersErrors[keyof UpdateTenantParametersErrors];
+
+export type UpdateTenantParametersResponses = {
+  /**
+   * Parámetros vigentes.
+   */
+  200: TenantParameters;
+};
+
+export type UpdateTenantParametersResponse =
+  UpdateTenantParametersResponses[keyof UpdateTenantParametersResponses];
+
+export type ListPaymentMethodsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/organizacion/metodos-pago';
+};
+
+export type ListPaymentMethodsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListPaymentMethodsError = ListPaymentMethodsErrors[keyof ListPaymentMethodsErrors];
+
+export type ListPaymentMethodsResponses = {
+  /**
+   * Métodos de pago.
+   */
+  200: Array<PaymentMethod>;
+};
+
+export type ListPaymentMethodsResponse =
+  ListPaymentMethodsResponses[keyof ListPaymentMethodsResponses];
+
+export type CreatePaymentMethodData = {
+  body: PaymentMethodCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/organizacion/metodos-pago';
+};
+
+export type CreatePaymentMethodErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreatePaymentMethodError = CreatePaymentMethodErrors[keyof CreatePaymentMethodErrors];
+
+export type CreatePaymentMethodResponses = {
+  /**
+   * Método creado.
+   */
+  201: PaymentMethod;
+};
+
+export type CreatePaymentMethodResponse =
+  CreatePaymentMethodResponses[keyof CreatePaymentMethodResponses];
+
+export type UpdatePaymentMethodData = {
+  body: PaymentMethodUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/metodos-pago/{id}';
+};
+
+export type UpdatePaymentMethodErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdatePaymentMethodError = UpdatePaymentMethodErrors[keyof UpdatePaymentMethodErrors];
+
+export type UpdatePaymentMethodResponses = {
+  /**
+   * Método modificado.
+   */
+  200: PaymentMethod;
+};
+
+export type UpdatePaymentMethodResponse =
+  UpdatePaymentMethodResponses[keyof UpdatePaymentMethodResponses];
+
+export type DeactivatePaymentMethodData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/organizacion/metodos-pago/{id}/baja';
+};
+
+export type DeactivatePaymentMethodErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivatePaymentMethodError =
+  DeactivatePaymentMethodErrors[keyof DeactivatePaymentMethodErrors];
+
+export type DeactivatePaymentMethodResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivatePaymentMethodResponse =
+  DeactivatePaymentMethodResponses[keyof DeactivatePaymentMethodResponses];

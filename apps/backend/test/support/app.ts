@@ -12,6 +12,7 @@ import { Argon2SecretHasher } from '../../src/modulos/identidad/adaptadores/cryp
 import type { HttpRoute } from '../../src/compartido/adaptadores/http/routes.js';
 import { createApi, type Api } from '../../src/composition.js';
 import type { FiscalPendingQuery } from '../../src/modulos/plataforma/aplicacion/ports.js';
+import type { DependencyQuery } from '../../src/modulos/organizacion/aplicacion/ports.js';
 import { ManualClock } from './clock.js';
 import { createTestDatabase } from './database.js';
 import { MemoryEmailSender } from './email.js';
@@ -71,6 +72,7 @@ export interface TestApiOptions {
   publicRateLimit?: number;
   fiscalPending?: FiscalPendingQuery;
   extraRoutes?: HttpRoute[];
+  dependencies?: DependencyQuery;
 }
 
 export function createTestApi(options: TestApiOptions = {}): TestApi {
@@ -95,6 +97,7 @@ export function createTestApi(options: TestApiOptions = {}): TestApi {
       publicRateLimit: { windowMs: 60_000, limit: options.publicRateLimit ?? 10_000 },
       ...(options.fiscalPending ? { fiscalPending: options.fiscalPending } : {}),
       ...(options.extraRoutes ? { extraRoutes: options.extraRoutes } : {}),
+      ...(options.dependencies ? { dependencies: options.dependencies } : {}),
     },
   );
   return { ...api, db, clock, email, close: () => db.close() };

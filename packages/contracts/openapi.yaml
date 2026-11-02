@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.3.0
+  version: 0.4.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -19,6 +19,8 @@ tags:
     description: Comercios, cuentas, tickets, auditoría técnica y panel del SA.
   - name: Soporte
     description: Tickets de soporte del comercio.
+  - name: Organización
+    description: Sucursales, cajas, usuarios, parámetros y métodos de pago del comercio (AC).
 paths:
   /salud:
     get:
@@ -830,6 +832,383 @@ paths:
         '403': *a2
         '404':
           $ref: '#/components/responses/NotFound'
+  /organizacion/estructura:
+    get:
+      operationId: getStructure
+      tags:
+        - Organización
+      summary: Jerarquía del comercio
+      description: Comercio > Sucursales > Cajas (RF-027). Solo el AC de su comercio.
+      parameters: &a11
+        - name: incluirBajas
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+      responses:
+        '200':
+          description: La estructura.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Structure'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': &a4
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a5
+          $ref: '#/components/responses/Forbidden'
+  /organizacion/sucursales:
+    post:
+      operationId: createBranch
+      tags:
+        - Organización
+      summary: Crear una sucursal
+      description: RF-023. Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreateRequest'
+      responses:
+        '201':
+          description: Sucursal creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '400': &a6
+          $ref: '#/components/responses/BadRequest'
+        '401': *a4
+        '403': *a5
+        '409': &a7
+          $ref: '#/components/responses/Conflict'
+  /organizacion/sucursales/{id}:
+    patch:
+      operationId: updateBranch
+      tags:
+        - Organización
+      summary: Modificar una sucursal
+      description: RF-023. Solo el AC de su comercio.
+      parameters: &a8
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchUpdateRequest'
+      responses:
+        '200':
+          description: Sucursal modificada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': &a9
+          $ref: '#/components/responses/NotFound'
+        '409': *a7
+  /organizacion/sucursales/{id}/baja:
+    post:
+      operationId: deactivateBranch
+      tags:
+        - Organización
+      summary: Dar de baja una sucursal
+      description: Se rechaza con turnos abiertos, ventas en curso o transferencias pendientes, e indica qué la impide (RF-025). Sus cajas se dan de baja con ella. Solo el AC de su comercio.
+      parameters: *a8
+      responses:
+        '204': &a10
+          description: Hecho.
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/sucursales/{id}/cajas:
+    post:
+      operationId: createRegister
+      tags:
+        - Organización
+      summary: Crear una caja en una sucursal
+      description: RF-024. Solo el AC de su comercio.
+      parameters: *a8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterCreateRequest'
+      responses:
+        '201':
+          description: Caja creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/cajas/{id}:
+    patch:
+      operationId: updateRegister
+      tags:
+        - Organización
+      summary: Modificar una caja
+      description: Solo el AC de su comercio.
+      parameters: *a8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUpdateRequest'
+      responses:
+        '200':
+          description: Caja modificada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/cajas/{id}/baja:
+    post:
+      operationId: deactivateRegister
+      tags:
+        - Organización
+      summary: Dar de baja una caja
+      description: RF-025. Solo el AC de su comercio.
+      parameters: *a8
+      responses:
+        '204': *a10
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/usuarios:
+    get:
+      operationId: listTenantUsers
+      tags:
+        - Organización
+      summary: Usuarios del comercio
+      description: Solo el AC de su comercio.
+      responses:
+        '200':
+          description: Usuarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantUser'
+        '401': *a4
+        '403': *a5
+    post:
+      operationId: createTenantUser
+      tags:
+        - Organización
+      summary: Crear un usuario del comercio
+      description: Con sus roles y sucursales (RF-026). La cuenta se activa por correo. Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUserCreateRequest'
+      responses:
+        '201':
+          description: Cuenta creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedAccount'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '409': *a7
+  /organizacion/usuarios/{id}/roles:
+    put:
+      operationId: changeUserRoles
+      tags:
+        - Organización
+      summary: Cambiar los roles de un usuario
+      description: Reemplaza sus roles; queda en la auditoría comercial. El comercio no se queda sin AC. Solo el AC de su comercio.
+      parameters: *a8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRolesRequest'
+      responses:
+        '200':
+          description: Usuario actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUser'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/usuarios/{id}/baja:
+    post:
+      operationId: deactivateTenantUser
+      tags:
+        - Organización
+      summary: Dar de baja un usuario
+      description: Cierra sus sesiones. No se puede con turno abierto ni a uno mismo. Solo el AC de su comercio.
+      parameters: *a8
+      responses:
+        '204': *a10
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/parametros:
+    get:
+      operationId: getTenantParameters
+      tags:
+        - Organización
+      summary: Parámetros del comercio
+      description: RF-135. Solo el AC de su comercio.
+      responses:
+        '200':
+          description: Parámetros vigentes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantParameters'
+        '401': *a4
+        '403': *a5
+    patch:
+      operationId: updateTenantParameters
+      tags:
+        - Organización
+      summary: Modificar parámetros
+      description: Dentro de los márgenes de la plataforma (RF-135). La política de facturación exige el módulo activo. Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantParametersUpdateRequest'
+      responses:
+        '200':
+          description: Parámetros vigentes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantParameters'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '409': *a7
+  /organizacion/metodos-pago:
+    get:
+      operationId: listPaymentMethods
+      tags:
+        - Organización
+      summary: Métodos de pago
+      description: Solo el AC de su comercio.
+      parameters: *a11
+      responses:
+        '200':
+          description: Métodos de pago.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a4
+        '403': *a5
+    post:
+      operationId: createPaymentMethod
+      tags:
+        - Organización
+      summary: Crear un método de pago
+      description: Con recargo (positivo) o descuento (negativo), dentro de los márgenes (RF-135). Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodCreateRequest'
+      responses:
+        '201':
+          description: Método creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '409': *a7
+  /organizacion/metodos-pago/{id}:
+    patch:
+      operationId: updatePaymentMethod
+      tags:
+        - Organización
+      summary: Modificar un método de pago
+      description: Solo el AC de su comercio.
+      parameters: *a8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodUpdateRequest'
+      responses:
+        '200':
+          description: Método modificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
+  /organizacion/metodos-pago/{id}/baja:
+    post:
+      operationId: deactivatePaymentMethod
+      tags:
+        - Organización
+      summary: Dar de baja un método de pago
+      description: Solo el AC de su comercio.
+      parameters: *a8
+      responses:
+        '204': *a10
+        '400': *a6
+        '401': *a4
+        '403': *a5
+        '404': *a9
+        '409': *a7
 components:
   securitySchemes:
     tokenAcceso:
@@ -1153,7 +1532,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a4
+        id: &a12
           type: string
           format: uuid
         nombre:
@@ -1173,7 +1552,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a5
+        creadoEn: &a13
           type: string
           format: date-time
     TenantCreateRequest:
@@ -1247,7 +1626,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a4
+        usuarioId: *a12
         email:
           type: string
     TicketStatus:
@@ -1268,16 +1647,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a4
-        comercioId: *a4
+        id: *a12
+        comercioId: *a12
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a5
-        actualizadoEn: *a5
+        creadoEn: *a13
+        actualizadoEn: *a13
     TicketMessage:
       type: object
       additionalProperties: false
@@ -1287,13 +1666,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a4
+        id: *a12
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a5
+        creadoEn: *a13
     TicketDetail:
       type: object
       additionalProperties: false
@@ -1307,16 +1686,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a4
-        comercioId: *a4
+        id: *a12
+        comercioId: *a12
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a5
-        actualizadoEn: *a5
+        creadoEn: *a13
+        actualizadoEn: *a13
         mensajes:
           type: array
           items:
@@ -1358,17 +1737,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a4
-        momento: *a5
+        id: *a12
+        momento: *a13
         tipoEvento:
           type: string
         actorId:
-          type: &a6
+          type: &a14
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a6
+          type: *a14
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -1403,7 +1782,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a5
+              momento: *a13
               metodo:
                 type: string
               ruta:
@@ -1441,3 +1820,336 @@ components:
                 - string
                 - 'null'
               format: date-time
+    Branch:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - direccion
+        - activa
+      properties:
+        id: &a15
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        direccion:
+          type:
+            - string
+            - 'null'
+        activa:
+          type: boolean
+    Register:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - sucursalId
+        - nombre
+        - puntoVentaFiscal
+        - activa
+      properties:
+        id: *a15
+        sucursalId: *a15
+        nombre:
+          type: string
+        puntoVentaFiscal:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 99999
+        activa:
+          type: boolean
+    Structure:
+      type: object
+      additionalProperties: false
+      required:
+        - comercio
+        - sucursales
+      properties:
+        comercio:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nombre
+          properties:
+            id: *a15
+            nombre:
+              type: string
+        sucursales:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - nombre
+              - direccion
+              - activa
+              - cajas
+            properties:
+              id: *a15
+              nombre:
+                type: string
+              direccion:
+                type:
+                  - string
+                  - 'null'
+              activa:
+                type: boolean
+              cajas:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Register'
+    BranchCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        direccion:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+    BranchUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        direccion:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+    RegisterCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 60
+        puntoVentaFiscal:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 99999
+    RegisterUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 60
+        puntoVentaFiscal:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 99999
+    RoleAssignment:
+      type: object
+      additionalProperties: false
+      required:
+        - rol
+        - sucursalId
+      properties:
+        rol:
+          $ref: '#/components/schemas/Role'
+        sucursalId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Sucursal del AS o del VO; nula para el AC.
+    TenantUser:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - email
+        - nombre
+        - activo
+        - correoValidado
+        - roles
+      properties:
+        id: *a15
+        email:
+          type: string
+        nombre:
+          type: string
+        activo:
+          type: boolean
+        correoValidado:
+          type: boolean
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleAssignment'
+    TenantUserCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - nombre
+        - roles
+      properties:
+        email:
+          type: string
+          format: email
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/RoleAssignment'
+    UserRolesRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - roles
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/RoleAssignment'
+    BillingPolicy:
+      type: string
+      enum:
+        - siempre
+        - opcional_con_factura
+        - opcional_sin_factura
+    TenantParameters:
+      type: object
+      additionalProperties: false
+      required:
+        - inactividadCarritoMin
+        - inactividadSesionMin
+        - plazoRegularizacionHoras
+        - plazoDevolucionDias
+        - toleranciaArqueo
+        - politicaFacturacion
+        - plazoFacturacionPosteriorDias
+      properties:
+        inactividadCarritoMin:
+          type: integer
+          minimum: 2
+          maximum: 120
+        inactividadSesionMin:
+          type: integer
+          minimum: 5
+          maximum: 480
+        plazoRegularizacionHoras:
+          type: integer
+          minimum: 24
+          maximum: 240
+        plazoDevolucionDias:
+          type: integer
+          minimum: 0
+          maximum: 365
+        toleranciaArqueo:
+          type: string
+          pattern: ^\d+\.\d{2}$
+          description: Monto en la moneda del comercio.
+        politicaFacturacion:
+          $ref: '#/components/schemas/BillingPolicy'
+        plazoFacturacionPosteriorDias:
+          type: integer
+          minimum: 0
+          maximum: 30
+          description: 0 = dentro de la misma jornada.
+    TenantParametersUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        inactividadCarritoMin:
+          type: integer
+        inactividadSesionMin:
+          type: integer
+        plazoRegularizacionHoras:
+          type: integer
+        plazoDevolucionDias:
+          type: integer
+        toleranciaArqueo:
+          type: string
+        politicaFacturacion:
+          $ref: '#/components/schemas/BillingPolicy'
+        plazoFacturacionPosteriorDias:
+          type: integer
+    PaymentType:
+      type: string
+      enum:
+        - efectivo
+        - electronico
+        - cuenta_corriente
+    PaymentMethod:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - tipo
+        - recargoPct
+        - activo
+      properties:
+        id: *a15
+        nombre:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/PaymentType'
+        recargoPct:
+          type: string
+          pattern: ^-?\d+\.\d{4}$
+          description: 'Porcentaje: positivo es recargo, negativo es descuento.'
+        activo:
+          type: boolean
+    PaymentMethodCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - nombre
+        - tipo
+        - recargoPct
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 60
+        tipo:
+          $ref: '#/components/schemas/PaymentType'
+        recargoPct:
+          type: string
+          description: Por ejemplo "10" o "-5".
+    PaymentMethodUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 60
+        recargoPct:
+          type: string

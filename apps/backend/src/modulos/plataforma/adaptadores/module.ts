@@ -57,6 +57,10 @@ export interface PlatformModuleDependencies {
 export interface PlatformModule {
   routes: HttpRoute[];
   useCases: PlatformUseCases;
+  // Para otros módulos: nombre del comercio y si tiene el módulo de facturación.
+  tenantDirectory: {
+    find(tenantId: string): Promise<{ name: string; billingModule: boolean } | undefined>;
+  };
 }
 
 export function createPlatformModule(deps: PlatformModuleDependencies): PlatformModule {
@@ -107,5 +111,14 @@ export function createPlatformModule(deps: PlatformModuleDependencies): Platform
     queryTechnicalAudit: new QueryTechnicalAudit(new PgTechnicalAuditQuery(deps.db), deps.access),
     technicalPanel: new GetTechnicalPanel(new PgPlatformHealthQuery(deps.db), deps.access),
   };
-  return { routes: platformRoutes(useCases), useCases };
+  return {
+    routes: platformRoutes(useCases),
+    useCases,
+    tenantDirectory: {
+      async find(tenantId) {
+        const tenant = await tenants.findById(tenantId);
+        return tenant ? { name: tenant.name, billingModule: tenant.billingModule } : undefined;
+      },
+    },
+  };
 }

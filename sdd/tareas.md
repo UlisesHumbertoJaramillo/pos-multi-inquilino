@@ -158,29 +158,29 @@
 
 ## Fase 3 — Organización
 
-- [ ] **T-060** · Crear las migraciones `sucursal`, `caja`, `parametro_comercio` y `metodo_pago`, con seguridad a nivel de fila. · RF: RF-001 · Dep: T-039, T-049
+- [x] **T-060** · Crear las migraciones `sucursal`, `caja`, `parametro_comercio` y `metodo_pago`, con seguridad a nivel de fila. · RF: RF-001 · Dep: T-039, T-049
   - Hecho cuando: una prueba verifica que el comercio B no ve las sucursales del A.
-- [ ] **T-061** · ABM de sucursales para el AC. · RF: RF-023 · Dep: T-060, T-023
+- [x] **T-061** · ABM de sucursales para el AC. · RF: RF-023 · Dep: T-060, T-023
   - Hecho cuando: en /docs, el AC crea, modifica y da de baja una sucursal.
-- [ ] **T-062** · Alta de cajas y asignación a una sucursal. · RF: RF-024 · Dep: T-061
+- [x] **T-062** · Alta de cajas y asignación a una sucursal. · RF: RF-024 · Dep: T-061
   - Hecho cuando: en /docs, el AC crea una caja en una sucursal de su comercio y no puede crearla en una ajena.
-- [ ] **T-063** · Crear el puerto `ConsultaDependencias` para las bajas (simulado hasta las Fases 9 y 10) y rechazar la baja de una sucursal o caja con dependencias. · RF: RF-025 · Dep: T-062
+- [x] **T-063** · Crear el puerto `ConsultaDependencias` para las bajas (simulado hasta las Fases 9 y 10) y rechazar la baja de una sucursal o caja con dependencias. · RF: RF-025 · Dep: T-062
   - Hecho cuando: hay pruebas con dependencias simuladas que verifican que el rechazo indica qué impide la baja.
-- [ ] **T-064** · Usuarios del comercio: alta, roles y sucursales asignadas por el AC. · RF: RF-026 · Dep: T-061, T-029
+- [x] **T-064** · Usuarios del comercio: alta, roles y sucursales asignadas por el AC. · RF: RF-026 · Dep: T-061, T-029
   - Hecho cuando: el AC crea un VO para una sucursal y el correo de validación del VO aparece en la consola del backend.
-- [ ] **T-065** · Parámetros del comercio dentro de los márgenes de la plataforma. · RF: RF-135 · Dep: T-060
+- [x] **T-065** · Parámetros del comercio dentro de los márgenes de la plataforma. · RF: RF-135 · Dep: T-060
   - Hecho cuando: un valor fuera de los márgenes se rechaza.
-- [ ] **T-066** · Métodos de pago con recargo o descuento. · RF: RF-135 · Dep: T-060
+- [x] **T-066** · Métodos de pago con recargo o descuento. · RF: RF-135 · Dep: T-060
   - Hecho cuando: el AC crea "Tarjeta crédito +10%" y "Efectivo −5%", y aparecen en /docs.
-- [ ] **T-067** · Endpoint de la jerarquía Comercio > Sucursales > Cajas. · RF: RF-027 · Dep: T-062
+- [x] **T-067** · Endpoint de la jerarquía Comercio > Sucursales > Cajas. · RF: RF-027 · Dep: T-062
   - Hecho cuando: devuelve el árbol del comercio demo.
-- [ ] **T-068** · Actualizar el seed: dos sucursales, una caja cada una, métodos de pago y parámetros. · RF: — · Dep: T-061 a T-066
+- [x] **T-068** · Actualizar el seed: dos sucursales, una caja cada una, métodos de pago y parámetros. · RF: — · Dep: T-061 a T-066
   - Hecho cuando: después de `npm run db:seed`, el AC demo ve la estructura completa.
-- [ ] **T-069** · Frontend del AC: estructura en cascada, sucursales y cajas. · RF: RF-023, RF-024, RF-027 · Dep: T-067, T-046
+- [x] **T-069** · Frontend del AC: estructura en cascada, sucursales y cajas. · RF: RF-023, RF-024, RF-027 · Dep: T-067, T-046
   - Hecho cuando: en /admin se ve el árbol y se crea una caja desde la pantalla.
-- [ ] **T-070** · Frontend del AC: usuarios, parámetros y métodos de pago. · RF: RF-026, RF-135 · Dep: T-069
+- [x] **T-070** · Frontend del AC: usuarios, parámetros y métodos de pago. · RF: RF-026, RF-135 · Dep: T-069
   - Hecho cuando: desde /admin se crea un VO y se modifica un recargo.
-- [ ] **T-071** · Sumar las acciones de organización al generador de la matriz, incluido el acceso cruzado entre comercios. · RF: RF-001, RF-004 · Dep: T-070
+- [x] **T-071** · Sumar las acciones de organización al generador de la matriz, incluido el acceso cruzado entre comercios. · RF: RF-001, RF-004 · Dep: T-070
   - Hecho cuando: las pruebas generadas pasan.
 
 ## Fase 4 — Catálogo y precios

@@ -19,3 +19,7 @@ Un JWT largo no se puede revocar: suspender un comercio no surtiría efecto inme
 ## Nota de implementación (E2)
 
 RF-146 exige que la suspensión de un comercio cierre las sesiones **de inmediato**, y un token de acceso sin estado seguiría sirviendo hasta su vencimiento. Por eso cada solicitud autenticada verifica además, con una consulta indexada a `token_renovacion`, que su sesión siga vigente (puerto `SessionStatus`). El token de acceso sigue siendo corto y firmado; la consulta solo agrega la revocación inmediata, que también aplica al cierre de sesión. Pendiente de reflejar en el plan técnico.
+
+## Nota de implementación (E2, Fase 3)
+
+La inactividad que vence la renovación es la del comercio del usuario (`inactividadSesionMin`, RF-135), dentro de los márgenes de la plataforma. Para el SA, o si el comercio no la configuró, se usa la general (`SESSION_IDLE_MINUTES`).
