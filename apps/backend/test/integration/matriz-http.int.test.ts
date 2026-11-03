@@ -1,4 +1,5 @@
-// Matriz de permisos sobre las rutas reales (T-038, T-059, T-071; RF-001, RF-003, RF-004).
+// Matriz de permisos sobre las rutas reales (T-038, T-059, T-071, T-087, T-102; RF-001, RF-003,
+// RF-004).
 // Se genera desde el registro de rutas: cada ruta con acción × cada rol. Al agregar una ruta con
 // acción, sus casos se agregan solos.
 import request from 'supertest';
@@ -10,6 +11,7 @@ import { ownerQuery, ownerSelect } from '../support/database.js';
 import {
   BRANCH_B,
   BRANCH_CENTRO,
+  BRANCH_NORTE,
   seedIdentity,
   signIn,
   TENANT_A,
@@ -96,14 +98,15 @@ describe('[RF-003] un usuario de un comercio no ejecuta acciones del SA', () => 
   });
 });
 
-// Acceso cruzado: el AC del comercio B usa ids de recursos del A en cada ruta de organización que
-// recibe un id. Al agregar una ruta así, su caso se agrega solo.
-describe('[RF-001] acceso cruzado entre comercios en las rutas de organización y catálogo', () => {
+// Acceso cruzado: el AC (o el AS, en inventario) del comercio B usa ids de recursos del A en cada
+// ruta comercial que recibe un id. Al agregar una ruta así, su caso se agrega solo.
+describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () => {
   const REGISTER_A = 'a2000000-0000-4000-8000-000000000001';
   const PAYMENT_METHOD_A = 'a3000000-0000-4000-8000-000000000001';
   const CATEGORY_A = 'a4000000-0000-4000-8000-000000000001';
   const PRODUCT_A = 'a5000000-0000-4000-8000-000000000001';
   const PRICE_LIST_A = 'a6000000-0000-4000-8000-000000000001';
+  const TRANSFER_A = 'a7000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
@@ -114,6 +117,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización 
     productos: { resourceType: 'producto', id: PRODUCT_A },
     combos: { resourceType: 'producto', id: PRODUCT_A },
     listas: { resourceType: 'lista_precio', id: PRICE_LIST_A },
+    transferencias: { resourceType: 'transferencia', id: TRANSFER_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -122,12 +126,17 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización 
     if (path.endsWith('/roles')) return { roles: [{ rol: 'VO', sucursalId: BRANCH_B }] };
     if (path.endsWith('/precios/:productoId')) return { precio: '1' };
     if (path.endsWith('/lista')) return { listaId: PRICE_LIST_A };
+    if (path.endsWith('/ajustes'))
+      return { productoId: PRODUCT_A, cantidad: '1', motivo: 'Intrusión' };
+    if (path.endsWith('/umbrales/:productoId')) return { umbral: '1' };
+    if (path.endsWith('/mermas')) return { productoId: PRODUCT_A, cantidad: '1', motivo: 'rotura' };
+    if (path.endsWith('/revision/:productoId')) return { accion: 'reingresar', cantidad: '1' };
+    if (path.endsWith('/recepcion')) return { items: [] };
     return {};
   };
   const crossTenantRoutes = routesWithAction.filter(
     (route) =>
-      (route.path.startsWith('/organizacion/') || route.path.startsWith('/catalogo/')) &&
-      route.path.includes(':id'),
+      /^\/(organizacion|catalogo|inventario)\//.test(route.path) && route.path.includes(':id'),
   );
 
   beforeEach(async () => {
@@ -156,10 +165,16 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización 
        VALUES ($1, $2, 'Minorista', 'fijo', now())`,
       [PRICE_LIST_A, TENANT_A],
     );
+    await ownerQuery(
+      `INSERT INTO transferencia (id, tenant_id, sucursal_origen_id, sucursal_destino_id, estado,
+         emitida_por, emitida_en)
+       VALUES ($1, $2, $3, $4, 'enviada', $5, now())`,
+      [TRANSFER_A, TENANT_A, BRANCH_CENTRO, BRANCH_NORTE, USERS.asVo.id],
+    );
   });
 
-  it('cubre todas las rutas de organización y catálogo con id', () => {
-    expect(crossTenantRoutes.length).toBeGreaterThanOrEqual(20);
+  it('cubre todas las rutas comerciales con id', () => {
+    expect(crossTenantRoutes.length).toBeGreaterThanOrEqual(30);
     for (const route of crossTenantRoutes) {
       expect(FOREIGN[route.path.split('/')[2] ?? '']).toBeDefined();
     }
@@ -168,10 +183,15 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización 
   it.each(crossTenantRoutes)('$method $path responde 404 y queda auditado', async (route) => {
     const target = FOREIGN[route.path.split('/')[2] ?? ''];
     if (!target) throw new Error(`Falta un recurso para ${route.path}`);
-    const acB = (await signIn(api.app, USERS.acB.email)).authorization;
-    const path = route.path.replace(':id', target.id).replace(':productoId', PRODUCT_A);
+    // El inventario es del AS (§5.18); el resto, del AC.
+    const intruder = route.path.startsWith('/inventario/') ? USERS.asB : USERS.acB;
+    const auth = (await signIn(api.app, intruder.email)).authorization;
+    const path = route.path
+      .replace(':id', target.id)
+      .replace(':productoId', PRODUCT_A)
+      .replace(':alertaId', TRANSFER_A);
 
-    const pending = request(api.app)[route.method](path).set('Authorization', acB);
+    const pending = request(api.app)[route.method](path).set('Authorization', auth);
     const response = route.binaryBody
       ? await pending.set('Content-Type', 'image/png').send(PNG)
       : await pending.send(bodyFor(route.path));
@@ -182,7 +202,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas de organización 
     );
     expect(audit).toStrictEqual([
       {
-        actor_id: USERS.acB.id,
+        actor_id: intruder.id,
         detalle: { resourceType: target.resourceType, resourceId: target.id },
       },
     ]);
@@ -198,6 +218,34 @@ describe('[RF-004] un AS no modifica precios ni el catálogo', () => {
     const response = await request(api.app)
       [route.method](concretePath(route.path))
       .set('Authorization', await authorize('AS'));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('[RF-004] el AS de una sucursal no opera el stock de otra', () => {
+  const branchRoutes = routesWithAction.filter((route) =>
+    route.path.startsWith('/inventario/sucursales/:id/'),
+  );
+  // Cuerpos válidos: el rechazo tiene que venir de la sucursal, no de los datos.
+  const BODIES: Record<string, object> = {
+    ajustes: { productoId: BRANCH_CENTRO, cantidad: '1', motivo: 'Intento ajeno' },
+    umbrales: { umbral: '1' },
+    mermas: { productoId: BRANCH_CENTRO, cantidad: '1', motivo: 'rotura' },
+    revision: { accion: 'reingresar', cantidad: '1' },
+  };
+
+  it.each(branchRoutes)('el AS de Norte recibe 403 en $method $path de Centro', async (route) => {
+    const asNorte = (await signIn(api.app, USERS.asNorte.email, 'AS')).authorization;
+    const path = route.path
+      .replace(':id', BRANCH_CENTRO)
+      .replace(':productoId', BRANCH_CENTRO)
+      .replace(':alertaId', BRANCH_CENTRO);
+
+    const response = await request(api.app)
+      [route.method](path)
+      .set('Authorization', asNorte)
+      .send(BODIES[route.path.split('/')[4] ?? ''] ?? {});
 
     expect(response.status).toBe(403);
   });

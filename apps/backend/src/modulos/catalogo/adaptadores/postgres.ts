@@ -445,8 +445,3 @@ export class PgBranchPriceLists implements BranchPriceLists {
     return result.rows[0]?.total ?? 0;
   }
 }
-
-// Hasta que existan inventario, compras y ventas, ningún producto tiene pendientes.
-export const noProductDependenciesYet = {
-  forProduct: () => Promise.resolve({ reservations: 0, pendingPurchases: 0, pendingTransfers: 0 }),
-};

@@ -46,6 +46,9 @@ const PRODUCTS: [string, CategoryName, string, string][] = [
 ];
 
 const productId = (index: number) => id('02', index + 1);
+
+// Productos simples del seed, para el stock de demostración.
+export const SEED_PRODUCT_IDS = PRODUCTS.map((_, index) => productId(index));
 const categoryId = (name: CategoryName) => CATEGORIES.find((c) => c.name === name)?.id ?? '';
 
 const COMBO = {

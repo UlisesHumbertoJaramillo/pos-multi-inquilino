@@ -8,6 +8,9 @@ import type { ComponentRow } from './ports.js';
 import type { Actor } from './price-book.js';
 import { inactive, ProductUseCase } from './products.js';
 
+// Regla de disponibilidad de un combo (RF-052), para el inventario, que tiene el stock real.
+export { comboAvailability } from '../dominio/combos.js';
+
 export interface Combo {
   product: Product;
   components: ComponentRow[];

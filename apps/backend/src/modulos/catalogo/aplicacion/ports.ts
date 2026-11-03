@@ -109,7 +109,7 @@ export interface BranchPriceLists {
 }
 
 // Lo que impide dar de baja un producto (D-42): reservas, compras y transferencias pendientes.
-// Simulado hasta que existan inventario, compras y ventas (Fases 5, 6 y 9).
+// Lo aporta el inventario; las compras pendientes llegan en la Fase 6.
 export interface ProductDependencyQuery {
   forProduct(
     tenantId: string,

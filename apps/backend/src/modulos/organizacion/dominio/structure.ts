@@ -58,9 +58,16 @@ export interface Dependencies {
   openShifts: number;
   carts: number;
   pendingTransfers: number;
+  // Productos con stock disponible, en revisión o en tránsito (solo cuenta para una sucursal).
+  stockedProducts: number;
 }
 
-export const NO_DEPENDENCIES: Dependencies = { openShifts: 0, carts: 0, pendingTransfers: 0 };
+export const NO_DEPENDENCIES: Dependencies = {
+  openShifts: 0,
+  carts: 0,
+  pendingTransfers: 0,
+  stockedProducts: 0,
+};
 
 export function assertNoDependencies(what: string, dependencies: Dependencies): void {
   const blockers = [
@@ -68,6 +75,9 @@ export function assertNoDependencies(what: string, dependencies: Dependencies): 
     dependencies.carts > 0 ? `${String(dependencies.carts)} venta(s) en curso` : null,
     dependencies.pendingTransfers > 0
       ? `${String(dependencies.pendingTransfers)} transferencia(s) pendiente(s)`
+      : null,
+    dependencies.stockedProducts > 0
+      ? `${String(dependencies.stockedProducts)} producto(s) con stock`
       : null,
   ].filter((blocker) => blocker !== null);
   if (blockers.length > 0) {

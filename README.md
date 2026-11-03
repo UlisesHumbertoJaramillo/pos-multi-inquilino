@@ -43,14 +43,14 @@ npm run dev          # backend, frontend y worker
 
 Todos usan la contraseña **`Demo-2026!`**.
 
-| Correo                 | Rol                             | PIN de autorización | Para probar                                                                  |
-| :--------------------- | :------------------------------ | :------------------ | :--------------------------------------------------------------------------- |
-| `sa@demo.local`        | SA                              | —                   | Plataforma, sin datos comerciales                                            |
-| `ac@demo.local`        | AC                              | `1111`              | Administración del comercio; autoriza en cualquier sucursal                  |
-| `as@demo.local`        | AS (Centro) y VO (Centro)       | `2222`              | Primer ingreso con elección de rol, cambio de rol y segregación de funciones |
-| `vo@demo.local`        | VO (Centro)                     | —                   | Punto de venta                                                               |
-| `vo.norte@demo.local`  | VO (Norte)                      | —                   | Ámbito de otra sucursal                                                      |
-| `pendiente@demo.local` | VO (Centro), correo sin validar | —                   | Validación de correo                                                         |
+| Correo                 | Rol                               | PIN de autorización | Para probar                                                                                              |
+| :--------------------- | :-------------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------- |
+| `sa@demo.local`        | SA                                | —                   | Plataforma, sin datos comerciales                                                                        |
+| `ac@demo.local`        | AC                                | `1111`              | Administración del comercio; autoriza en cualquier sucursal                                              |
+| `as@demo.local`        | AS (Centro y Norte) y VO (Centro) | `2222`              | Primer ingreso con elección de rol, cambio de rol, segregación de funciones, inventario y transferencias |
+| `vo@demo.local`        | VO (Centro)                       | —                   | Punto de venta                                                                                           |
+| `vo.norte@demo.local`  | VO (Norte)                        | —                   | Ámbito de otra sucursal                                                                                  |
+| `pendiente@demo.local` | VO (Centro), correo sin validar   | —                   | Validación de correo                                                                                     |
 
 Los correos de validación y recuperación se muestran en la consola del backend (`[api]` en `npm run dev`).
 

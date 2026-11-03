@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.5.0
+  version: 0.6.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -23,6 +23,8 @@ tags:
     description: Sucursales, cajas, usuarios, parámetros y métodos de pago del comercio (AC).
   - name: Catálogo
     description: Categorías con IVA, productos con imagen, combos, listas de precios y su asignación a sucursales (AC).
+  - name: Inventario
+    description: Stock por sucursal en cuatro estados, ajustes, umbrales, mermas, revisión, alertas, disponibilidad de combos y transferencias (AS).
 paths:
   /salud:
     get:
@@ -1705,6 +1707,402 @@ paths:
         '403': *a13
         '404': *a17
         '409': *a15
+  /inventario/sucursales:
+    get:
+      operationId: listTransferBranches
+      tags:
+        - Inventario
+      summary: Sucursales del comercio
+      description: Para elegir el destino de una transferencia; marca las propias del AS.
+      responses:
+        '200':
+          description: Sucursales.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransferBranch'
+        '401': &a21
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a22
+          $ref: '#/components/responses/Forbidden'
+  /inventario/sucursales/{id}/stock:
+    get:
+      operationId: listStock
+      tags:
+        - Inventario
+      summary: Stock de la sucursal
+      description: Disponible, reservado, en revisión y en tránsito de cada producto (RF-039). Solo un AS de esa sucursal.
+      parameters: &a23
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Saldos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockRow'
+        '400': &a24
+          $ref: '#/components/responses/BadRequest'
+        '401': *a21
+        '403': *a22
+        '404': &a25
+          $ref: '#/components/responses/NotFound'
+  /inventario/sucursales/{id}/ajustes:
+    post:
+      operationId: adjustStock
+      tags:
+        - Inventario
+      summary: Ajustar el stock
+      description: Cantidad con signo y motivo (RF-040). Se rechaza si deja el disponible negativo (RF-043). Solo un AS de esa sucursal.
+      parameters: *a23
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockAdjustmentRequest'
+      responses:
+        '200':
+          description: Saldo resultante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': &a26
+          $ref: '#/components/responses/Conflict'
+  /inventario/sucursales/{id}/umbrales/{productoId}:
+    put:
+      operationId: setStockMinimum
+      tags:
+        - Inventario
+      summary: Fijar el umbral mínimo
+      description: null lo quita. Por debajo del umbral se alerta una vez (RF-040, RF-041). Solo un AS de esa sucursal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: productoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockMinimumRequest'
+      responses:
+        '200':
+          description: Saldo con el umbral.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/sucursales/{id}/mermas:
+    post:
+      operationId: recordWaste
+      tags:
+        - Inventario
+      summary: Registrar una merma
+      description: 'Rotura, vencimiento o pérdida: descuenta el disponible sin mover dinero (RF-042, RF-043). Solo un AS de esa sucursal.'
+      parameters: *a23
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WasteRequest'
+      responses:
+        '200':
+          description: Saldo resultante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/sucursales/{id}/revision/{productoId}:
+    post:
+      operationId: resolveReview
+      tags:
+        - Inventario
+      summary: Resolver stock en revisión
+      description: Reingresarlo al disponible o pasarlo a merma (RF-088). Solo un AS de esa sucursal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: productoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewResolutionRequest'
+      responses:
+        '200':
+          description: Saldo resultante.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/sucursales/{id}/movimientos:
+    get:
+      operationId: listStockMovements
+      tags:
+        - Inventario
+      summary: Movimientos de stock
+      description: Los últimos 200 del libro mayor (AD-09). Solo un AS de esa sucursal.
+      parameters: *a23
+      responses:
+        '200':
+          description: Movimientos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockMovement'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+  /inventario/sucursales/{id}/alertas:
+    get:
+      operationId: listBranchAlerts
+      tags:
+        - Inventario
+      summary: Alertas pendientes
+      description: Stock mínimo y transferencias con faltante (RF-041, RF-045). Solo un AS de esa sucursal.
+      parameters: *a23
+      responses:
+        '200':
+          description: Alertas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+  /inventario/sucursales/{id}/alertas/{alertaId}/descarte:
+    post:
+      operationId: dismissAlert
+      tags:
+        - Inventario
+      summary: Descartar una alerta
+      description: 'La de stock mínimo no se descarta: se resuelve al reponer. Solo un AS de esa sucursal.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: alertaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Hecho.
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/sucursales/{id}/combos:
+    get:
+      operationId: listComboAvailability
+      tags:
+        - Inventario
+      summary: Disponibilidad de combos
+      description: Unidades que permite el componente más escaso (RF-052). Solo un AS de esa sucursal.
+      parameters: *a23
+      responses:
+        '200':
+          description: Combos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComboStock'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+  /inventario/transferencias:
+    get:
+      operationId: listTransfers
+      tags:
+        - Inventario
+      summary: Transferencias
+      description: Las de las sucursales del AS, como origen o destino; las más recientes primero.
+      responses:
+        '200':
+          description: Transferencias.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transfer'
+        '401': *a21
+        '403': *a22
+    post:
+      operationId: issueTransfer
+      tags:
+        - Inventario
+      summary: Emitir una transferencia
+      description: El stock pasa del disponible de origen al tránsito, solo entre sucursales del mismo comercio (RF-044, RF-047). Solo un AS de la sucursal de origen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferCreateRequest'
+      responses:
+        '201':
+          description: Transferencia emitida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/transferencias/{id}:
+    get:
+      operationId: getTransfer
+      tags:
+        - Inventario
+      summary: Una transferencia
+      description: Solo un AS de origen o de destino.
+      parameters: *a23
+      responses:
+        '200':
+          description: Transferencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+  /inventario/transferencias/{id}/recepcion:
+    post:
+      operationId: receiveTransfer
+      tags:
+        - Inventario
+      summary: Recibir una transferencia
+      description: Lo recibido entra al disponible de destino, lo rechazado vuelve al origen y el faltante va a merma con alerta a los dos AS. No se recibe más de lo enviado (RF-045, RF-046, RF-150). Solo un AS de destino.
+      parameters: *a23
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferReceptionRequest'
+      responses:
+        '200':
+          description: Transferencia cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/transferencias/{id}/rechazo:
+    post:
+      operationId: rejectTransfer
+      tags:
+        - Inventario
+      summary: Rechazar una transferencia
+      description: Todo vuelve al disponible de origen (RF-046). Solo un AS de destino.
+      parameters: *a23
+      responses:
+        '200':
+          description: Transferencia rechazada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
+  /inventario/transferencias/{id}/cancelacion:
+    post:
+      operationId: cancelTransfer
+      tags:
+        - Inventario
+      summary: Cancelar una transferencia
+      description: Mientras no se recibió; todo vuelve al disponible de origen (RF-151). Solo un AS de origen.
+      parameters: *a23
+      responses:
+        '200':
+          description: Transferencia cancelada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400': *a24
+        '401': *a21
+        '403': *a22
+        '404': *a25
+        '409': *a26
 components:
   securitySchemes:
     tokenAcceso:
@@ -2034,7 +2432,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a21
+        id: &a27
           type: string
           format: uuid
         nombre:
@@ -2054,7 +2452,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a22
+        creadoEn: &a28
           type: string
           format: date-time
     TenantCreateRequest:
@@ -2128,7 +2526,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a21
+        usuarioId: *a27
         email:
           type: string
     TicketStatus:
@@ -2149,16 +2547,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a21
-        comercioId: *a21
+        id: *a27
+        comercioId: *a27
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a22
-        actualizadoEn: *a22
+        creadoEn: *a28
+        actualizadoEn: *a28
     TicketMessage:
       type: object
       additionalProperties: false
@@ -2168,13 +2566,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a21
+        id: *a27
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a22
+        creadoEn: *a28
     TicketDetail:
       type: object
       additionalProperties: false
@@ -2188,16 +2586,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a21
-        comercioId: *a21
+        id: *a27
+        comercioId: *a27
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a22
-        actualizadoEn: *a22
+        creadoEn: *a28
+        actualizadoEn: *a28
         mensajes:
           type: array
           items:
@@ -2239,17 +2637,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a21
-        momento: *a22
+        id: *a27
+        momento: *a28
         tipoEvento:
           type: string
         actorId:
-          type: &a23
+          type: &a29
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a23
+          type: *a29
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -2284,7 +2682,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a22
+              momento: *a28
               metodo:
                 type: string
               ruta:
@@ -2331,7 +2729,7 @@ components:
         - direccion
         - activa
       properties:
-        id: &a24
+        id: &a30
           type: string
           format: uuid
         nombre:
@@ -2352,8 +2750,8 @@ components:
         - puntoVentaFiscal
         - activa
       properties:
-        id: *a24
-        sucursalId: *a24
+        id: *a30
+        sucursalId: *a30
         nombre:
           type: string
         puntoVentaFiscal:
@@ -2378,7 +2776,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a24
+            id: *a30
             nombre:
               type: string
         sucursales:
@@ -2393,7 +2791,7 @@ components:
               - activa
               - cajas
             properties:
-              id: *a24
+              id: *a30
               nombre:
                 type: string
               direccion:
@@ -2492,7 +2890,7 @@ components:
         - correoValidado
         - roles
       properties:
-        id: *a24
+        id: *a30
         email:
           type: string
         nombre:
@@ -2616,7 +3014,7 @@ components:
         - recargoPct
         - activo
       properties:
-        id: *a24
+        id: *a30
         nombre:
           type: string
         tipo:
@@ -2664,7 +3062,7 @@ components:
         - tasaIva
         - activa
       properties:
-        id: &a26
+        id: &a32
           type: string
           format: uuid
         nombre:
@@ -2686,7 +3084,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: &a25
+        tasaIva: &a31
           type: string
           description: Número decimal, por ejemplo "21" o "10.5".
     CategoryUpdateRequest:
@@ -2698,7 +3096,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: *a25
+        tasaIva: *a31
     Product:
       type: object
       additionalProperties: false
@@ -2714,38 +3112,38 @@ components:
         - tieneImagen
         - disponible
       properties:
-        id: *a26
-        tipo: &a29
+        id: *a32
+        tipo: &a35
           type: string
           enum:
             - simple
             - combo
-        nombre: &a30
+        nombre: &a36
           type: string
-        codigoBarras: &a31
+        codigoBarras: &a37
           type:
             - string
             - 'null'
-        categoriaId: &a32
+        categoriaId: &a38
           type:
             - string
             - 'null'
           format: uuid
-        costo: &a33
-          type: &a27
+        costo: &a39
+          type: &a33
             - string
             - 'null'
           pattern: ^\d+\.\d{2}$
           description: Costo sin IVA; null en un combo.
-        precioCombo: &a34
-          type: *a27
+        precioCombo: &a40
+          type: *a33
           pattern: ^\d+\.\d{2}$
           description: Precio único del combo; null en un producto simple.
-        activo: &a35
+        activo: &a41
           type: boolean
-        tieneImagen: &a36
+        tieneImagen: &a42
           type: boolean
-        disponible: &a37
+        disponible: &a43
           type: boolean
           description: 'Se puede vender: activo y, si es combo, con todos sus componentes activos.'
     ProductCreateRequest:
@@ -2760,14 +3158,14 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: &a28
+        codigoBarras: &a34
           type:
             - string
             - 'null'
           maxLength: 48
           description: 'Letras, números y guiones. Vacío o null: sin código.'
-        categoriaId: *a26
-        costo: *a25
+        categoriaId: *a32
+        costo: *a31
     ProductUpdateRequest:
       type: object
       additionalProperties: false
@@ -2777,9 +3175,9 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a28
-        categoriaId: *a26
-        costo: *a25
+        codigoBarras: *a34
+        categoriaId: *a32
+        costo: *a31
     ComboComponent:
       type: object
       additionalProperties: false
@@ -2789,7 +3187,7 @@ components:
         - cantidad
         - activo
       properties:
-        productoId: *a26
+        productoId: *a32
         nombre:
           type: string
         cantidad:
@@ -2814,16 +3212,16 @@ components:
         - disponible
         - componentes
       properties:
-        id: *a26
-        tipo: *a29
-        nombre: *a30
-        codigoBarras: *a31
-        categoriaId: *a32
-        costo: *a33
-        precioCombo: *a34
-        activo: *a35
-        tieneImagen: *a36
-        disponible: *a37
+        id: *a32
+        tipo: *a35
+        nombre: *a36
+        codigoBarras: *a37
+        categoriaId: *a38
+        costo: *a39
+        precioCombo: *a40
+        activo: *a41
+        tieneImagen: *a42
+        disponible: *a43
         componentes:
           type: array
           items:
@@ -2840,21 +3238,21 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a28
-        precio: *a25
+        codigoBarras: *a34
+        precio: *a31
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: &a38
+          items: &a44
             type: object
             additionalProperties: false
             required:
               - productoId
               - cantidad
             properties:
-              productoId: *a26
-              cantidad: *a25
+              productoId: *a32
+              cantidad: *a31
     ComboUpdateRequest:
       type: object
       additionalProperties: false
@@ -2864,13 +3262,13 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a28
-        precio: *a25
+        codigoBarras: *a34
+        precio: *a31
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: *a38
+          items: *a44
     PriceRuleType:
       type: string
       enum:
@@ -2905,7 +3303,7 @@ components:
         - regla
         - activa
       properties:
-        id: *a26
+        id: *a32
         nombre:
           type: string
         regla:
@@ -2958,7 +3356,7 @@ components:
               - categoria
               - precioFinal
             properties:
-              productoId: *a26
+              productoId: *a32
               nombre:
                 type: string
               codigoBarras:
@@ -2975,7 +3373,7 @@ components:
                   - string
                   - 'null'
               precioFinal:
-                type: *a27
+                type: *a33
                 pattern: ^\d+\.\d{2}$
                 description: Precio final con IVA; null si no tiene precio en esta lista.
     ManualPriceRequest:
@@ -2997,14 +3395,395 @@ components:
         - nombre
         - listaId
       properties:
-        sucursalId: *a26
+        sucursalId: *a32
         nombre:
           type: string
-        listaId: *a32
+        listaId: *a38
     BranchPriceListRequest:
       type: object
       additionalProperties: false
       required:
         - listaId
       properties:
-        listaId: *a26
+        listaId: *a32
+    StockBalance:
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - disponible
+        - reservado
+        - enRevision
+        - enTransito
+        - umbralMinimo
+        - alertaActiva
+      properties:
+        productoId: &a46
+          type: string
+          format: uuid
+        disponible: &a45
+          type: string
+          pattern: ^\d+\.\d{3}$
+          description: Cantidad con tres decimales.
+        reservado: *a45
+        enRevision: *a45
+        enTransito: *a45
+        umbralMinimo: &a47
+          type: &a51
+            - string
+            - 'null'
+          pattern: ^\d+\.\d{3}$
+          description: 'null: sin umbral.'
+        alertaActiva: &a48
+          type: boolean
+          description: El disponible está por debajo del umbral y ya se alertó.
+    StockRow:
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - disponible
+        - reservado
+        - enRevision
+        - enTransito
+        - umbralMinimo
+        - alertaActiva
+        - nombre
+        - codigoBarras
+        - activo
+      properties:
+        productoId: *a46
+        disponible: *a45
+        reservado: *a45
+        enRevision: *a45
+        enTransito: *a45
+        umbralMinimo: *a47
+        alertaActiva: *a48
+        nombre:
+          type: string
+        codigoBarras:
+          type:
+            - string
+            - 'null'
+        activo:
+          type: boolean
+    StockAdjustmentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - cantidad
+        - motivo
+      properties:
+        productoId: *a46
+        cantidad:
+          type: string
+          maxLength: 20
+          description: 'Con signo: "5" suma, "-2.5" resta.'
+        motivo:
+          type: string
+          minLength: 3
+          maxLength: 200
+    StockMinimumRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - umbral
+      properties:
+        umbral:
+          type:
+            - string
+            - 'null'
+          maxLength: 20
+    WasteReason:
+      type: string
+      enum:
+        - rotura
+        - vencimiento
+        - perdida
+    WasteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - cantidad
+        - motivo
+      properties:
+        productoId: *a46
+        cantidad:
+          type: string
+          maxLength: 20
+          description: Cantidad mayor que cero.
+        motivo:
+          $ref: '#/components/schemas/WasteReason'
+        observacion:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+    ReviewResolutionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - accion
+        - cantidad
+      properties:
+        accion:
+          type: string
+          enum:
+            - reingresar
+            - merma
+        cantidad:
+          type: string
+          maxLength: 20
+          description: Cantidad mayor que cero.
+        motivo:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+          description: Obligatorio para la merma.
+    StockMovement:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - productoId
+        - nombre
+        - tipo
+        - estadoOrigen
+        - estadoDestino
+        - cantidad
+        - referencia
+        - motivo
+        - usuarioId
+        - momento
+      properties:
+        id: *a46
+        productoId: *a46
+        nombre:
+          type: string
+        tipo:
+          type: string
+          enum:
+            - ingreso
+            - ajuste
+            - merma
+            - reserva
+            - liberacion
+            - venta
+            - transferencia
+            - recepcion
+            - rechazo
+            - cancelacion
+            - devolucion
+            - reingreso
+        estadoOrigen: &a49
+          type:
+            - string
+            - 'null'
+          enum:
+            - disponible
+            - reservado
+            - en_revision
+            - en_transito
+            - null
+        estadoDestino: *a49
+        cantidad: *a45
+        referencia: &a50
+          type:
+            - string
+            - 'null'
+          format: uuid
+        motivo:
+          type:
+            - string
+            - 'null'
+        usuarioId: *a46
+        momento:
+          type: string
+          format: date-time
+    Alert:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tipo
+        - severidad
+        - referencia
+        - detalle
+        - creadaEn
+      properties:
+        id: *a46
+        tipo:
+          type: string
+          description: stock_minimo o transferencia_faltante.
+        severidad:
+          type: string
+          enum:
+            - info
+            - advertencia
+            - critica
+        referencia: *a50
+        detalle:
+          type: object
+        creadaEn:
+          type: string
+          format: date-time
+    ComboStock:
+      type: object
+      additionalProperties: false
+      required:
+        - comboId
+        - nombre
+        - unidades
+        - vendible
+      properties:
+        comboId: *a46
+        nombre:
+          type: string
+        unidades:
+          type: integer
+          minimum: 0
+        vendible:
+          type: boolean
+          description: Activo y con todos sus componentes activos.
+    TransferBranch:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - propia
+      properties:
+        id: *a46
+        nombre:
+          type: string
+        propia:
+          type: boolean
+    TransferState:
+      type: string
+      enum:
+        - enviada
+        - recibida
+        - parcial
+        - rechazada
+        - cancelada
+    Transfer:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - origen
+        - destino
+        - estado
+        - emitidaEn
+        - cerradaEn
+        - items
+      properties:
+        id: *a46
+        origen:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nombre
+          properties:
+            id: *a46
+            nombre:
+              type: string
+        destino:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nombre
+          properties:
+            id: *a46
+            nombre:
+              type: string
+        estado:
+          $ref: '#/components/schemas/TransferState'
+        emitidaEn:
+          type: string
+          format: date-time
+        cerradaEn:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - nombre
+              - enviada
+              - recibida
+              - rechazada
+              - faltante
+            properties:
+              productoId: *a46
+              nombre:
+                type: string
+              enviada: *a45
+              recibida: &a52
+                type: *a51
+                pattern: ^\d+\.\d{3}$
+              rechazada: *a52
+              faltante: *a52
+    TransferCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - origenId
+        - destinoId
+        - items
+      properties:
+        origenId: *a46
+        destinoId: *a46
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - cantidad
+            properties:
+              productoId: *a46
+              cantidad:
+                type: string
+                maxLength: 20
+                description: Cantidad mayor que cero.
+    TransferReceptionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          description: Lo recibido y lo rechazado de cada producto; lo que falta para llegar a lo enviado es faltante. Un producto no informado se toma como faltante entero.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - recibida
+              - rechazada
+            properties:
+              productoId: *a46
+              recibida:
+                type: string
+                maxLength: 20
+                description: Cantidad recibida.
+              rechazada:
+                type: string
+                maxLength: 20
+                description: Cantidad rechazada.

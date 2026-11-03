@@ -57,7 +57,12 @@ describe('[RF-135] métodos de pago', () => {
 describe('[RF-025] bajas con dependencias', () => {
   it('rechaza la baja e indica qué la impide', () => {
     expect(() => {
-      assertNoDependencies('la sucursal', { openShifts: 1, carts: 0, pendingTransfers: 2 });
+      assertNoDependencies('la sucursal', {
+        openShifts: 1,
+        carts: 0,
+        pendingTransfers: 2,
+        stockedProducts: 0,
+      });
     }).toThrow(
       'No se puede dar de baja la sucursal: tiene 1 turno(s) abierto(s), 2 transferencia(s) pendiente(s).',
     );

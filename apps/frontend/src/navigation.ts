@@ -37,8 +37,8 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
   ],
   AS: [
     { label: 'Inicio', path: '/admin', available: true },
-    { label: 'Inventario', path: '/admin/inventario', available: false },
-    { label: 'Transferencias', path: '/admin/transferencias', available: false },
+    { label: 'Inventario', path: '/admin/inventario', available: true },
+    { label: 'Transferencias', path: '/admin/transferencias', available: true },
     { label: 'Clientes', path: '/admin/clientes', available: false },
     { label: 'Informe diario', path: '/admin/informe', available: false },
   ],

@@ -220,37 +220,37 @@
 
 ## Fase 5 — Inventario
 
-- [ ] **T-088** · Crear las migraciones `inventario` (CHECK de los cuatro saldos ≥ 0), `movimiento_stock` (solo inserción), `transferencia` y `transferencia_item`, más la tabla base `alerta`. · RF: RF-039 · Dep: T-072
+- [x] **T-088** · Crear las migraciones `inventario` (CHECK de los cuatro saldos ≥ 0), `movimiento_stock` (solo inserción), `transferencia` y `transferencia_item`, más la tabla base `alerta`. · RF: RF-039 · Dep: T-072
   - Hecho cuando: una prueba que intenta dejar un saldo negativo falla en la base.
-- [ ] **T-089** · Servicio de inventario con operaciones atómicas por actualización condicional (ingresar, reservar, liberar, consumir, pasar a revisión, pasar a tránsito), cada una con su movimiento. · RF: RF-039, RF-152 · Dep: T-088, T-020
+- [x] **T-089** · Servicio de inventario con operaciones atómicas por actualización condicional (ingresar, reservar, liberar, consumir, pasar a revisión, pasar a tránsito), cada una con su movimiento. · RF: RF-039, RF-152 · Dep: T-088, T-020
   - Hecho cuando: hay pruebas de integración de cada operación, y reservar más de lo disponible no afecta ninguna fila.
-- [ ] **T-090** · Ajuste de stock con motivo, umbral mínimo y rechazo de saldos negativos. · RF: RF-040, RF-043 · Dep: T-089
+- [x] **T-090** · Ajuste de stock con motivo, umbral mínimo y rechazo de saldos negativos. · RF: RF-040, RF-043 · Dep: T-089
   - Hecho cuando: en /docs, el AS ajusta el stock de su sucursal, y un ajuste que deja el saldo negativo se rechaza.
-- [ ] **T-091** · Mermas por rotura, vencimiento o pérdida, sin movimiento de dinero. · RF: RF-042, RF-043 · Dep: T-089
+- [x] **T-091** · Mermas por rotura, vencimiento o pérdida, sin movimiento de dinero. · RF: RF-042, RF-043 · Dep: T-089
   - Hecho cuando: la merma descuenta stock, deja su movimiento con motivo y no crea movimientos de caja.
-- [ ] **T-092** · Alerta de stock mínimo, una vez por cruce del umbral. · RF: RF-041 · Dep: T-090
+- [x] **T-092** · Alerta de stock mínimo, una vez por cruce del umbral. · RF: RF-041 · Dep: T-090
   - Hecho cuando: una prueba baja dos veces el stock por debajo del umbral y genera una sola alerta, y la alerta se rearma al reponer.
-- [ ] **T-093** · Emitir una transferencia: el stock pasa del disponible al tránsito, solo entre sucursales del mismo comercio. · RF: RF-044, RF-047 · Dep: T-089
+- [x] **T-093** · Emitir una transferencia: el stock pasa del disponible al tránsito, solo entre sucursales del mismo comercio. · RF: RF-044, RF-047 · Dep: T-089
   - Hecho cuando: una transferencia a una sucursal de otro comercio se rechaza.
-- [ ] **T-094** · Recibir una transferencia: el faltante va a merma con alerta a los dos AS y no se acepta recibir de más. · RF: RF-045, RF-150 · Dep: T-093, T-092
+- [x] **T-094** · Recibir una transferencia: el faltante va a merma con alerta a los dos AS y no se acepta recibir de más. · RF: RF-045, RF-150 · Dep: T-093, T-092
   - Hecho cuando: hay pruebas de recepción completa, con faltante y con exceso.
-- [ ] **T-095** · Rechazo total o parcial y cancelación por el origen. · RF: RF-046, RF-151 · Dep: T-093
+- [x] **T-095** · Rechazo total o parcial y cancelación por el origen. · RF: RF-046, RF-151 · Dep: T-093
   - Hecho cuando: las cantidades rechazadas o canceladas vuelven al disponible de origen.
-- [ ] **T-096** · Revisión de ítems "En Revisión": reingresar al disponible o pasar a merma. · RF: RF-088 · Dep: T-089
+- [x] **T-096** · Revisión de ítems "En Revisión": reingresar al disponible o pasar a merma. · RF: RF-088 · Dep: T-089
   - Hecho cuando: una prueba pasa stock a revisión (operación directa) y el AS lo resuelve en ambos sentidos.
-- [ ] **T-097** · Endpoint de disponibilidad de combos sobre el stock real. · RF: RF-052 · Dep: T-081, T-089
+- [x] **T-097** · Endpoint de disponibilidad de combos sobre el stock real. · RF: RF-052 · Dep: T-081, T-089
   - Hecho cuando: en /docs, el combo demo muestra la disponibilidad que corresponde a su componente más escaso.
-- [ ] **T-098** · Prueba de concurrencia: N reservas en paralelo contra M < N unidades. · RF: RF-057, RF-152 · Dep: T-089
+- [x] **T-098** · Prueba de concurrencia: N reservas en paralelo contra M < N unidades. · RF: RF-057, RF-152 · Dep: T-089
   - Hecho cuando: la prueba termina con exactamente M reservas y stock 0, repetida 50 veces sin fallas.
-- [ ] **T-099** · Actualizar el seed con stock inicial por sucursal y umbrales. · RF: — · Dep: T-090
+- [x] **T-099** · Actualizar el seed con stock inicial por sucursal y umbrales. · RF: — · Dep: T-090
   - Hecho cuando: el AS demo ve el stock de su sucursal.
-- [ ] **T-100** · Frontend del AS: inventario, ajustes, umbrales y mermas. · RF: RF-040, RF-042 · Dep: T-099, T-070
+- [x] **T-100** · Frontend del AS: inventario, ajustes, umbrales y mermas. · RF: RF-040, RF-042 · Dep: T-099, T-070
   - Hecho cuando: desde /admin, el AS registra una merma y ve el stock actualizado.
-- [ ] **T-101** · Frontend del AS: transferencias (emitir, recibir, rechazar, cancelar) y revisión. · RF: RF-044 a RF-046, RF-088 · Dep: T-100
+- [x] **T-101** · Frontend del AS: transferencias (emitir, recibir, rechazar, cancelar) y revisión. · RF: RF-044 a RF-046, RF-088 · Dep: T-100
   - Hecho cuando: una transferencia entre las dos sucursales demo se completa desde la pantalla, con un faltante.
-- [ ] **T-102** · Sumar las acciones de inventario al generador de la matriz. · RF: RF-004 · Dep: T-101
+- [x] **T-102** · Sumar las acciones de inventario al generador de la matriz. · RF: RF-004 · Dep: T-101
   - Hecho cuando: las pruebas generadas pasan y el AS de una sucursal no puede ajustar el stock de otra.
-- [ ] **T-103** · **[Localhost]** Guion de las Fases 2 a 5. · RF: — · Dep: T-058, T-071, T-087, T-102
+- [x] **T-103** · **[Localhost]** Guion de las Fases 2 a 5. · RF: — · Dep: T-058, T-071, T-087, T-102
   - Hecho cuando: el SA crea un comercio, su AC arma sucursales, catálogo y listas, el AS carga stock y transfiere, y el comercio Demo no ve nada del comercio nuevo.
 
 ## Fase 6 — Proveedores y compras

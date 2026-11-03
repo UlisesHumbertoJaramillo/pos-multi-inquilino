@@ -27,7 +27,10 @@ import type { FiscalPendingQuery } from './modulos/plataforma/aplicacion/ports.j
 import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js';
 import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
-import { noProductDependenciesYet } from './modulos/catalogo/adaptadores/postgres.js';
+import {
+  createInventoryModule,
+  type InventoryModule,
+} from './modulos/inventario/adaptadores/module.js';
 import {
   createOrganizationModule,
   type OrganizationModule,
@@ -79,7 +82,7 @@ export interface ApiDependencies {
   fiscalPending?: FiscalPendingQuery;
   // Solo para las pruebas: rutas protegidas adicionales (por ejemplo, una que falla a propósito).
   extraRoutes?: HttpRoute[];
-  // Para las pruebas: dependencias simuladas de sucursales, cajas y usuarios (hasta las Fases 9 y 10).
+  // Para las pruebas: dependencias simuladas de sucursales, cajas, usuarios y productos.
   dependencies?: DependencyQuery;
   productDependencies?: ProductDependencyQuery;
 }
@@ -90,6 +93,7 @@ export interface Api {
   platform: PlatformModule;
   organization: OrganizationModule;
   catalog: CatalogModule;
+  inventory: InventoryModule;
   routes: HttpRoute[];
 }
 
@@ -132,13 +136,30 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     tenantRoles: identity.tenantRoles,
   });
 
+  const inventory = createInventoryModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+  });
+  // Bajas de sucursales (RF-025, RF-148): el stock y las transferencias los aporta el inventario;
+  // turnos y ventas en curso siguen simulados hasta las Fases 9 y 10.
+  const branchDependencies: DependencyQuery = {
+    ...noDependenciesYet,
+    forBranch: async (tenantId, branchId) => ({
+      ...(await noDependenciesYet.forBranch(tenantId, branchId)),
+      ...(await inventory.dependencies.forBranch(tenantId, branchId)),
+    }),
+  };
+
   const organization = createOrganizationModule({
     db: deps.db,
     clock: deps.clock,
     ids: uuidGenerator,
     access,
     commercialAudit,
-    dependencies: deps.dependencies ?? noDependenciesYet,
+    dependencies: deps.dependencies ?? branchDependencies,
     tenants: platform.tenantDirectory,
     users: identity.tenantUsers,
     accounts: identity.useCases.registerAccount,
@@ -150,7 +171,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ids: uuidGenerator,
     access,
     commercialAudit,
-    productDependencies: deps.productDependencies ?? noProductDependenciesYet,
+    productDependencies: deps.productDependencies ?? inventory.dependencies,
   });
 
   const routes = [
@@ -158,6 +179,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...platform.routes,
     ...organization.routes,
     ...catalog.routes,
+    ...inventory.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -171,5 +193,5 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity, platform, organization, catalog, routes };
+  return { app, identity, platform, organization, catalog, inventory, routes };
 }

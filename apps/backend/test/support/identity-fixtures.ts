@@ -25,6 +25,7 @@ export const USERS = {
   asNorte: { id: 'a0000000-0000-4000-8000-0000000000a6', email: 'as.norte@prueba.local' },
   voB: { id: 'b0000000-0000-4000-8000-0000000000f0', email: 'vo@otro.local' },
   acB: { id: 'b0000000-0000-4000-8000-0000000000ac', email: 'ac@otro.local' },
+  asB: { id: 'b0000000-0000-4000-8000-0000000000a5', email: 'as@otro.local' },
   pendiente: { id: 'a0000000-0000-4000-8000-0000000000e0', email: 'pendiente@prueba.local' },
 } as const;
 
@@ -61,6 +62,7 @@ export async function seedIdentity(): Promise<void> {
     [USERS.voB.id, TENANT_B, USERS.voB.email, 'Vendedor B', true],
     [USERS.acB.id, TENANT_B, USERS.acB.email, 'Admin Comercio B', true],
     [USERS.pendiente.id, TENANT_A, USERS.pendiente.email, 'Pendiente', false],
+    [USERS.asB.id, TENANT_B, USERS.asB.email, 'Admin Sucursal B', true],
   ];
   for (const [id, tenant, email, name, validated] of users) {
     await ownerQuery(
@@ -81,6 +83,7 @@ export async function seedIdentity(): Promise<void> {
     [USERS.voB.id, 'VO', BRANCH_B],
     [USERS.acB.id, 'AC', null],
     [USERS.pendiente.id, 'VO', BRANCH_CENTRO],
+    [USERS.asB.id, 'AS', BRANCH_B],
   ];
   for (const [index, [userId, role, branch]] of roles.entries()) {
     await ownerQuery(

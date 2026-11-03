@@ -597,6 +597,218 @@ export type BranchPriceListRequest = {
   listaId: string;
 };
 
+export type StockBalance = {
+  productoId: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  disponible: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  reservado: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  enRevision: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  enTransito: string;
+  /**
+   * null: sin umbral.
+   */
+  umbralMinimo: string | null;
+  /**
+   * El disponible está por debajo del umbral y ya se alertó.
+   */
+  alertaActiva: boolean;
+};
+
+export type StockRow = {
+  productoId: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  disponible: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  reservado: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  enRevision: string;
+  /**
+   * Cantidad con tres decimales.
+   */
+  enTransito: string;
+  /**
+   * null: sin umbral.
+   */
+  umbralMinimo: string | null;
+  /**
+   * El disponible está por debajo del umbral y ya se alertó.
+   */
+  alertaActiva: boolean;
+  nombre: string;
+  codigoBarras: string | null;
+  activo: boolean;
+};
+
+export type StockAdjustmentRequest = {
+  productoId: string;
+  /**
+   * Con signo: "5" suma, "-2.5" resta.
+   */
+  cantidad: string;
+  motivo: string;
+};
+
+export type StockMinimumRequest = {
+  umbral: string | null;
+};
+
+export type WasteReason = 'rotura' | 'vencimiento' | 'perdida';
+
+export type WasteRequest = {
+  productoId: string;
+  /**
+   * Cantidad mayor que cero.
+   */
+  cantidad: string;
+  motivo: WasteReason;
+  observacion?: string | null;
+};
+
+export type ReviewResolutionRequest = {
+  accion: 'reingresar' | 'merma';
+  /**
+   * Cantidad mayor que cero.
+   */
+  cantidad: string;
+  /**
+   * Obligatorio para la merma.
+   */
+  motivo?: string | null;
+};
+
+export type StockMovement = {
+  id: string;
+  productoId: string;
+  nombre: string;
+  tipo:
+    | 'ingreso'
+    | 'ajuste'
+    | 'merma'
+    | 'reserva'
+    | 'liberacion'
+    | 'venta'
+    | 'transferencia'
+    | 'recepcion'
+    | 'rechazo'
+    | 'cancelacion'
+    | 'devolucion'
+    | 'reingreso';
+  estadoOrigen: 'disponible' | 'reservado' | 'en_revision' | 'en_transito' | null;
+  estadoDestino: 'disponible' | 'reservado' | 'en_revision' | 'en_transito' | null;
+  /**
+   * Cantidad con tres decimales.
+   */
+  cantidad: string;
+  referencia: string | null;
+  motivo: string | null;
+  usuarioId: string;
+  momento: string;
+};
+
+export type Alert = {
+  id: string;
+  /**
+   * stock_minimo o transferencia_faltante.
+   */
+  tipo: string;
+  severidad: 'info' | 'advertencia' | 'critica';
+  referencia: string | null;
+  detalle: {
+    [key: string]: unknown;
+  };
+  creadaEn: string;
+};
+
+export type ComboStock = {
+  comboId: string;
+  nombre: string;
+  unidades: number;
+  /**
+   * Activo y con todos sus componentes activos.
+   */
+  vendible: boolean;
+};
+
+export type TransferBranch = {
+  id: string;
+  nombre: string;
+  propia: boolean;
+};
+
+export type TransferState = 'enviada' | 'recibida' | 'parcial' | 'rechazada' | 'cancelada';
+
+export type Transfer = {
+  id: string;
+  origen: {
+    id: string;
+    nombre: string;
+  };
+  destino: {
+    id: string;
+    nombre: string;
+  };
+  estado: TransferState;
+  emitidaEn: string;
+  cerradaEn: string | null;
+  items: Array<{
+    productoId: string;
+    nombre: string;
+    /**
+     * Cantidad con tres decimales.
+     */
+    enviada: string;
+    recibida: string | null;
+    rechazada: string | null;
+    faltante: string | null;
+  }>;
+};
+
+export type TransferCreateRequest = {
+  origenId: string;
+  destinoId: string;
+  items: Array<{
+    productoId: string;
+    /**
+     * Cantidad mayor que cero.
+     */
+    cantidad: string;
+  }>;
+};
+
+export type TransferReceptionRequest = {
+  /**
+   * Lo recibido y lo rechazado de cada producto; lo que falta para llegar a lo enviado es faltante. Un producto no informado se toma como faltante entero.
+   */
+  items: Array<{
+    productoId: string;
+    /**
+     * Cantidad recibida.
+     */
+    recibida: string;
+    /**
+     * Cantidad rechazada.
+     */
+    rechazada: string;
+  }>;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -3286,3 +3498,649 @@ export type AssignBranchPriceListResponses = {
 
 export type AssignBranchPriceListResponse =
   AssignBranchPriceListResponses[keyof AssignBranchPriceListResponses];
+
+export type ListTransferBranchesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/inventario/sucursales';
+};
+
+export type ListTransferBranchesErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListTransferBranchesError =
+  ListTransferBranchesErrors[keyof ListTransferBranchesErrors];
+
+export type ListTransferBranchesResponses = {
+  /**
+   * Sucursales.
+   */
+  200: Array<TransferBranch>;
+};
+
+export type ListTransferBranchesResponse =
+  ListTransferBranchesResponses[keyof ListTransferBranchesResponses];
+
+export type ListStockData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/stock';
+};
+
+export type ListStockErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListStockError = ListStockErrors[keyof ListStockErrors];
+
+export type ListStockResponses = {
+  /**
+   * Saldos.
+   */
+  200: Array<StockRow>;
+};
+
+export type ListStockResponse = ListStockResponses[keyof ListStockResponses];
+
+export type AdjustStockData = {
+  body: StockAdjustmentRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/ajustes';
+};
+
+export type AdjustStockErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type AdjustStockError = AdjustStockErrors[keyof AdjustStockErrors];
+
+export type AdjustStockResponses = {
+  /**
+   * Saldo resultante.
+   */
+  200: StockBalance;
+};
+
+export type AdjustStockResponse = AdjustStockResponses[keyof AdjustStockResponses];
+
+export type SetStockMinimumData = {
+  body: StockMinimumRequest;
+  path: {
+    id: string;
+    productoId: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/umbrales/{productoId}';
+};
+
+export type SetStockMinimumErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetStockMinimumError = SetStockMinimumErrors[keyof SetStockMinimumErrors];
+
+export type SetStockMinimumResponses = {
+  /**
+   * Saldo con el umbral.
+   */
+  200: StockBalance;
+};
+
+export type SetStockMinimumResponse = SetStockMinimumResponses[keyof SetStockMinimumResponses];
+
+export type RecordWasteData = {
+  body: WasteRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/mermas';
+};
+
+export type RecordWasteErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RecordWasteError = RecordWasteErrors[keyof RecordWasteErrors];
+
+export type RecordWasteResponses = {
+  /**
+   * Saldo resultante.
+   */
+  200: StockBalance;
+};
+
+export type RecordWasteResponse = RecordWasteResponses[keyof RecordWasteResponses];
+
+export type ResolveReviewData = {
+  body: ReviewResolutionRequest;
+  path: {
+    id: string;
+    productoId: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/revision/{productoId}';
+};
+
+export type ResolveReviewErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ResolveReviewError = ResolveReviewErrors[keyof ResolveReviewErrors];
+
+export type ResolveReviewResponses = {
+  /**
+   * Saldo resultante.
+   */
+  200: StockBalance;
+};
+
+export type ResolveReviewResponse = ResolveReviewResponses[keyof ResolveReviewResponses];
+
+export type ListStockMovementsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/movimientos';
+};
+
+export type ListStockMovementsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListStockMovementsError = ListStockMovementsErrors[keyof ListStockMovementsErrors];
+
+export type ListStockMovementsResponses = {
+  /**
+   * Movimientos.
+   */
+  200: Array<StockMovement>;
+};
+
+export type ListStockMovementsResponse =
+  ListStockMovementsResponses[keyof ListStockMovementsResponses];
+
+export type ListBranchAlertsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/alertas';
+};
+
+export type ListBranchAlertsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListBranchAlertsError = ListBranchAlertsErrors[keyof ListBranchAlertsErrors];
+
+export type ListBranchAlertsResponses = {
+  /**
+   * Alertas.
+   */
+  200: Array<Alert>;
+};
+
+export type ListBranchAlertsResponse = ListBranchAlertsResponses[keyof ListBranchAlertsResponses];
+
+export type DismissAlertData = {
+  body?: never;
+  path: {
+    id: string;
+    alertaId: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/alertas/{alertaId}/descarte';
+};
+
+export type DismissAlertErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DismissAlertError = DismissAlertErrors[keyof DismissAlertErrors];
+
+export type DismissAlertResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DismissAlertResponse = DismissAlertResponses[keyof DismissAlertResponses];
+
+export type ListComboAvailabilityData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/sucursales/{id}/combos';
+};
+
+export type ListComboAvailabilityErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListComboAvailabilityError =
+  ListComboAvailabilityErrors[keyof ListComboAvailabilityErrors];
+
+export type ListComboAvailabilityResponses = {
+  /**
+   * Combos.
+   */
+  200: Array<ComboStock>;
+};
+
+export type ListComboAvailabilityResponse =
+  ListComboAvailabilityResponses[keyof ListComboAvailabilityResponses];
+
+export type ListTransfersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/inventario/transferencias';
+};
+
+export type ListTransfersErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListTransfersError = ListTransfersErrors[keyof ListTransfersErrors];
+
+export type ListTransfersResponses = {
+  /**
+   * Transferencias.
+   */
+  200: Array<Transfer>;
+};
+
+export type ListTransfersResponse = ListTransfersResponses[keyof ListTransfersResponses];
+
+export type IssueTransferData = {
+  body: TransferCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/inventario/transferencias';
+};
+
+export type IssueTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type IssueTransferError = IssueTransferErrors[keyof IssueTransferErrors];
+
+export type IssueTransferResponses = {
+  /**
+   * Transferencia emitida.
+   */
+  201: Transfer;
+};
+
+export type IssueTransferResponse = IssueTransferResponses[keyof IssueTransferResponses];
+
+export type GetTransferData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/transferencias/{id}';
+};
+
+export type GetTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetTransferError = GetTransferErrors[keyof GetTransferErrors];
+
+export type GetTransferResponses = {
+  /**
+   * Transferencia.
+   */
+  200: Transfer;
+};
+
+export type GetTransferResponse = GetTransferResponses[keyof GetTransferResponses];
+
+export type ReceiveTransferData = {
+  body: TransferReceptionRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/transferencias/{id}/recepcion';
+};
+
+export type ReceiveTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ReceiveTransferError = ReceiveTransferErrors[keyof ReceiveTransferErrors];
+
+export type ReceiveTransferResponses = {
+  /**
+   * Transferencia cerrada.
+   */
+  200: Transfer;
+};
+
+export type ReceiveTransferResponse = ReceiveTransferResponses[keyof ReceiveTransferResponses];
+
+export type RejectTransferData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/transferencias/{id}/rechazo';
+};
+
+export type RejectTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RejectTransferError = RejectTransferErrors[keyof RejectTransferErrors];
+
+export type RejectTransferResponses = {
+  /**
+   * Transferencia rechazada.
+   */
+  200: Transfer;
+};
+
+export type RejectTransferResponse = RejectTransferResponses[keyof RejectTransferResponses];
+
+export type CancelTransferData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/inventario/transferencias/{id}/cancelacion';
+};
+
+export type CancelTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CancelTransferError = CancelTransferErrors[keyof CancelTransferErrors];
+
+export type CancelTransferResponses = {
+  /**
+   * Transferencia cancelada.
+   */
+  200: Transfer;
+};
+
+export type CancelTransferResponse = CancelTransferResponses[keyof CancelTransferResponses];

@@ -220,7 +220,7 @@ describe('[RF-024] cajas', () => {
 describe('[RF-025] baja con dependencias', () => {
   it('con turnos abiertos o ventas en curso la baja se rechaza e indica qué la impide', async () => {
     const branch = await createBranch();
-    dependencies = { openShifts: 1, carts: 2, pendingTransfers: 0 };
+    dependencies = { ...NO_DEPENDENCIES, openShifts: 1, carts: 2 };
 
     const response = await request(api.app)
       .post(`/organizacion/sucursales/${branch.id}/baja`)
@@ -247,7 +247,7 @@ describe('[RF-025] baja con dependencias', () => {
         .set('Authorization', ac)
         .send({ nombre: 'Caja 1' })
     ).body as Register;
-    dependencies = { openShifts: 0, carts: 0, pendingTransfers: 1 };
+    dependencies = { ...NO_DEPENDENCIES, pendingTransfers: 1 };
 
     const response = await request(api.app)
       .post(`/organizacion/cajas/${register.id}/baja`)

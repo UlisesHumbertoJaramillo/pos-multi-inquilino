@@ -15,6 +15,8 @@ import { CatalogPage } from './pages/catalog/CatalogPage';
 import { CombosPage } from './pages/catalog/CombosPage';
 import { PriceListPrintPage } from './pages/catalog/PriceListPrintPage';
 import { PriceListsPage } from './pages/catalog/PriceListsPage';
+import { InventoryPage } from './pages/inventory/InventoryPage';
+import { TransfersPage } from './pages/inventory/TransfersPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -28,6 +30,8 @@ import { TicketsPage } from './pages/platform/TicketsPage';
 const saOnly = (element: React.ReactElement) => <RequireAuth roles={['SA']}>{element}</RequireAuth>;
 // Pantallas del Administrador de Comercio.
 const acOnly = (element: React.ReactElement) => <RequireAuth roles={['AC']}>{element}</RequireAuth>;
+// Pantallas del Administrador de Sucursal.
+const asOnly = (element: React.ReactElement) => <RequireAuth roles={['AS']}>{element}</RequireAuth>;
 
 // La raíz lleva a la pantalla del rol activo, o al inicio de sesión.
 function Home() {
@@ -60,6 +64,8 @@ export const routes: RouteObject[] = [
   { path: '/admin/combos', element: acOnly(<CombosPage />) },
   { path: '/admin/listas', element: acOnly(<PriceListsPage />) },
   { path: '/admin/listas/:id/imprimir', element: acOnly(<PriceListPrintPage />) },
+  { path: '/admin/inventario', element: asOnly(<InventoryPage />) },
+  { path: '/admin/transferencias', element: asOnly(<TransfersPage />) },
   {
     path: '/pos',
     element: (
