@@ -27,6 +27,7 @@ import type { FiscalPendingQuery } from './modulos/plataforma/aplicacion/ports.j
 import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js';
 import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
+import { createQuotaModule, type QuotaModule } from './modulos/cuota/adaptadores/module.js';
 import {
   createPromotionModule,
   type PromotionModule,
@@ -104,6 +105,7 @@ export interface Api {
   inventory: InventoryModule;
   suppliers: SupplierModule;
   promotions: PromotionModule;
+  quotas: QuotaModule;
   routes: HttpRoute[];
 }
 
@@ -219,6 +221,18 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     commercialAudit,
   });
 
+  const quotas = createQuotaModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    // Un descuento fuera de cuota consume una autorización por PIN de identidad (RF-066).
+    authorizations: {
+      consume: (input) => identity.useCases.consumeAuthorization.execute(input),
+    },
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -227,6 +241,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...inventory.routes,
     ...suppliers.routes,
     ...promotions.routes,
+    ...quotas.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -249,6 +264,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     inventory,
     suppliers,
     promotions,
+    quotas,
     routes,
   };
 }

@@ -52,6 +52,8 @@ Todos usan la contraseña **`Demo-2026!`**.
 | `vo.norte@demo.local`  | VO (Norte)                        | —                   | Ámbito de otra sucursal                                                                                  |
 | `pendiente@demo.local` | VO (Centro), correo sin validar   | —                   | Validación de correo                                                                                     |
 
+El comercio arranca con un tope de cuota de descuento de 15 % por venta y $ 20.000; el AS asigna la cuota de cada VO desde **Cuotas de descuento**.
+
 Los correos de validación y recuperación se muestran en la consola del backend (`[api]` en `npm run dev`).
 
 ## Comandos

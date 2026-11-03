@@ -243,6 +243,13 @@ async function main(): Promise<void> {
       NOW,
     );
     const suppliers = await seedSuppliers(client, DEMO.tenantId, NOW);
+    // Tope de cuota de descuento (Fase 8): sin él, el AS no puede asignar cuotas. Si el AC ya lo
+    // cambió desde la pantalla, se conserva.
+    await client.query(
+      `INSERT INTO tope_cuota (tenant_id, pct_max_venta, monto_max, actualizado_en, actualizado_por)
+       VALUES ($1, 15, 20000, $2, $3) ON CONFLICT (tenant_id) DO NOTHING`,
+      [DEMO.tenantId, NOW, DEMO_AC_ID],
+    );
     // Los intentos fallidos de pruebas anteriores no deben dejar bloqueadas las cuentas demo.
     await client.query("DELETE FROM intento_acceso WHERE identificador LIKE '%@demo.local'");
     await client.query('COMMIT');

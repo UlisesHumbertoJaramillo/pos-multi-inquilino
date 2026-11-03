@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 7. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-71).
+Surgieron al construir las fases 3 a 8. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-74).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -114,6 +114,9 @@ Surgieron al construir las fases 3 a 7. El responsable del producto las validó 
 | D-69 | Promoción NxM por categoría | Las unidades de los distintos productos de la categoría se juntan: se arman grupos de N desde la unidad más cara y en cada grupo se bonifican las N−M más baratas. Con alcance producto solo cuentan las unidades de ese producto. Un NxM cuenta unidades enteras. | Es lo habitual en el comercio minorista y lo más beneficioso para el cliente (validado el 2026-11-03). |
 | D-70 | Descuento manual | El VO lo ingresa como porcentaje o como monto sobre la venta después de promociones. Se prorratea entre los ítems según su importe (D-17) y se controla contra los dos límites de la cuota. | Da flexibilidad sin perder el control de la cuota (validado el 2026-11-03). |
 | D-71 | Elección entre promociones superpuestas | Se aplica primero la promoción que más ahorra entre los ítems que todavía no tienen una; esos ítems quedan fijados y se sigue con los demás. A igual ahorro gana la creada primero. El precio especial por cantidad se define por producto. | Hace que D-33 sea determinista y verificable (validado el 2026-11-03). |
+| D-72 | Cuota sin asignar | Un VO sin cuota asignada en una sucursal tiene sus dos límites en cero, y el tope de un comercio que todavía no lo fijó también es cero: todo descuento manual exige autorización. | Nadie descuenta por su cuenta hasta que lo habiliten (validado el 2026-11-03). |
+| D-73 | Cambio de la cuota durante el día | Si el AS cambia el monto asignado a un VO, o el tope lo recorta, el saldo de su última fecha de jornada se ajusta por la diferencia y nunca queda negativo. | El cambio rige en el acto sin devolverle lo ya consumido (validado el 2026-11-03). |
+| D-74 | Autoasignación de cuota | Un AS que también es VO no se asigna su propia cuota: se la asigna otro AS de la sucursal. | Extiende la segregación de funciones (Const. 13) a la cuota (validado el 2026-11-03). |
 
 ## 4. Supuestos validados
 
@@ -289,9 +292,9 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
-| RF-063 | El sistema deberá permitir al AC fijar el tope de cuota de descuento de su comercio, compuesto por un porcentaje máximo por venta y un monto acumulado. | D-6, D-32, RF-04 |
-| RF-064 | El sistema deberá permitir al AS asignar a cada VO, para su sucursal, una cuota de descuento (porcentaje máximo por venta y monto acumulado) que no supere ninguno de los dos límites del tope del comercio. | D-6, D-32, RN-07 |
-| RF-142 | Cuando el AC reduce el tope del comercio, el sistema deberá recortar al nuevo tope las cuotas asignadas que lo superen. | D-32 |
+| RF-063 | El sistema deberá permitir al AC fijar el tope de cuota de descuento de su comercio, compuesto por un porcentaje máximo por venta y un monto acumulado. | D-6, D-32, RF-04, D-72 |
+| RF-064 | El sistema deberá permitir al AS asignar a cada VO, para su sucursal, una cuota de descuento (porcentaje máximo por venta y monto acumulado) que no supere ninguno de los dos límites del tope del comercio. | D-6, D-32, RN-07, D-73, D-74 |
+| RF-142 | Cuando el AC reduce el tope del comercio, el sistema deberá recortar al nuevo tope las cuotas asignadas que lo superen. | D-32, D-73 |
 | RF-065 | Cuando un VO aplica un descuento manual que no supera su porcentaje máximo por venta y cabe en el saldo de su cuota, el sistema deberá aplicarlo sin pedir autorización y descontar su importe del saldo. | RN-07, UC-VO-06, D-32, D-70 |
 | RF-066 | Si un descuento manual supera el porcentaje máximo por venta o el saldo de la cuota del VO, entonces el sistema deberá exigir el PIN o la credencial de un AS de la sucursal para aplicarlo. Un descuento así autorizado no consume la cuota. | D-6, D-34 |
 | RF-067 | Cuando un VO abre su primer turno de una fecha de jornada en una sucursal, el sistema deberá restablecer el saldo de su cuota al monto asignado para esa sucursal. Los turnos siguientes con la misma fecha de jornada no lo restablecen. | D-32 |

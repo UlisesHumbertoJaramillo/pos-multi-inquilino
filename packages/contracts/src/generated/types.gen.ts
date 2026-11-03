@@ -1058,6 +1058,60 @@ export type PromotionUpdateRequest = {
   sucursales?: Array<string> | null;
 };
 
+export type DiscountCap = {
+  /**
+   * Porcentaje máximo de descuento por venta, entre 0 y 100, con hasta 4 decimales.
+   */
+  porcentajeMaximo: string;
+  /**
+   * Monto acumulado máximo de una cuota.
+   */
+  montoMaximo: string;
+};
+
+export type DiscountCapResult = {
+  tope: DiscountCap;
+  /**
+   * Cuotas de VO recortadas al nuevo tope.
+   */
+  cuotasRecortadas: number;
+};
+
+export type SellerQuotaRequest = {
+  /**
+   * Porcentaje máximo de descuento por venta, entre 0 y 100, con hasta 4 decimales.
+   */
+  porcentajeMaximo: string;
+  /**
+   * Monto acumulado por fecha de jornada.
+   */
+  monto: string;
+};
+
+export type SellerQuota = {
+  usuarioId: string;
+  nombre: string;
+  email: string;
+  porcentajeMaximo: string;
+  monto: string;
+  /**
+   * false: el AS todavía no le asignó cuota y sus límites son cero.
+   */
+  asignada: boolean;
+  /**
+   * Saldo de su última fecha de jornada; null si todavía no abrió ningún turno.
+   */
+  saldo: {
+    fechaJornada: string;
+    saldo: string;
+  } | null;
+};
+
+export type BranchSellerQuotas = {
+  tope: DiscountCap;
+  vendedores: Array<SellerQuota>;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -5033,3 +5087,148 @@ export type DeactivatePromotionResponses = {
 
 export type DeactivatePromotionResponse =
   DeactivatePromotionResponses[keyof DeactivatePromotionResponses];
+
+export type GetDiscountCapData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/cuota/tope';
+};
+
+export type GetDiscountCapErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetDiscountCapError = GetDiscountCapErrors[keyof GetDiscountCapErrors];
+
+export type GetDiscountCapResponses = {
+  /**
+   * Tope.
+   */
+  200: DiscountCap;
+};
+
+export type GetDiscountCapResponse = GetDiscountCapResponses[keyof GetDiscountCapResponses];
+
+export type SetDiscountCapData = {
+  body: DiscountCap;
+  path?: never;
+  query?: never;
+  url: '/cuota/tope';
+};
+
+export type SetDiscountCapErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetDiscountCapError = SetDiscountCapErrors[keyof SetDiscountCapErrors];
+
+export type SetDiscountCapResponses = {
+  /**
+   * Tope fijado.
+   */
+  200: DiscountCapResult;
+};
+
+export type SetDiscountCapResponse = SetDiscountCapResponses[keyof SetDiscountCapResponses];
+
+export type ListSellerQuotasData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/cuota/sucursales/{id}/vendedores';
+};
+
+export type ListSellerQuotasErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListSellerQuotasError = ListSellerQuotasErrors[keyof ListSellerQuotasErrors];
+
+export type ListSellerQuotasResponses = {
+  /**
+   * Cuotas.
+   */
+  200: BranchSellerQuotas;
+};
+
+export type ListSellerQuotasResponse = ListSellerQuotasResponses[keyof ListSellerQuotasResponses];
+
+export type SetSellerQuotaData = {
+  body: SellerQuotaRequest;
+  path: {
+    id: string;
+    usuarioId: string;
+  };
+  query?: never;
+  url: '/cuota/sucursales/{id}/vendedores/{usuarioId}';
+};
+
+export type SetSellerQuotaErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetSellerQuotaError = SetSellerQuotaErrors[keyof SetSellerQuotaErrors];
+
+export type SetSellerQuotaResponses = {
+  /**
+   * Cuota asignada.
+   */
+  200: SellerQuota;
+};
+
+export type SetSellerQuotaResponse = SetSellerQuotaResponses[keyof SetSellerQuotaResponses];

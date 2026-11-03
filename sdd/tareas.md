@@ -299,17 +299,17 @@
 
 ## Fase 8 — Cuota de descuento
 
-- [ ] **T-123** · Crear las migraciones `tope_cuota`, `cuota_vo` y `saldo_cuota`. · RF: RF-063 · Dep: T-060
+- [x] **T-123** · Crear las migraciones `tope_cuota`, `cuota_vo` y `saldo_cuota`. · RF: RF-063 · Dep: T-060
   - Hecho cuando: las migraciones aplican y `saldo_cuota` no admite saldos negativos.
-- [ ] **T-124** · El AC fija el tope del comercio y las cuotas que lo superan se recortan. · RF: RF-063, RF-142 · Dep: T-123
+- [x] **T-124** · El AC fija el tope del comercio y las cuotas que lo superan se recortan. · RF: RF-063, RF-142 · Dep: T-123
   - Hecho cuando: una prueba baja el tope y recorta las cuotas mayores.
-- [ ] **T-125** · El AS asigna la cuota de cada VO por sucursal, sin superar el tope. · RF: RF-064 · Dep: T-124
+- [x] **T-125** · El AS asigna la cuota de cada VO por sucursal, sin superar el tope. · RF: RF-064 · Dep: T-124
   - Hecho cuando: una cuota mayor que el tope se rechaza.
-- [ ] **T-126** · Dominio: consumo de la cuota (porcentaje por venta y saldo) y restablecimiento por fecha de jornada. · RF: RF-065, RF-067 · Dep: T-123, T-112
+- [x] **T-126** · Dominio: consumo de la cuota (porcentaje por venta y saldo) y restablecimiento por fecha de jornada. · RF: RF-065, RF-067 · Dep: T-123, T-112
   - Hecho cuando: hay casos dentro de la cuota, sobre el porcentaje y sin saldo, y dos turnos con la misma fecha no restablecen el saldo.
-- [ ] **T-127** · Descuento por encima de la cuota con autorización, que no consume el saldo. · RF: RF-066 · Dep: T-126, T-044
+- [x] **T-127** · Descuento por encima de la cuota con autorización, que no consume el saldo. · RF: RF-066 · Dep: T-126, T-044
   - Hecho cuando: con autorización se aplica y el saldo queda igual. Sin autorización se rechaza.
-- [ ] **T-128** · Frontend: tope del comercio (AC) y cuotas de los VO (AS). · RF: RF-063, RF-064 · Dep: T-125, T-070
+- [x] **T-128** · Frontend: tope del comercio (AC) y cuotas de los VO (AS). · RF: RF-063, RF-064 · Dep: T-125, T-070
   - Hecho cuando: desde /admin, el AS asigna una cuota al VO demo.
 
 ## Fase 9 — Caja

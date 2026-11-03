@@ -21,6 +21,8 @@ import { PurchasesPage } from './pages/suppliers/PurchasesPage';
 import { ReceptionsPage } from './pages/suppliers/ReceptionsPage';
 import { SuppliersPage } from './pages/suppliers/SuppliersPage';
 import { PromotionsPage } from './pages/promotions/PromotionsPage';
+import { DiscountCapPage } from './pages/quotas/DiscountCapPage';
+import { SellerQuotasPage } from './pages/quotas/SellerQuotasPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -69,6 +71,8 @@ export const routes: RouteObject[] = [
   { path: '/admin/listas', element: acOnly(<PriceListsPage />) },
   { path: '/admin/listas/:id/imprimir', element: acOnly(<PriceListPrintPage />) },
   { path: '/admin/promociones', element: acOnly(<PromotionsPage />) },
+  { path: '/admin/cuota', element: acOnly(<DiscountCapPage />) },
+  { path: '/admin/cuotas', element: asOnly(<SellerQuotasPage />) },
   { path: '/admin/proveedores', element: acOnly(<SuppliersPage />) },
   { path: '/admin/compras', element: acOnly(<PurchasesPage />) },
   { path: '/admin/recepciones', element: asOnly(<ReceptionsPage />) },

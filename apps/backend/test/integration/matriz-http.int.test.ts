@@ -138,6 +138,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     if (path.endsWith('/mermas')) return { productoId: PRODUCT_A, cantidad: '1', motivo: 'rotura' };
     if (path.endsWith('/revision/:productoId')) return { accion: 'reingresar', cantidad: '1' };
     if (path.endsWith('/recepcion')) return { items: [] };
+    if (path.endsWith('/vendedores/:usuarioId')) return { porcentajeMaximo: '0', monto: '0' };
     if (path.endsWith('/pagos'))
       return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
     return {};
@@ -145,9 +146,15 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const crossTenantRoutes = routesWithAction.filter(
     (route) =>
       route.path.includes(':id') &&
-      ['organizacion', 'catalogo', 'inventario', 'proveedores', 'compras', 'promociones'].includes(
-        route.path.split('/')[1] ?? '',
-      ),
+      [
+        'organizacion',
+        'catalogo',
+        'inventario',
+        'proveedores',
+        'compras',
+        'promociones',
+        'cuota',
+      ].includes(route.path.split('/')[1] ?? ''),
   );
 
   beforeEach(async () => {
@@ -226,7 +233,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     const path = route.path
       .replace(':id', target.id)
       .replace(':productoId', PRODUCT_A)
-      .replace(':alertaId', TRANSFER_A);
+      .replace(':alertaId', TRANSFER_A)
+      .replace(':usuarioId', USERS.vo.id);
 
     const pending = request(api.app)[route.method](path).set('Authorization', auth);
     const response = route.binaryBody
@@ -260,9 +268,11 @@ describe('[RF-004] un AS no modifica precios ni el catálogo', () => {
   });
 });
 
-describe('[RF-004] el AS de una sucursal no opera el stock de otra', () => {
-  const branchRoutes = routesWithAction.filter((route) =>
-    route.path.startsWith('/inventario/sucursales/:id/'),
+describe('[RF-004] el AS de una sucursal no opera el stock ni las cuotas de otra', () => {
+  const branchRoutes = routesWithAction.filter(
+    (route) =>
+      route.path.startsWith('/inventario/sucursales/:id/') ||
+      route.path.startsWith('/cuota/sucursales/:id/'),
   );
   // Cuerpos válidos: el rechazo tiene que venir de la sucursal, no de los datos.
   const BODIES: Record<string, object> = {
@@ -270,6 +280,7 @@ describe('[RF-004] el AS de una sucursal no opera el stock de otra', () => {
     umbrales: { umbral: '1' },
     mermas: { productoId: BRANCH_CENTRO, cantidad: '1', motivo: 'rotura' },
     revision: { accion: 'reingresar', cantidad: '1' },
+    vendedores: { porcentajeMaximo: '0', monto: '0' },
   };
 
   it.each(branchRoutes)('el AS de Norte recibe 403 en $method $path de Centro', async (route) => {
@@ -277,7 +288,8 @@ describe('[RF-004] el AS de una sucursal no opera el stock de otra', () => {
     const path = route.path
       .replace(':id', BRANCH_CENTRO)
       .replace(':productoId', BRANCH_CENTRO)
-      .replace(':alertaId', BRANCH_CENTRO);
+      .replace(':alertaId', BRANCH_CENTRO)
+      .replace(':usuarioId', USERS.vo.id);
 
     const response = await request(api.app)
       [route.method](path)
