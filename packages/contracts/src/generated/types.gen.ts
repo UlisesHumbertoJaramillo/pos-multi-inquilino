@@ -979,6 +979,85 @@ export type PurchaseReceptionRequest = {
   }>;
 };
 
+/**
+ * NxM: en una categoría se mezclan productos y se bonifican las unidades más baratas de cada grupo.
+ */
+export type PromotionRule =
+  | {
+      tipo: 'nxm';
+      lleva: number;
+      /**
+       * Menos que lo que se lleva: 2x1 es lleva 2, paga 1.
+       */
+      paga: number;
+    }
+  | {
+      tipo: 'porcentaje';
+      /**
+       * Mayor que 0 y hasta 100.
+       */
+      porcentaje: string;
+    }
+  | {
+      tipo: 'precio_cantidad';
+      cantidad: number;
+      /**
+       * Precio final por esa cantidad. Solo con alcance producto.
+       */
+      precio: string;
+    };
+
+export type Promotion = {
+  id: string;
+  nombre: string;
+  regla: PromotionRule;
+  alcance: 'producto' | 'categoria';
+  objetivo: {
+    id: string;
+    nombre: string;
+  };
+  vigenteDesde: string;
+  vigenteHasta: string;
+  sucursales: Array<string> | null;
+  activa: boolean;
+  /**
+   * Vigente en este momento.
+   */
+  vigente: boolean;
+};
+
+export type PromotionCreateRequest = {
+  nombre: string;
+  regla: PromotionRule;
+  alcance: 'producto' | 'categoria';
+  /**
+   * El producto o la categoría, según el alcance.
+   */
+  objetivoId: string;
+  vigenteDesde: string;
+  vigenteHasta: string;
+  /**
+   * null: todas las sucursales.
+   */
+  sucursales: Array<string> | null;
+};
+
+export type PromotionUpdateRequest = {
+  nombre?: string;
+  regla?: PromotionRule;
+  alcance?: 'producto' | 'categoria';
+  /**
+   * El producto o la categoría, según el alcance.
+   */
+  objetivoId?: string;
+  vigenteDesde?: string;
+  vigenteHasta?: string;
+  /**
+   * null: todas las sucursales.
+   */
+  sucursales?: Array<string> | null;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -4795,3 +4874,162 @@ export type ListPendingReceptionsResponses = {
 
 export type ListPendingReceptionsResponse =
   ListPendingReceptionsResponses[keyof ListPendingReceptionsResponses];
+
+export type ListPromotionsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    vigentes?: 'true' | 'false';
+  };
+  url: '/promociones';
+};
+
+export type ListPromotionsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListPromotionsError = ListPromotionsErrors[keyof ListPromotionsErrors];
+
+export type ListPromotionsResponses = {
+  /**
+   * Promociones.
+   */
+  200: Array<Promotion>;
+};
+
+export type ListPromotionsResponse = ListPromotionsResponses[keyof ListPromotionsResponses];
+
+export type CreatePromotionData = {
+  body: PromotionCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/promociones';
+};
+
+export type CreatePromotionErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreatePromotionError = CreatePromotionErrors[keyof CreatePromotionErrors];
+
+export type CreatePromotionResponses = {
+  /**
+   * Promoción creada.
+   */
+  201: Promotion;
+};
+
+export type CreatePromotionResponse = CreatePromotionResponses[keyof CreatePromotionResponses];
+
+export type UpdatePromotionData = {
+  body: PromotionUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/promociones/{id}';
+};
+
+export type UpdatePromotionErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdatePromotionError = UpdatePromotionErrors[keyof UpdatePromotionErrors];
+
+export type UpdatePromotionResponses = {
+  /**
+   * Promoción modificada.
+   */
+  200: Promotion;
+};
+
+export type UpdatePromotionResponse = UpdatePromotionResponses[keyof UpdatePromotionResponses];
+
+export type DeactivatePromotionData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/promociones/{id}/baja';
+};
+
+export type DeactivatePromotionErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivatePromotionError = DeactivatePromotionErrors[keyof DeactivatePromotionErrors];
+
+export type DeactivatePromotionResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivatePromotionResponse =
+  DeactivatePromotionResponses[keyof DeactivatePromotionResponses];

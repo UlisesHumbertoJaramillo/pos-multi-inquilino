@@ -32,6 +32,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Catálogo', path: '/admin/catalogo', available: true },
     { label: 'Combos', path: '/admin/combos', available: true },
     { label: 'Listas de precios', path: '/admin/listas', available: true },
+    { label: 'Promociones', path: '/admin/promociones', available: true },
     { label: 'Proveedores', path: '/admin/proveedores', available: true },
     { label: 'Compras', path: '/admin/compras', available: true },
     { label: 'Dashboard', path: '/admin/dashboard', available: false },

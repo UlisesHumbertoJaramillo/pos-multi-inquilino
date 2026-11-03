@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 6. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-68).
+Surgieron al construir las fases 3 a 7. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-71).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -111,6 +111,9 @@ Surgieron al construir las fases 3 a 6. El responsable del producto las validó 
 | D-66 | Costo de compra | Al registrar una compra, el costo de cada producto comprado pasa a ser su costo unitario en esa compra (último costo de compra), sin IVA. Eso recalcula sus precios en las listas que dependen del costo. | Es simple y predecible: el precio sigue al último valor pagado (validado el 2026-11-03). |
 | D-67 | Faltante en la recepción de una compra | Si llega menos de lo comprado, la diferencia queda registrada para reclamarla y la deuda con el proveedor no cambia. No se puede recibir más de lo comprado. | La deuda refleja lo facturado por el proveedor; la corrección llega con su nota de crédito o un pago (validado el 2026-11-03). |
 | D-68 | Formato de la importación de catálogo | El archivo es un CSV con encabezado y las columnas código de barras, nombre, costo sin IVA y categoría, separadas por coma o punto y coma (con coma decimal). Un código que existe actualiza el producto; uno nuevo lo crea. La categoría tiene que existir. | Es el formato que exporta una planilla de cálculo, y cumple RF-035 sin pasos manuales (validado el 2026-11-03). |
+| D-69 | Promoción NxM por categoría | Las unidades de los distintos productos de la categoría se juntan: se arman grupos de N desde la unidad más cara y en cada grupo se bonifican las N−M más baratas. Con alcance producto solo cuentan las unidades de ese producto. Un NxM cuenta unidades enteras. | Es lo habitual en el comercio minorista y lo más beneficioso para el cliente (validado el 2026-11-03). |
+| D-70 | Descuento manual | El VO lo ingresa como porcentaje o como monto sobre la venta después de promociones. Se prorratea entre los ítems según su importe (D-17) y se controla contra los dos límites de la cuota. | Da flexibilidad sin perder el control de la cuota (validado el 2026-11-03). |
+| D-71 | Elección entre promociones superpuestas | Se aplica primero la promoción que más ahorra entre los ítems que todavía no tienen una; esos ítems quedan fijados y se sigue con los demás. A igual ahorro gana la creada primero. El precio especial por cantidad se define por producto. | Hace que D-33 sea determinista y verificable (validado el 2026-11-03). |
 
 ## 4. Supuestos validados
 
@@ -255,7 +258,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | :-- | :-- | :-- |
 | RF-048 | El sistema deberá permitir al AC crear reglas de promoción automáticas (por ejemplo, 2x1) con vigencia definida. | RF-09, UC-AC-08 |
 | RF-049 | El sistema deberá permitir al AC definir combos con un precio único y una lista de componentes con sus cantidades. | RF-09, D-63 |
-| RF-050 | Cuando un carrito cumple las condiciones de una o más promociones vigentes, el sistema deberá aplicar automáticamente a cada ítem como máximo una, la más beneficiosa para el cliente, sin aplicarlas a los componentes de un combo, y resaltarla en pantalla. | RF-13, UC-VO-02, D-33 |
+| RF-050 | Cuando un carrito cumple las condiciones de una o más promociones vigentes, el sistema deberá aplicar automáticamente a cada ítem como máximo una, la más beneficiosa para el cliente, sin aplicarlas a los componentes de un combo, y resaltarla en pantalla. | RF-13, UC-VO-02, D-33, D-69, D-71 |
 | RF-143 | Mientras un ítem permanezca en el carrito, el sistema deberá mantener la promoción que se le aplicó aunque esta venza. | D-33, S-1 |
 | RF-051 | Cuando se agrega un combo al carrito, el sistema deberá reservar el stock de cada componente en la cantidad que corresponde. | RF-09, S-3 |
 | RF-124 | El sistema deberá prorratear el precio de un combo entre sus componentes según el precio de lista de cada uno, aplicar a cada parte la tasa de IVA de su categoría y usar ese mismo prorrateo en las devoluciones. | D-18 |
@@ -289,7 +292,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-063 | El sistema deberá permitir al AC fijar el tope de cuota de descuento de su comercio, compuesto por un porcentaje máximo por venta y un monto acumulado. | D-6, D-32, RF-04 |
 | RF-064 | El sistema deberá permitir al AS asignar a cada VO, para su sucursal, una cuota de descuento (porcentaje máximo por venta y monto acumulado) que no supere ninguno de los dos límites del tope del comercio. | D-6, D-32, RN-07 |
 | RF-142 | Cuando el AC reduce el tope del comercio, el sistema deberá recortar al nuevo tope las cuotas asignadas que lo superen. | D-32 |
-| RF-065 | Cuando un VO aplica un descuento manual que no supera su porcentaje máximo por venta y cabe en el saldo de su cuota, el sistema deberá aplicarlo sin pedir autorización y descontar su importe del saldo. | RN-07, UC-VO-06, D-32 |
+| RF-065 | Cuando un VO aplica un descuento manual que no supera su porcentaje máximo por venta y cabe en el saldo de su cuota, el sistema deberá aplicarlo sin pedir autorización y descontar su importe del saldo. | RN-07, UC-VO-06, D-32, D-70 |
 | RF-066 | Si un descuento manual supera el porcentaje máximo por venta o el saldo de la cuota del VO, entonces el sistema deberá exigir el PIN o la credencial de un AS de la sucursal para aplicarlo. Un descuento así autorizado no consume la cuota. | D-6, D-34 |
 | RF-067 | Cuando un VO abre su primer turno de una fecha de jornada en una sucursal, el sistema deberá restablecer el saldo de su cuota al monto asignado para esa sucursal. Los turnos siguientes con la misma fecha de jornada no lo restablecen. | D-32 |
 

@@ -108,6 +108,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const PRICE_LIST_A = 'a6000000-0000-4000-8000-000000000001';
   const SUPPLIER_A = 'a8000000-0000-4000-8000-000000000001';
   const PURCHASE_A = 'a9000000-0000-4000-8000-000000000001';
+  const PROMOTION_A = 'aa000000-0000-4000-8000-000000000001';
   const TRANSFER_A = 'a7000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
@@ -122,6 +123,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     transferencias: { resourceType: 'transferencia', id: TRANSFER_A },
     proveedores: { resourceType: 'proveedor', id: SUPPLIER_A },
     compras: { resourceType: 'compra', id: PURCHASE_A },
+    promociones: { resourceType: 'promocion', id: PROMOTION_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -143,7 +145,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const crossTenantRoutes = routesWithAction.filter(
     (route) =>
       route.path.includes(':id') &&
-      ['organizacion', 'catalogo', 'inventario', 'proveedores', 'compras'].includes(
+      ['organizacion', 'catalogo', 'inventario', 'proveedores', 'compras', 'promociones'].includes(
         route.path.split('/')[1] ?? '',
       ),
   );
@@ -189,6 +191,13 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
          registrada_por, registrada_en)
        VALUES ($1, $2, $3, $4, 'pendiente', 0, $5, now())`,
       [PURCHASE_A, TENANT_A, SUPPLIER_A, BRANCH_CENTRO, USERS.ac.id],
+    );
+    await ownerQuery(
+      `INSERT INTO promocion (id, tenant_id, nombre, tipo, alcance, categoria_id, parametros,
+         vigente_desde, vigente_hasta, creado_en)
+       VALUES ($1, $2, '2x1', 'nxm', 'categoria', $3, '{"lleva": 2, "paga": 1}', now(),
+         now() + interval '30 days', now())`,
+      [PROMOTION_A, TENANT_A, CATEGORY_A],
     );
   });
 

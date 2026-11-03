@@ -28,6 +28,10 @@ import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js
 import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
 import {
+  createPromotionModule,
+  type PromotionModule,
+} from './modulos/promociones/adaptadores/module.js';
+import {
   createSupplierModule,
   type SupplierModule,
 } from './modulos/proveedores/adaptadores/module.js';
@@ -99,6 +103,7 @@ export interface Api {
   catalog: CatalogModule;
   inventory: InventoryModule;
   suppliers: SupplierModule;
+  promotions: PromotionModule;
   routes: HttpRoute[];
 }
 
@@ -206,6 +211,14 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     },
   });
 
+  const promotions = createPromotionModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -213,6 +226,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...catalog.routes,
     ...inventory.routes,
     ...suppliers.routes,
+    ...promotions.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -226,5 +240,15 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity, platform, organization, catalog, inventory, suppliers, routes };
+  return {
+    app,
+    identity,
+    platform,
+    organization,
+    catalog,
+    inventory,
+    suppliers,
+    promotions,
+    routes,
+  };
 }

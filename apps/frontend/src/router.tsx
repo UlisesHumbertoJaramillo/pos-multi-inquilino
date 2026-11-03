@@ -20,6 +20,7 @@ import { TransfersPage } from './pages/inventory/TransfersPage';
 import { PurchasesPage } from './pages/suppliers/PurchasesPage';
 import { ReceptionsPage } from './pages/suppliers/ReceptionsPage';
 import { SuppliersPage } from './pages/suppliers/SuppliersPage';
+import { PromotionsPage } from './pages/promotions/PromotionsPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -67,6 +68,7 @@ export const routes: RouteObject[] = [
   { path: '/admin/combos', element: acOnly(<CombosPage />) },
   { path: '/admin/listas', element: acOnly(<PriceListsPage />) },
   { path: '/admin/listas/:id/imprimir', element: acOnly(<PriceListPrintPage />) },
+  { path: '/admin/promociones', element: acOnly(<PromotionsPage />) },
   { path: '/admin/proveedores', element: acOnly(<SuppliersPage />) },
   { path: '/admin/compras', element: acOnly(<PurchasesPage />) },
   { path: '/admin/recepciones', element: asOnly(<ReceptionsPage />) },

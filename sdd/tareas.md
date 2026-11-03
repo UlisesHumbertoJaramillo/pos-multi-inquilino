@@ -274,27 +274,27 @@
 
 ## Fase 7 — Motor de cálculo y promociones
 
-- [ ] **T-112** · Dominio: tipo decimal y reglas de redondeo de D-17, con ajuste de la diferencia en la última línea. · RF: RF-123 · Dep: T-011
+- [x] **T-112** · Dominio: tipo decimal y reglas de redondeo de D-17, con ajuste de la diferencia en la última línea. · RF: RF-123 · Dep: T-011
   - Hecho cuando: pasa una tabla de casos en la que la suma redondeada coincide siempre con el total.
-- [ ] **T-113** · Dominio: desglose del IVA incluido hacia atrás. · RF: RF-120 · Dep: T-112
+- [x] **T-113** · Dominio: desglose del IVA incluido hacia atrás. · RF: RF-120 · Dep: T-112
   - Hecho cuando: pasa una tabla de casos con tasas de 21%, 10,5% y 0%.
-- [ ] **T-114** · Dominio: total de la venta (precio fijado → promoción → descuento manual) con prorrateo. · RF: RF-121 · Dep: T-112
+- [x] **T-114** · Dominio: total de la venta (precio fijado → promoción → descuento manual) con prorrateo. · RF: RF-121 · Dep: T-112
   - Hecho cuando: pasa una tabla de casos revisada contra cálculos manuales.
-- [ ] **T-115** · Dominio: fracciones por medio de pago con su recargo o descuento, total a cobrar y base del IVA. · RF: RF-069, RF-122 · Dep: T-113, T-114
+- [x] **T-115** · Dominio: fracciones por medio de pago con su recargo o descuento, total a cobrar y base del IVA. · RF: RF-069, RF-122 · Dep: T-113, T-114
   - Hecho cuando: pasa una tabla de casos de pagos mixtos con recargo.
-- [ ] **T-116** · Dominio: validación de que el pago cubre cada fracción, y cálculo del vuelto solo en efectivo. · RF: RF-070, RF-071 · Dep: T-115
+- [x] **T-116** · Dominio: validación de que el pago cubre cada fracción, y cálculo del vuelto solo en efectivo. · RF: RF-070, RF-071 · Dep: T-115
   - Hecho cuando: hay casos de pago insuficiente, de pago exacto, de vuelto en efectivo y de pago de más con tarjeta (rechazado).
-- [ ] **T-117** · Dominio: IVA de combos por prorrateo según el precio de lista. · RF: RF-124 · Dep: T-113
+- [x] **T-117** · Dominio: IVA de combos por prorrateo según el precio de lista. · RF: RF-124 · Dep: T-113
   - Hecho cuando: pasa una tabla de casos de un combo que mezcla tasas.
-- [ ] **T-118** · Dominio: reintegro proporcional de una devolución, incluida la de una venta a crédito ya pagada. · RF: RF-085, RF-086 · Dep: T-115
+- [x] **T-118** · Dominio: reintegro proporcional de una devolución, incluida la de una venta a crédito ya pagada. · RF: RF-085, RF-086 · Dep: T-115
   - Hecho cuando: pasa una tabla de casos, y una devolución total devuelve exactamente lo cobrado.
-- [ ] **T-119** · Pruebas por propiedades del motor de cálculo. · RF: RF-121 a RF-123 · Dep: T-114 a T-118
+- [x] **T-119** · Pruebas por propiedades del motor de cálculo. · RF: RF-121 a RF-123 · Dep: T-114 a T-118
   - Hecho cuando: con 1000 casos generados, la suma de las fracciones iguala el total y nunca queda una diferencia de redondeo.
-- [ ] **T-120** · Promociones: migración y ABM con tipos cerrados y vigencia. · RF: RF-048 · Dep: T-072
+- [x] **T-120** · Promociones: migración y ABM con tipos cerrados y vigencia. · RF: RF-048 · Dep: T-072
   - Hecho cuando: en /docs, el AC crea un 2x1 con vigencia.
-- [ ] **T-121** · Dominio: evaluador de promociones que elige la mejor por ítem y excluye los componentes de combos. · RF: RF-050 · Dep: T-120, T-112
+- [x] **T-121** · Dominio: evaluador de promociones que elige la mejor por ítem y excluye los componentes de combos. · RF: RF-050 · Dep: T-120, T-112
   - Hecho cuando: pasa una tabla de casos con promociones superpuestas.
-- [ ] **T-122** · Frontend del AC: promociones. · RF: RF-048 · Dep: T-121, T-086
+- [x] **T-122** · Frontend del AC: promociones. · RF: RF-048 · Dep: T-121, T-086
   - Hecho cuando: desde /admin se crea una promoción y aparece en la lista de vigentes.
 
 ## Fase 8 — Cuota de descuento
