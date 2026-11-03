@@ -28,6 +28,10 @@ import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js
 import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
 import {
+  createSupplierModule,
+  type SupplierModule,
+} from './modulos/proveedores/adaptadores/module.js';
+import {
   createInventoryModule,
   type InventoryModule,
 } from './modulos/inventario/adaptadores/module.js';
@@ -94,6 +98,7 @@ export interface Api {
   organization: OrganizationModule;
   catalog: CatalogModule;
   inventory: InventoryModule;
+  suppliers: SupplierModule;
   routes: HttpRoute[];
 }
 
@@ -171,7 +176,34 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ids: uuidGenerator,
     access,
     commercialAudit,
-    productDependencies: deps.productDependencies ?? inventory.dependencies,
+    // Bajas de productos (D-42): reservas y transferencias del inventario, compras de proveedores.
+    productDependencies: deps.productDependencies ?? {
+      forProduct: async (tenantId, productId) => ({
+        ...(await inventory.dependencies.forProduct(tenantId, productId)),
+        pendingPurchases: await suppliers.pendingPurchases(tenantId, productId),
+      }),
+    },
+  });
+
+  const suppliers = createSupplierModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    catalog: catalog.costs,
+    // La recepción de una compra ingresa lo recibido al stock disponible (D-25).
+    stock: {
+      receive: async (actor, branchId, product, quantity, reference) => {
+        await inventory.ledger.apply(actor, {
+          branchId,
+          product,
+          operation: 'ingresar',
+          quantity,
+          reference,
+        });
+      },
+    },
   });
 
   const routes = [
@@ -180,6 +212,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...organization.routes,
     ...catalog.routes,
     ...inventory.routes,
+    ...suppliers.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -193,5 +226,5 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
     ...(deps.publicRateLimit ? { publicRateLimit: deps.publicRateLimit } : {}),
   });
-  return { app, identity, platform, organization, catalog, inventory, routes };
+  return { app, identity, platform, organization, catalog, inventory, suppliers, routes };
 }

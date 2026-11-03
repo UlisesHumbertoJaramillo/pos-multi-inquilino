@@ -255,21 +255,21 @@
 
 ## Fase 6 — Proveedores y compras
 
-- [ ] **T-104** · Crear las migraciones `proveedor`, `importacion_catalogo`, `compra`, `compra_item`, `recepcion_compra_item` y `pago_proveedor`. · RF: RF-034 · Dep: T-072
+- [x] **T-104** · Crear las migraciones `proveedor`, `importacion_catalogo`, `compra`, `compra_item`, `recepcion_compra_item` y `pago_proveedor`. · RF: RF-034 · Dep: T-072
   - Hecho cuando: las migraciones aplican con seguridad a nivel de fila.
-- [ ] **T-105** · ABM de proveedores. · RF: RF-034 · Dep: T-104, T-023
+- [x] **T-105** · ABM de proveedores. · RF: RF-034 · Dep: T-104, T-023
   - Hecho cuando: en /docs, el AC crea un proveedor.
-- [ ] **T-106** · Importación de catálogo desde CSV: identifica por código de barras, aplica las filas válidas, informa las erróneas y genera un único registro de auditoría. · RF: RF-035 · Dep: T-105, T-078, T-041
+- [x] **T-106** · Importación de catálogo desde CSV: identifica por código de barras, aplica las filas válidas, informa las erróneas y genera un único registro de auditoría. · RF: RF-035 · Dep: T-105, T-078, T-041
   - Hecho cuando: un CSV de prueba con 2 filas inválidas importa el resto y devuelve las 2 con su motivo.
-- [ ] **T-107** · Registrar una compra a crédito: aumenta la deuda, actualiza el costo (y dispara el recálculo) y queda pendiente de recepción. · RF: RF-036 · Dep: T-105, T-078
+- [x] **T-107** · Registrar una compra a crédito: aumenta la deuda, actualiza el costo (y dispara el recálculo) y queda pendiente de recepción. · RF: RF-036 · Dep: T-105, T-078
   - Hecho cuando: la deuda del proveedor sube y el precio de lista del producto se recalcula.
-- [ ] **T-108** · Recepción de la compra en la sucursal de destino. · RF: RF-133 · Dep: T-107, T-089
+- [x] **T-108** · Recepción de la compra en la sucursal de destino. · RF: RF-133 · Dep: T-107, T-089
   - Hecho cuando: el stock disponible sube con lo recibido y la diferencia queda registrada.
-- [ ] **T-109** · Pagos a proveedor con advertencia y confirmación si exceden la deuda. · RF: RF-037, RF-038 · Dep: T-107
+- [x] **T-109** · Pagos a proveedor con advertencia y confirmación si exceden la deuda. · RF: RF-037, RF-038 · Dep: T-107
   - Hecho cuando: un pago de más sin confirmación se rechaza y con confirmación se registra.
-- [ ] **T-110** · Frontend: proveedores, importación, compras, recepción y pagos. · RF: RF-034 a RF-038, RF-133 · Dep: T-106 a T-109, T-086
+- [x] **T-110** · Frontend: proveedores, importación, compras, recepción y pagos. · RF: RF-034 a RF-038, RF-133 · Dep: T-106 a T-109, T-086
   - Hecho cuando: desde /admin se importa un CSV y una compra se recibe en una sucursal.
-- [ ] **T-111** · Sumar las acciones de proveedores al generador de la matriz. · RF: RF-004 · Dep: T-110
+- [x] **T-111** · Sumar las acciones de proveedores al generador de la matriz. · RF: RF-004 · Dep: T-110
   - Hecho cuando: las pruebas generadas pasan.
 
 ## Fase 7 — Motor de cálculo y promociones

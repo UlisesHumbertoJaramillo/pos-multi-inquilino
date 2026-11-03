@@ -5,6 +5,7 @@ import { Argon2SecretHasher } from '../src/modulos/identidad/adaptadores/crypto.
 import { DEFAULT_PARAMETERS as P } from '../src/modulos/organizacion/dominio/parameters.js';
 import { seedCatalog } from './db-seed-catalog.js';
 import { seedInventory } from './db-seed-inventory.js';
+import { seedSuppliers } from './db-seed-suppliers.js';
 import { ownerConnection } from './db/migrations.js';
 
 const DEMO_PASSWORD = 'Demo-2026!';
@@ -241,11 +242,12 @@ async function main(): Promise<void> {
       { tenantId: DEMO.tenantId, branches: DEMO.branches, userId: AS_DEMO_ID },
       NOW,
     );
+    const suppliers = await seedSuppliers(client, DEMO.tenantId, NOW);
     // Los intentos fallidos de pruebas anteriores no deben dejar bloqueadas las cuentas demo.
     await client.query("DELETE FROM intento_acceso WHERE identificador LIKE '%@demo.local'");
     await client.query('COMMIT');
     console.log(
-      `Datos de demostración cargados: comercio Demo, ${String(BRANCHES.length)} sucursales, ${String(USERS.length)} usuarios y ${String(catalog.products)} productos con stock en ${String(stock.rows)} saldos.`,
+      `Datos de demostración cargados: comercio Demo, ${String(BRANCHES.length)} sucursales, ${String(USERS.length)} usuarios y ${String(catalog.products)} productos con stock en ${String(stock.rows)} saldos y ${String(suppliers.suppliers)} proveedores.`,
     );
   } catch (error: unknown) {
     await client.query('ROLLBACK');

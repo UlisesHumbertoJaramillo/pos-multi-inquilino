@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.6.0
+  version: 0.7.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -25,6 +25,8 @@ tags:
     description: Categorías con IVA, productos con imagen, combos, listas de precios y su asignación a sucursales (AC).
   - name: Inventario
     description: Stock por sucursal en cuatro estados, ajustes, umbrales, mermas, revisión, alertas, disponibilidad de combos y transferencias (AS).
+  - name: Proveedores
+    description: Proveedores y su cuenta, importación de catálogo, compras a crédito, recepción en sucursal y pagos.
 paths:
   /salud:
     get:
@@ -2103,6 +2105,309 @@ paths:
         '403': *a22
         '404': *a25
         '409': *a26
+  /proveedores:
+    get:
+      operationId: listSuppliers
+      tags:
+        - Proveedores
+      summary: Proveedores
+      description: Con su saldo adeudado (RF-034). Solo el AC de su comercio.
+      parameters:
+        - name: incluirBajas
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+      responses:
+        '200':
+          description: Proveedores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': &a27
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a28
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createSupplier
+      tags:
+        - Proveedores
+      summary: Crear un proveedor
+      description: RF-034. Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierCreateRequest'
+      responses:
+        '201':
+          description: Proveedor creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a27
+        '403': *a28
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /proveedores/{id}:
+    patch:
+      operationId: updateSupplier
+      tags:
+        - Proveedores
+      summary: Modificar un proveedor
+      description: RF-034. Solo el AC de su comercio.
+      parameters: &a29
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierUpdateRequest'
+      responses:
+        '200':
+          description: Proveedor modificado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '400': &a30
+          $ref: '#/components/responses/BadRequest'
+        '401': *a27
+        '403': *a28
+        '404': &a31
+          $ref: '#/components/responses/NotFound'
+        '409': &a32
+          $ref: '#/components/responses/Conflict'
+  /proveedores/{id}/baja:
+    post:
+      operationId: deactivateSupplier
+      tags:
+        - Proveedores
+      summary: Dar de baja un proveedor
+      description: Se rechaza si tiene saldo (RF-148). Solo el AC de su comercio.
+      parameters: *a29
+      responses:
+        '204':
+          description: Hecho.
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+        '409': *a32
+  /proveedores/{id}/cuenta:
+    get:
+      operationId: getSupplierStatement
+      tags:
+        - Proveedores
+      summary: Cuenta de un proveedor
+      description: 'Saldo y últimos 200 movimientos: compras y pagos. Solo el AC de su comercio.'
+      parameters: *a29
+      responses:
+        '200':
+          description: Cuenta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierStatement'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+  /proveedores/{id}/importaciones:
+    post:
+      operationId: importCatalog
+      tags:
+        - Proveedores
+      summary: Importar el catálogo de un proveedor
+      description: CSV con encabezado codigo_barras, nombre, costo, categoria (coma o punto y coma). Crea o actualiza por código de barras las filas válidas, informa las demás y recalcula los precios; queda en la auditoría como una sola operación (RF-035, D-49). Solo el AC de su comercio.
+      parameters: *a29
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+          text/plain:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resultado de la importación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogImportResult'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+        '409': *a32
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /proveedores/{id}/pagos:
+    post:
+      operationId: registerSupplierPayment
+      tags:
+        - Proveedores
+      summary: Registrar un pago a un proveedor
+      description: Baja el saldo y conserva el comprobante (RF-037). Si supera el saldo responde 409 PAGO_EXCEDE_DEUDA, salvo que se confirme el exceso (RF-038). Solo el AC de su comercio.
+      parameters: *a29
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierPaymentRequest'
+      responses:
+        '201':
+          description: Pago registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierPaymentResult'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+        '409': *a32
+  /compras:
+    get:
+      operationId: listPurchases
+      tags:
+        - Proveedores
+      summary: Compras
+      description: Las más recientes primero; se pueden filtrar por proveedor. Solo el AC de su comercio.
+      parameters:
+        - name: proveedorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Compras.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a27
+        '403': *a28
+    post:
+      operationId: registerPurchase
+      tags:
+        - Proveedores
+      summary: Registrar una compra a crédito
+      description: Sube la deuda, el costo de cada producto pasa a ser el de esta compra y se recalculan sus precios, y queda pendiente de recepción en la sucursal de destino (RF-036, D-25). Solo el AC de su comercio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseCreateRequest'
+      responses:
+        '201':
+          description: Compra registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Purchase'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+        '409': *a32
+  /compras/{id}:
+    get:
+      operationId: getPurchase
+      tags:
+        - Proveedores
+      summary: Una compra
+      description: Solo el AC de su comercio.
+      parameters: *a29
+      responses:
+        '200':
+          description: Compra.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Purchase'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+  /compras/{id}/recepcion:
+    post:
+      operationId: receivePurchase
+      tags:
+        - Proveedores
+      summary: Recibir una compra
+      description: Lo recibido entra al stock disponible de la sucursal de destino y la diferencia con lo comprado queda registrada; la deuda no cambia (RF-133). Solo un AS de la sucursal de destino.
+      parameters: *a29
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseReceptionRequest'
+      responses:
+        '200':
+          description: Compra recibida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Purchase'
+        '400': *a30
+        '401': *a27
+        '403': *a28
+        '404': *a31
+        '409': *a32
+  /recepciones:
+    get:
+      operationId: listPendingReceptions
+      tags:
+        - Proveedores
+      summary: Compras a recibir
+      description: Compras pendientes de recepción en las sucursales del AS.
+      responses:
+        '200':
+          description: Compras pendientes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+        '401': *a27
+        '403': *a28
 components:
   securitySchemes:
     tokenAcceso:
@@ -2432,7 +2737,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a27
+        id: &a33
           type: string
           format: uuid
         nombre:
@@ -2452,7 +2757,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a28
+        creadoEn: &a34
           type: string
           format: date-time
     TenantCreateRequest:
@@ -2526,7 +2831,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a27
+        usuarioId: *a33
         email:
           type: string
     TicketStatus:
@@ -2547,16 +2852,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a27
-        comercioId: *a27
+        id: *a33
+        comercioId: *a33
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a28
-        actualizadoEn: *a28
+        creadoEn: *a34
+        actualizadoEn: *a34
     TicketMessage:
       type: object
       additionalProperties: false
@@ -2566,13 +2871,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a27
+        id: *a33
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a28
+        creadoEn: *a34
     TicketDetail:
       type: object
       additionalProperties: false
@@ -2586,16 +2891,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a27
-        comercioId: *a27
+        id: *a33
+        comercioId: *a33
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a28
-        actualizadoEn: *a28
+        creadoEn: *a34
+        actualizadoEn: *a34
         mensajes:
           type: array
           items:
@@ -2637,17 +2942,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a27
-        momento: *a28
+        id: *a33
+        momento: *a34
         tipoEvento:
           type: string
         actorId:
-          type: &a29
+          type: &a35
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a29
+          type: *a35
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -2682,7 +2987,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a28
+              momento: *a34
               metodo:
                 type: string
               ruta:
@@ -2729,7 +3034,7 @@ components:
         - direccion
         - activa
       properties:
-        id: &a30
+        id: &a36
           type: string
           format: uuid
         nombre:
@@ -2750,8 +3055,8 @@ components:
         - puntoVentaFiscal
         - activa
       properties:
-        id: *a30
-        sucursalId: *a30
+        id: *a36
+        sucursalId: *a36
         nombre:
           type: string
         puntoVentaFiscal:
@@ -2776,7 +3081,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a30
+            id: *a36
             nombre:
               type: string
         sucursales:
@@ -2791,7 +3096,7 @@ components:
               - activa
               - cajas
             properties:
-              id: *a30
+              id: *a36
               nombre:
                 type: string
               direccion:
@@ -2890,7 +3195,7 @@ components:
         - correoValidado
         - roles
       properties:
-        id: *a30
+        id: *a36
         email:
           type: string
         nombre:
@@ -3014,7 +3319,7 @@ components:
         - recargoPct
         - activo
       properties:
-        id: *a30
+        id: *a36
         nombre:
           type: string
         tipo:
@@ -3062,7 +3367,7 @@ components:
         - tasaIva
         - activa
       properties:
-        id: &a32
+        id: &a38
           type: string
           format: uuid
         nombre:
@@ -3084,7 +3389,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: &a31
+        tasaIva: &a37
           type: string
           description: Número decimal, por ejemplo "21" o "10.5".
     CategoryUpdateRequest:
@@ -3096,7 +3401,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: *a31
+        tasaIva: *a37
     Product:
       type: object
       additionalProperties: false
@@ -3112,38 +3417,38 @@ components:
         - tieneImagen
         - disponible
       properties:
-        id: *a32
-        tipo: &a35
+        id: *a38
+        tipo: &a41
           type: string
           enum:
             - simple
             - combo
-        nombre: &a36
+        nombre: &a42
           type: string
-        codigoBarras: &a37
+        codigoBarras: &a43
           type:
             - string
             - 'null'
-        categoriaId: &a38
+        categoriaId: &a44
           type:
             - string
             - 'null'
           format: uuid
-        costo: &a39
-          type: &a33
+        costo: &a45
+          type: &a39
             - string
             - 'null'
           pattern: ^\d+\.\d{2}$
           description: Costo sin IVA; null en un combo.
-        precioCombo: &a40
-          type: *a33
+        precioCombo: &a46
+          type: *a39
           pattern: ^\d+\.\d{2}$
           description: Precio único del combo; null en un producto simple.
-        activo: &a41
+        activo: &a47
           type: boolean
-        tieneImagen: &a42
+        tieneImagen: &a48
           type: boolean
-        disponible: &a43
+        disponible: &a49
           type: boolean
           description: 'Se puede vender: activo y, si es combo, con todos sus componentes activos.'
     ProductCreateRequest:
@@ -3158,14 +3463,14 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: &a34
+        codigoBarras: &a40
           type:
             - string
             - 'null'
           maxLength: 48
           description: 'Letras, números y guiones. Vacío o null: sin código.'
-        categoriaId: *a32
-        costo: *a31
+        categoriaId: *a38
+        costo: *a37
     ProductUpdateRequest:
       type: object
       additionalProperties: false
@@ -3175,9 +3480,9 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a34
-        categoriaId: *a32
-        costo: *a31
+        codigoBarras: *a40
+        categoriaId: *a38
+        costo: *a37
     ComboComponent:
       type: object
       additionalProperties: false
@@ -3187,7 +3492,7 @@ components:
         - cantidad
         - activo
       properties:
-        productoId: *a32
+        productoId: *a38
         nombre:
           type: string
         cantidad:
@@ -3212,16 +3517,16 @@ components:
         - disponible
         - componentes
       properties:
-        id: *a32
-        tipo: *a35
-        nombre: *a36
-        codigoBarras: *a37
-        categoriaId: *a38
-        costo: *a39
-        precioCombo: *a40
-        activo: *a41
-        tieneImagen: *a42
-        disponible: *a43
+        id: *a38
+        tipo: *a41
+        nombre: *a42
+        codigoBarras: *a43
+        categoriaId: *a44
+        costo: *a45
+        precioCombo: *a46
+        activo: *a47
+        tieneImagen: *a48
+        disponible: *a49
         componentes:
           type: array
           items:
@@ -3238,21 +3543,21 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a34
-        precio: *a31
+        codigoBarras: *a40
+        precio: *a37
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: &a44
+          items: &a50
             type: object
             additionalProperties: false
             required:
               - productoId
               - cantidad
             properties:
-              productoId: *a32
-              cantidad: *a31
+              productoId: *a38
+              cantidad: *a37
     ComboUpdateRequest:
       type: object
       additionalProperties: false
@@ -3262,13 +3567,13 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a34
-        precio: *a31
+        codigoBarras: *a40
+        precio: *a37
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: *a44
+          items: *a50
     PriceRuleType:
       type: string
       enum:
@@ -3303,7 +3608,7 @@ components:
         - regla
         - activa
       properties:
-        id: *a32
+        id: *a38
         nombre:
           type: string
         regla:
@@ -3356,7 +3661,7 @@ components:
               - categoria
               - precioFinal
             properties:
-              productoId: *a32
+              productoId: *a38
               nombre:
                 type: string
               codigoBarras:
@@ -3373,7 +3678,7 @@ components:
                   - string
                   - 'null'
               precioFinal:
-                type: *a33
+                type: *a39
                 pattern: ^\d+\.\d{2}$
                 description: Precio final con IVA; null si no tiene precio en esta lista.
     ManualPriceRequest:
@@ -3395,17 +3700,17 @@ components:
         - nombre
         - listaId
       properties:
-        sucursalId: *a32
+        sucursalId: *a38
         nombre:
           type: string
-        listaId: *a38
+        listaId: *a44
     BranchPriceListRequest:
       type: object
       additionalProperties: false
       required:
         - listaId
       properties:
-        listaId: *a32
+        listaId: *a38
     StockBalance:
       type: object
       additionalProperties: false
@@ -3418,23 +3723,23 @@ components:
         - umbralMinimo
         - alertaActiva
       properties:
-        productoId: &a46
+        productoId: &a52
           type: string
           format: uuid
-        disponible: &a45
+        disponible: &a51
           type: string
           pattern: ^\d+\.\d{3}$
           description: Cantidad con tres decimales.
-        reservado: *a45
-        enRevision: *a45
-        enTransito: *a45
-        umbralMinimo: &a47
-          type: &a51
+        reservado: *a51
+        enRevision: *a51
+        enTransito: *a51
+        umbralMinimo: &a53
+          type: &a57
             - string
             - 'null'
           pattern: ^\d+\.\d{3}$
           description: 'null: sin umbral.'
-        alertaActiva: &a48
+        alertaActiva: &a54
           type: boolean
           description: El disponible está por debajo del umbral y ya se alertó.
     StockRow:
@@ -3452,13 +3757,13 @@ components:
         - codigoBarras
         - activo
       properties:
-        productoId: *a46
-        disponible: *a45
-        reservado: *a45
-        enRevision: *a45
-        enTransito: *a45
-        umbralMinimo: *a47
-        alertaActiva: *a48
+        productoId: *a52
+        disponible: *a51
+        reservado: *a51
+        enRevision: *a51
+        enTransito: *a51
+        umbralMinimo: *a53
+        alertaActiva: *a54
         nombre:
           type: string
         codigoBarras:
@@ -3475,7 +3780,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a46
+        productoId: *a52
         cantidad:
           type: string
           maxLength: 20
@@ -3509,7 +3814,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a46
+        productoId: *a52
         cantidad:
           type: string
           maxLength: 20
@@ -3559,8 +3864,8 @@ components:
         - usuarioId
         - momento
       properties:
-        id: *a46
-        productoId: *a46
+        id: *a52
+        productoId: *a52
         nombre:
           type: string
         tipo:
@@ -3578,7 +3883,7 @@ components:
             - cancelacion
             - devolucion
             - reingreso
-        estadoOrigen: &a49
+        estadoOrigen: &a55
           type:
             - string
             - 'null'
@@ -3588,9 +3893,9 @@ components:
             - en_revision
             - en_transito
             - null
-        estadoDestino: *a49
-        cantidad: *a45
-        referencia: &a50
+        estadoDestino: *a55
+        cantidad: *a51
+        referencia: &a56
           type:
             - string
             - 'null'
@@ -3599,7 +3904,7 @@ components:
           type:
             - string
             - 'null'
-        usuarioId: *a46
+        usuarioId: *a52
         momento:
           type: string
           format: date-time
@@ -3614,7 +3919,7 @@ components:
         - detalle
         - creadaEn
       properties:
-        id: *a46
+        id: *a52
         tipo:
           type: string
           description: stock_minimo o transferencia_faltante.
@@ -3624,7 +3929,7 @@ components:
             - info
             - advertencia
             - critica
-        referencia: *a50
+        referencia: *a56
         detalle:
           type: object
         creadaEn:
@@ -3639,7 +3944,7 @@ components:
         - unidades
         - vendible
       properties:
-        comboId: *a46
+        comboId: *a52
         nombre:
           type: string
         unidades:
@@ -3656,7 +3961,7 @@ components:
         - nombre
         - propia
       properties:
-        id: *a46
+        id: *a52
         nombre:
           type: string
         propia:
@@ -3681,7 +3986,7 @@ components:
         - cerradaEn
         - items
       properties:
-        id: *a46
+        id: *a52
         origen:
           type: object
           additionalProperties: false
@@ -3689,7 +3994,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a46
+            id: *a52
             nombre:
               type: string
         destino:
@@ -3699,7 +4004,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a46
+            id: *a52
             nombre:
               type: string
         estado:
@@ -3725,15 +4030,15 @@ components:
               - rechazada
               - faltante
             properties:
-              productoId: *a46
+              productoId: *a52
               nombre:
                 type: string
-              enviada: *a45
-              recibida: &a52
-                type: *a51
+              enviada: *a51
+              recibida: &a58
+                type: *a57
                 pattern: ^\d+\.\d{3}$
-              rechazada: *a52
-              faltante: *a52
+              rechazada: *a58
+              faltante: *a58
     TransferCreateRequest:
       type: object
       additionalProperties: false
@@ -3742,8 +4047,8 @@ components:
         - destinoId
         - items
       properties:
-        origenId: *a46
-        destinoId: *a46
+        origenId: *a52
+        destinoId: *a52
         items:
           type: array
           minItems: 1
@@ -3755,7 +4060,7 @@ components:
               - productoId
               - cantidad
             properties:
-              productoId: *a46
+              productoId: *a52
               cantidad:
                 type: string
                 maxLength: 20
@@ -3778,7 +4083,7 @@ components:
               - recibida
               - rechazada
             properties:
-              productoId: *a46
+              productoId: *a52
               recibida:
                 type: string
                 maxLength: 20
@@ -3787,3 +4092,341 @@ components:
                 type: string
                 maxLength: 20
                 description: Cantidad rechazada.
+    Supplier:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - razonSocial
+        - cuit
+        - contacto
+        - saldoAdeudado
+        - activo
+      properties:
+        id: &a60
+          type: string
+          format: uuid
+        razonSocial:
+          type: string
+        cuit:
+          type:
+            - string
+            - 'null'
+        contacto:
+          type:
+            - string
+            - 'null'
+        saldoAdeudado:
+          type: string
+          pattern: ^-?\d+\.\d{2}$
+          description: Lo que se le debe; negativo si se le pagó de más.
+        activo:
+          type: boolean
+    SupplierCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - razonSocial
+      properties: &a59
+        razonSocial:
+          type: string
+          minLength: 1
+          maxLength: 120
+        cuit:
+          type:
+            - string
+            - 'null'
+          maxLength: 20
+          description: 11 dígitos con dígito verificador; se aceptan guiones.
+        contacto:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+    SupplierUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties: *a59
+    SupplierStatement:
+      type: object
+      additionalProperties: false
+      required:
+        - proveedor
+        - movimientos
+      properties:
+        proveedor:
+          $ref: '#/components/schemas/Supplier'
+        movimientos:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - tipo
+              - id
+              - momento
+              - importe
+              - referencia
+            properties:
+              tipo:
+                type: string
+                enum:
+                  - compra
+                  - pago
+              id: *a60
+              momento:
+                type: string
+                format: date-time
+              importe: &a61
+                type: string
+                pattern: ^-?\d+\.\d{2}$
+                description: Monto con dos decimales.
+              referencia:
+                type:
+                  - string
+                  - 'null'
+    CatalogImportResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - filasOk
+        - creados
+        - actualizados
+        - preciosRecalculados
+        - errores
+      properties:
+        id: *a60
+        filasOk:
+          type: integer
+          minimum: 0
+        creados:
+          type: integer
+          minimum: 0
+        actualizados:
+          type: integer
+          minimum: 0
+        preciosRecalculados:
+          type: integer
+          minimum: 0
+        errores:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - fila
+              - codigoBarras
+              - motivo
+            properties:
+              fila:
+                type: integer
+                description: Número de línea del archivo (el encabezado es la 1).
+              codigoBarras:
+                type: string
+              motivo:
+                type: string
+    SupplierPaymentMethod:
+      type: string
+      enum:
+        - efectivo
+        - transferencia
+        - cheque
+        - otro
+    SupplierPaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - monto
+        - metodo
+        - comprobante
+      properties:
+        monto:
+          type: string
+          maxLength: 20
+          description: Monto mayor que cero.
+        metodo:
+          $ref: '#/components/schemas/SupplierPaymentMethod'
+        comprobante:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Comprobante de referencia (número de transferencia, recibo...).
+        confirmarExceso:
+          type: boolean
+          description: Obligatorio en true si el pago supera el saldo adeudado.
+    SupplierPaymentResult:
+      type: object
+      additionalProperties: false
+      required:
+        - pago
+        - saldoAdeudado
+      properties:
+        pago:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - monto
+            - metodo
+            - comprobante
+            - confirmadoExceso
+            - momento
+          properties:
+            id: *a60
+            monto: *a61
+            metodo:
+              $ref: '#/components/schemas/SupplierPaymentMethod'
+            comprobante:
+              type: string
+            confirmadoExceso:
+              type: boolean
+            momento:
+              type: string
+              format: date-time
+        saldoAdeudado: *a61
+    Purchase:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - proveedor
+        - sucursal
+        - estado
+        - comprobante
+        - total
+        - registradaEn
+        - recibidaEn
+        - items
+      properties:
+        id: *a60
+        proveedor:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - razonSocial
+          properties:
+            id: *a60
+            razonSocial:
+              type: string
+        sucursal:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nombre
+          properties:
+            id: *a60
+            nombre:
+              type: string
+        estado:
+          type: string
+          enum:
+            - pendiente
+            - recibida
+        comprobante:
+          type:
+            - string
+            - 'null'
+          description: Factura o remito del proveedor.
+        total: *a61
+        registradaEn:
+          type: string
+          format: date-time
+        recibidaEn:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - nombre
+              - cantidad
+              - costoUnitario
+              - subtotal
+              - recibida
+              - diferencia
+            properties:
+              productoId: *a60
+              nombre:
+                type: string
+              cantidad:
+                type: string
+                pattern: ^\d+\.\d{3}$
+                description: Cantidad con tres decimales.
+              costoUnitario: *a61
+              subtotal: *a61
+              recibida:
+                type: &a62
+                  - string
+                  - 'null'
+                pattern: ^\d+\.\d{3}$
+              diferencia:
+                type: *a62
+                pattern: ^\d+\.\d{3}$
+                description: Lo comprado que no llegó.
+    PurchaseCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - proveedorId
+        - sucursalId
+        - items
+      properties:
+        proveedorId: *a60
+        sucursalId: *a60
+        comprobante:
+          type:
+            - string
+            - 'null'
+          maxLength: 60
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - cantidad
+              - costoUnitario
+            properties:
+              productoId: *a60
+              cantidad:
+                type: string
+                maxLength: 20
+                description: Cantidad mayor que cero.
+              costoUnitario:
+                type: string
+                maxLength: 20
+                description: Costo unitario sin IVA.
+    PurchaseReceptionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          description: Lo recibido de cada producto; un producto no informado se toma como no recibido.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - recibida
+            properties:
+              productoId: *a60
+              recibida:
+                type: string
+                maxLength: 20
+                description: Cantidad recibida, hasta lo comprado.

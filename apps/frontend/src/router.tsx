@@ -17,6 +17,9 @@ import { PriceListPrintPage } from './pages/catalog/PriceListPrintPage';
 import { PriceListsPage } from './pages/catalog/PriceListsPage';
 import { InventoryPage } from './pages/inventory/InventoryPage';
 import { TransfersPage } from './pages/inventory/TransfersPage';
+import { PurchasesPage } from './pages/suppliers/PurchasesPage';
+import { ReceptionsPage } from './pages/suppliers/ReceptionsPage';
+import { SuppliersPage } from './pages/suppliers/SuppliersPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -64,6 +67,9 @@ export const routes: RouteObject[] = [
   { path: '/admin/combos', element: acOnly(<CombosPage />) },
   { path: '/admin/listas', element: acOnly(<PriceListsPage />) },
   { path: '/admin/listas/:id/imprimir', element: acOnly(<PriceListPrintPage />) },
+  { path: '/admin/proveedores', element: acOnly(<SuppliersPage />) },
+  { path: '/admin/compras', element: acOnly(<PurchasesPage />) },
+  { path: '/admin/recepciones', element: asOnly(<ReceptionsPage />) },
   { path: '/admin/inventario', element: asOnly(<InventoryPage />) },
   { path: '/admin/transferencias', element: asOnly(<TransfersPage />) },
   {

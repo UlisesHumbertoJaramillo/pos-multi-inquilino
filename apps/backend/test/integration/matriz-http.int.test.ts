@@ -4,7 +4,7 @@
 // acción, sus casos se agregan solos.
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { decide } from '../../src/compartido/aplicacion/permissions.js';
+import { decide, PERMISSIONS } from '../../src/compartido/aplicacion/permissions.js';
 import { ROLES, type Role } from '../../src/compartido/dominio/roles.js';
 import { createTestApi } from '../support/app.js';
 import { ownerQuery, ownerSelect } from '../support/database.js';
@@ -106,6 +106,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const CATEGORY_A = 'a4000000-0000-4000-8000-000000000001';
   const PRODUCT_A = 'a5000000-0000-4000-8000-000000000001';
   const PRICE_LIST_A = 'a6000000-0000-4000-8000-000000000001';
+  const SUPPLIER_A = 'a8000000-0000-4000-8000-000000000001';
+  const PURCHASE_A = 'a9000000-0000-4000-8000-000000000001';
   const TRANSFER_A = 'a7000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
@@ -118,6 +120,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     combos: { resourceType: 'producto', id: PRODUCT_A },
     listas: { resourceType: 'lista_precio', id: PRICE_LIST_A },
     transferencias: { resourceType: 'transferencia', id: TRANSFER_A },
+    proveedores: { resourceType: 'proveedor', id: SUPPLIER_A },
+    compras: { resourceType: 'compra', id: PURCHASE_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -132,11 +136,16 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     if (path.endsWith('/mermas')) return { productoId: PRODUCT_A, cantidad: '1', motivo: 'rotura' };
     if (path.endsWith('/revision/:productoId')) return { accion: 'reingresar', cantidad: '1' };
     if (path.endsWith('/recepcion')) return { items: [] };
+    if (path.endsWith('/pagos'))
+      return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
     return {};
   };
   const crossTenantRoutes = routesWithAction.filter(
     (route) =>
-      /^\/(organizacion|catalogo|inventario)\//.test(route.path) && route.path.includes(':id'),
+      route.path.includes(':id') &&
+      ['organizacion', 'catalogo', 'inventario', 'proveedores', 'compras'].includes(
+        route.path.split('/')[1] ?? '',
+      ),
   );
 
   beforeEach(async () => {
@@ -171,20 +180,39 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
        VALUES ($1, $2, $3, $4, 'enviada', $5, now())`,
       [TRANSFER_A, TENANT_A, BRANCH_CENTRO, BRANCH_NORTE, USERS.asVo.id],
     );
+    await ownerQuery(
+      `INSERT INTO proveedor (id, tenant_id, razon_social, creado_en) VALUES ($1, $2, 'Sur', now())`,
+      [SUPPLIER_A, TENANT_A],
+    );
+    await ownerQuery(
+      `INSERT INTO compra (id, tenant_id, proveedor_id, sucursal_destino_id, estado, total,
+         registrada_por, registrada_en)
+       VALUES ($1, $2, $3, $4, 'pendiente', 0, $5, now())`,
+      [PURCHASE_A, TENANT_A, SUPPLIER_A, BRANCH_CENTRO, USERS.ac.id],
+    );
   });
+
+  // Recurso de la ruta: el segmento anterior a :id (/proveedores/:id/pagos → proveedores).
+  const resourceSegment = (path: string) => {
+    const segments = path.split('/');
+    return segments[segments.indexOf(':id') - 1] ?? '';
+  };
 
   it('cubre todas las rutas comerciales con id', () => {
     expect(crossTenantRoutes.length).toBeGreaterThanOrEqual(30);
     for (const route of crossTenantRoutes) {
-      expect(FOREIGN[route.path.split('/')[2] ?? '']).toBeDefined();
+      expect(FOREIGN[resourceSegment(route.path)]).toBeDefined();
     }
   });
 
   it.each(crossTenantRoutes)('$method $path responde 404 y queda auditado', async (route) => {
-    const target = FOREIGN[route.path.split('/')[2] ?? ''];
+    const target = FOREIGN[resourceSegment(route.path)];
     if (!target) throw new Error(`Falta un recurso para ${route.path}`);
     // El inventario es del AS (§5.18); el resto, del AC.
-    const intruder = route.path.startsWith('/inventario/') ? USERS.asB : USERS.acB;
+    // Si la acción no es del AC (inventario, recepción de compras), intenta el AS del comercio B.
+    if (route.action === undefined) throw new Error(`Falta la acción de ${route.path}`);
+    const roles: Partial<Record<Role, unknown>> = PERMISSIONS[route.action].roles;
+    const intruder = roles.AC === undefined ? USERS.asB : USERS.acB;
     const auth = (await signIn(api.app, intruder.email)).authorization;
     const path = route.path
       .replace(':id', target.id)
@@ -193,7 +221,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
 
     const pending = request(api.app)[route.method](path).set('Authorization', auth);
     const response = route.binaryBody
-      ? await pending.set('Content-Type', 'image/png').send(PNG)
+      ? await pending.set('Content-Type', route.binaryBody.types[0] ?? '').send(PNG)
       : await pending.send(bodyFor(route.path));
 
     expect(response.status).toBe(404);

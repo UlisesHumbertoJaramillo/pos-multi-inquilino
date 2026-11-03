@@ -86,6 +86,8 @@ const OWNED_TABLES: Readonly<Record<string, string>> = {
   lista_precio: 'lista_precio',
   transferencia: 'transferencia',
   alerta: 'alerta',
+  proveedor: 'proveedor',
+  compra: 'compra',
 };
 
 export class PgResourceOwnership implements ResourceOwnership {

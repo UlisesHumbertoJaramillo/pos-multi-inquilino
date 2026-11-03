@@ -809,6 +809,176 @@ export type TransferReceptionRequest = {
   }>;
 };
 
+export type Supplier = {
+  id: string;
+  razonSocial: string;
+  cuit: string | null;
+  contacto: string | null;
+  /**
+   * Lo que se le debe; negativo si se le pagó de más.
+   */
+  saldoAdeudado: string;
+  activo: boolean;
+};
+
+export type SupplierCreateRequest = {
+  razonSocial: string;
+  /**
+   * 11 dígitos con dígito verificador; se aceptan guiones.
+   */
+  cuit?: string | null;
+  contacto?: string | null;
+};
+
+export type SupplierUpdateRequest = {
+  razonSocial?: string;
+  /**
+   * 11 dígitos con dígito verificador; se aceptan guiones.
+   */
+  cuit?: string | null;
+  contacto?: string | null;
+};
+
+export type SupplierStatement = {
+  proveedor: Supplier;
+  movimientos: Array<{
+    tipo: 'compra' | 'pago';
+    id: string;
+    momento: string;
+    /**
+     * Monto con dos decimales.
+     */
+    importe: string;
+    referencia: string | null;
+  }>;
+};
+
+export type CatalogImportResult = {
+  id: string;
+  filasOk: number;
+  creados: number;
+  actualizados: number;
+  preciosRecalculados: number;
+  errores: Array<{
+    /**
+     * Número de línea del archivo (el encabezado es la 1).
+     */
+    fila: number;
+    codigoBarras: string;
+    motivo: string;
+  }>;
+};
+
+export type SupplierPaymentMethod = 'efectivo' | 'transferencia' | 'cheque' | 'otro';
+
+export type SupplierPaymentRequest = {
+  /**
+   * Monto mayor que cero.
+   */
+  monto: string;
+  metodo: SupplierPaymentMethod;
+  /**
+   * Comprobante de referencia (número de transferencia, recibo...).
+   */
+  comprobante: string;
+  /**
+   * Obligatorio en true si el pago supera el saldo adeudado.
+   */
+  confirmarExceso?: boolean;
+};
+
+export type SupplierPaymentResult = {
+  pago: {
+    id: string;
+    /**
+     * Monto con dos decimales.
+     */
+    monto: string;
+    metodo: SupplierPaymentMethod;
+    comprobante: string;
+    confirmadoExceso: boolean;
+    momento: string;
+  };
+  /**
+   * Monto con dos decimales.
+   */
+  saldoAdeudado: string;
+};
+
+export type Purchase = {
+  id: string;
+  proveedor: {
+    id: string;
+    razonSocial: string;
+  };
+  sucursal: {
+    id: string;
+    nombre: string;
+  };
+  estado: 'pendiente' | 'recibida';
+  /**
+   * Factura o remito del proveedor.
+   */
+  comprobante: string | null;
+  /**
+   * Monto con dos decimales.
+   */
+  total: string;
+  registradaEn: string;
+  recibidaEn: string | null;
+  items: Array<{
+    productoId: string;
+    nombre: string;
+    /**
+     * Cantidad con tres decimales.
+     */
+    cantidad: string;
+    /**
+     * Monto con dos decimales.
+     */
+    costoUnitario: string;
+    /**
+     * Monto con dos decimales.
+     */
+    subtotal: string;
+    recibida: string | null;
+    /**
+     * Lo comprado que no llegó.
+     */
+    diferencia: string | null;
+  }>;
+};
+
+export type PurchaseCreateRequest = {
+  proveedorId: string;
+  sucursalId: string;
+  comprobante?: string | null;
+  items: Array<{
+    productoId: string;
+    /**
+     * Cantidad mayor que cero.
+     */
+    cantidad: string;
+    /**
+     * Costo unitario sin IVA.
+     */
+    costoUnitario: string;
+  }>;
+};
+
+export type PurchaseReceptionRequest = {
+  /**
+   * Lo recibido de cada producto; un producto no informado se toma como no recibido.
+   */
+  items: Array<{
+    productoId: string;
+    /**
+     * Cantidad recibida, hasta lo comprado.
+     */
+    recibida: string;
+  }>;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -4144,3 +4314,484 @@ export type CancelTransferResponses = {
 };
 
 export type CancelTransferResponse = CancelTransferResponses[keyof CancelTransferResponses];
+
+export type ListSuppliersData = {
+  body?: never;
+  path?: never;
+  query?: {
+    incluirBajas?: 'true' | 'false';
+  };
+  url: '/proveedores';
+};
+
+export type ListSuppliersErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListSuppliersError = ListSuppliersErrors[keyof ListSuppliersErrors];
+
+export type ListSuppliersResponses = {
+  /**
+   * Proveedores.
+   */
+  200: Array<Supplier>;
+};
+
+export type ListSuppliersResponse = ListSuppliersResponses[keyof ListSuppliersResponses];
+
+export type CreateSupplierData = {
+  body: SupplierCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/proveedores';
+};
+
+export type CreateSupplierErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CreateSupplierError = CreateSupplierErrors[keyof CreateSupplierErrors];
+
+export type CreateSupplierResponses = {
+  /**
+   * Proveedor creado.
+   */
+  201: Supplier;
+};
+
+export type CreateSupplierResponse = CreateSupplierResponses[keyof CreateSupplierResponses];
+
+export type UpdateSupplierData = {
+  body: SupplierUpdateRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/proveedores/{id}';
+};
+
+export type UpdateSupplierErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateSupplierError = UpdateSupplierErrors[keyof UpdateSupplierErrors];
+
+export type UpdateSupplierResponses = {
+  /**
+   * Proveedor modificado.
+   */
+  200: Supplier;
+};
+
+export type UpdateSupplierResponse = UpdateSupplierResponses[keyof UpdateSupplierResponses];
+
+export type DeactivateSupplierData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/proveedores/{id}/baja';
+};
+
+export type DeactivateSupplierErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DeactivateSupplierError = DeactivateSupplierErrors[keyof DeactivateSupplierErrors];
+
+export type DeactivateSupplierResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DeactivateSupplierResponse =
+  DeactivateSupplierResponses[keyof DeactivateSupplierResponses];
+
+export type GetSupplierStatementData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/proveedores/{id}/cuenta';
+};
+
+export type GetSupplierStatementErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetSupplierStatementError =
+  GetSupplierStatementErrors[keyof GetSupplierStatementErrors];
+
+export type GetSupplierStatementResponses = {
+  /**
+   * Cuenta.
+   */
+  200: SupplierStatement;
+};
+
+export type GetSupplierStatementResponse =
+  GetSupplierStatementResponses[keyof GetSupplierStatementResponses];
+
+export type ImportCatalogData = {
+  body: Blob | File;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/proveedores/{id}/importaciones';
+};
+
+export type ImportCatalogErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type ImportCatalogError = ImportCatalogErrors[keyof ImportCatalogErrors];
+
+export type ImportCatalogResponses = {
+  /**
+   * Resultado de la importación.
+   */
+  200: CatalogImportResult;
+};
+
+export type ImportCatalogResponse = ImportCatalogResponses[keyof ImportCatalogResponses];
+
+export type RegisterSupplierPaymentData = {
+  body: SupplierPaymentRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/proveedores/{id}/pagos';
+};
+
+export type RegisterSupplierPaymentErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RegisterSupplierPaymentError =
+  RegisterSupplierPaymentErrors[keyof RegisterSupplierPaymentErrors];
+
+export type RegisterSupplierPaymentResponses = {
+  /**
+   * Pago registrado.
+   */
+  201: SupplierPaymentResult;
+};
+
+export type RegisterSupplierPaymentResponse =
+  RegisterSupplierPaymentResponses[keyof RegisterSupplierPaymentResponses];
+
+export type ListPurchasesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    proveedorId?: string;
+  };
+  url: '/compras';
+};
+
+export type ListPurchasesErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListPurchasesError = ListPurchasesErrors[keyof ListPurchasesErrors];
+
+export type ListPurchasesResponses = {
+  /**
+   * Compras.
+   */
+  200: Array<Purchase>;
+};
+
+export type ListPurchasesResponse = ListPurchasesResponses[keyof ListPurchasesResponses];
+
+export type RegisterPurchaseData = {
+  body: PurchaseCreateRequest;
+  path?: never;
+  query?: never;
+  url: '/compras';
+};
+
+export type RegisterPurchaseErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RegisterPurchaseError = RegisterPurchaseErrors[keyof RegisterPurchaseErrors];
+
+export type RegisterPurchaseResponses = {
+  /**
+   * Compra registrada.
+   */
+  201: Purchase;
+};
+
+export type RegisterPurchaseResponse = RegisterPurchaseResponses[keyof RegisterPurchaseResponses];
+
+export type GetPurchaseData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/compras/{id}';
+};
+
+export type GetPurchaseErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetPurchaseError = GetPurchaseErrors[keyof GetPurchaseErrors];
+
+export type GetPurchaseResponses = {
+  /**
+   * Compra.
+   */
+  200: Purchase;
+};
+
+export type GetPurchaseResponse = GetPurchaseResponses[keyof GetPurchaseResponses];
+
+export type ReceivePurchaseData = {
+  body: PurchaseReceptionRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/compras/{id}/recepcion';
+};
+
+export type ReceivePurchaseErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ReceivePurchaseError = ReceivePurchaseErrors[keyof ReceivePurchaseErrors];
+
+export type ReceivePurchaseResponses = {
+  /**
+   * Compra recibida.
+   */
+  200: Purchase;
+};
+
+export type ReceivePurchaseResponse = ReceivePurchaseResponses[keyof ReceivePurchaseResponses];
+
+export type ListPendingReceptionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/recepciones';
+};
+
+export type ListPendingReceptionsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListPendingReceptionsError =
+  ListPendingReceptionsErrors[keyof ListPendingReceptionsErrors];
+
+export type ListPendingReceptionsResponses = {
+  /**
+   * Compras pendientes.
+   */
+  200: Array<Purchase>;
+};
+
+export type ListPendingReceptionsResponse =
+  ListPendingReceptionsResponses[keyof ListPendingReceptionsResponses];

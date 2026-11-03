@@ -22,7 +22,7 @@ export class PgInventoryDependencies {
     );
     return {
       reservations: reserved.rows[0]?.total ?? 0,
-      // Las compras llegan en la Fase 6.
+      // Las compras pendientes las aporta el módulo de proveedores (raíz de composición).
       pendingPurchases: 0,
       pendingTransfers: await this.transfers.pendingForProduct(tenantId, productId),
     };

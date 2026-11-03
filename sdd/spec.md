@@ -97,9 +97,9 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 | D-53 | Tipo de comprobante | El tipo de comprobante depende de la condición fiscal del comprador. Si no se identifica a nadie, se emite a consumidor final. | Requisito fiscal mínimo para la venta a clientes registrados. |
 | D-54 | Falla del lector de códigos | Si el lector de códigos de barras falla, el VO puede seguir con la búsqueda manual. | Una falla de periférico no debe frenar la venta (Const. 11). |
 
-### 3.3 Decisiones de la implementación (2026-11-02)
+### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 y 4. El responsable del producto las validó el 2026-11-02.
+Surgieron al construir las fases 3 a 6. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-68).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -108,6 +108,9 @@ Surgieron al construir las fases 3 y 4. El responsable del producto las validó 
 | D-63 | Precio de los combos | El precio único de un combo es el mismo en todas las listas de precios, cualquiera sea su regla. | Es la lectura de "precio único" de RF-049. El combo no tiene costo propio sobre el cual aplicar una regla. |
 | D-64 | Bajas en el catálogo | No se puede dar de baja una categoría con productos activos ni una lista de precios que es la activa de alguna sucursal. | Completa D-42: ningún producto queda sin tasa de IVA y ninguna sucursal queda sin lista de precios (D-15). |
 | D-65 | Historial de precios | Cada cambio de un precio de lista queda en un historial con el precio anterior, el nuevo y su causa (alta, cambio de costo, de tasa de IVA, de regla, precio manual o de combo). | Permite reconstruir por qué un producto tenía un precio en una fecha (Const. 7). |
+| D-66 | Costo de compra | Al registrar una compra, el costo de cada producto comprado pasa a ser su costo unitario en esa compra (último costo de compra), sin IVA. Eso recalcula sus precios en las listas que dependen del costo. | Es simple y predecible: el precio sigue al último valor pagado (validado el 2026-11-03). |
+| D-67 | Faltante en la recepción de una compra | Si llega menos de lo comprado, la diferencia queda registrada para reclamarla y la deuda con el proveedor no cambia. No se puede recibir más de lo comprado. | La deuda refleja lo facturado por el proveedor; la corrección llega con su nota de crédito o un pago (validado el 2026-11-03). |
+| D-68 | Formato de la importación de catálogo | El archivo es un CSV con encabezado y las columnas código de barras, nombre, costo sin IVA y categoría, separadas por coma o punto y coma (con coma decimal). Un código que existe actualiza el producto; uno nuevo lo crea. La categoría tiene que existir. | Es el formato que exporta una planilla de cálculo, y cumple RF-035 sin pasos manuales (validado el 2026-11-03). |
 
 ## 4. Supuestos validados
 
@@ -220,9 +223,9 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
 | RF-034 | El sistema deberá permitir al AC dar de alta, modificar y dar de baja proveedores. | RF-06, UC-AC-05 |
-| RF-035 | Cuando el AC importa el catálogo de un proveedor, el sistema deberá identificar los productos por código de barras, crear o actualizar los productos y sus costos de las filas válidas, informar qué filas no pudo procesar y por qué, y registrar en la auditoría la importación y el recálculo que provoca como una sola operación con su detalle. | RF-06, UC-AC-05, D-49 |
-| RF-036 | Cuando el AC registra una compra a crédito indicando la sucursal de destino, el sistema deberá aumentar el saldo adeudado al proveedor, actualizar el costo de los productos comprados y dejar la compra pendiente de recepción. | RF-06, UC-AC-06, D-25 |
-| RF-133 | Cuando un AS de la sucursal de destino recibe una compra, el sistema deberá sumar las cantidades recibidas a su stock disponible y registrar cualquier diferencia con lo comprado. | D-25 |
+| RF-035 | Cuando el AC importa el catálogo de un proveedor, el sistema deberá identificar los productos por código de barras, crear o actualizar los productos y sus costos de las filas válidas, informar qué filas no pudo procesar y por qué, y registrar en la auditoría la importación y el recálculo que provoca como una sola operación con su detalle. | RF-06, UC-AC-05, D-49, D-68 |
+| RF-036 | Cuando el AC registra una compra a crédito indicando la sucursal de destino, el sistema deberá aumentar el saldo adeudado al proveedor, actualizar el costo de los productos comprados y dejar la compra pendiente de recepción. | RF-06, UC-AC-06, D-25, D-66 |
+| RF-133 | Cuando un AS de la sucursal de destino recibe una compra, el sistema deberá sumar las cantidades recibidas a su stock disponible y registrar cualquier diferencia con lo comprado. | D-25, D-67 |
 | RF-037 | Cuando el AC registra un pago a un proveedor, el sistema deberá reducir su saldo adeudado y conservar el comprobante de referencia. | RF-06, UC-AC-06 |
 | RF-038 | Si un pago supera el saldo adeudado al proveedor, entonces el sistema deberá advertirlo y exigir una confirmación explícita antes de registrarlo. | Integridad |
 
