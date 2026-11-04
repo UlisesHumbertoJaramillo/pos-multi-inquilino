@@ -79,7 +79,8 @@ export function AmountDialog({
   );
 }
 
-// Resultado del arqueo. El teórico solo llega en las respuestas para un AS o un AC.
+// Resultado de un cierre. El resultado, la diferencia y el teórico solo llegan en las respuestas
+// para un AS o un AC; un VO ve solo lo que declaró (D-80).
 export function CountResultDialog({
   title,
   count,
@@ -89,18 +90,26 @@ export function CountResultDialog({
   count: CashCount;
   onClose: () => void;
 }) {
-  const severity = count.resultado === 'cuadrado' ? 'success' : 'warning';
+  const { resultado, diferencia, teorico } = count;
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={1} sx={{ pt: 1 }}>
-          <Alert severity={severity}>Arqueo: {RESULT_NAMES[count.resultado]}</Alert>
-          <Typography>Declarado: {formatMoney(count.declarado)}</Typography>
-          {count.teorico !== undefined && (
-            <Typography>Teórico: {formatMoney(count.teorico)}</Typography>
+          {resultado === undefined ? (
+            <Alert severity="success">
+              Cierre registrado. El resultado del arqueo lo ven el AS y el AC.
+            </Alert>
+          ) : (
+            <Alert severity={resultado === 'cuadrado' ? 'success' : 'warning'}>
+              Arqueo: {RESULT_NAMES[resultado]}
+            </Alert>
           )}
-          <Typography>Diferencia: {formatMoney(count.diferencia)}</Typography>
+          <Typography>Declarado: {formatMoney(count.declarado)}</Typography>
+          {teorico !== undefined && <Typography>Teórico: {formatMoney(teorico)}</Typography>}
+          {diferencia !== undefined && (
+            <Typography>Diferencia: {formatMoney(diferencia)}</Typography>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

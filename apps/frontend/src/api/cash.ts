@@ -50,7 +50,7 @@ export const twoDecimals = (value: string) => {
   return Number.isFinite(number) ? number.toFixed(2) : value;
 };
 
-export const RESULT_NAMES: Record<CashCount['resultado'], string> = {
+export const RESULT_NAMES: Record<NonNullable<CashCount['resultado']>, string> = {
   faltante: 'Faltante',
   sobrante: 'Sobrante',
   cuadrado: 'Cuadrado',

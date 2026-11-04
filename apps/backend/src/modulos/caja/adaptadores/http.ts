@@ -1,5 +1,6 @@
 // Rutas HTTP de caja. El contrato está en packages/contracts/openapi.yaml.
-// DTO por rol (RF-093, RF-112): ninguna respuesta dirigida a un VO incluye el saldo teórico.
+// DTO por rol (RF-093, RF-112, D-80): ninguna respuesta dirigida a un VO incluye el saldo teórico
+// ni el resultado del arqueo.
 import type { Response } from 'express';
 import { z } from 'zod';
 import { securityContextOf } from '../../../compartido/adaptadores/http/authentication.js';
@@ -85,14 +86,15 @@ const movementDto = (m: StoredMovement) => ({
   registradoEn: m.at.toISOString(),
 });
 
-// El teórico solo viaja hacia un AS o un AC.
+// Un VO solo recibe lo que declaró: el resultado, la diferencia y el teórico viajan hacia un AS o
+// un AC (D-80).
 function countDto(res: Response, count: CashCount) {
-  const visible = securityContextOf(res).activeRole !== 'VO';
+  if (securityContextOf(res).activeRole === 'VO') return { declarado: count.declared };
   return {
     declarado: count.declared,
     diferencia: count.difference,
     resultado: count.result,
-    ...(visible ? { teorico: count.theoretical } : {}),
+    teorico: count.theoretical,
   };
 }
 

@@ -1162,13 +1162,19 @@ export type OwnShift = {
   movimientos: Array<CashMovement>;
 };
 
+/**
+ * Arqueo de un cierre. Para un VO solo trae lo declarado; el resultado, la diferencia y el teórico van solo a un AS o un AC (D-80).
+ */
 export type CashCount = {
   declarado: string;
   /**
-   * Declarado menos teórico: negativa es faltante.
+   * Declarado menos teórico: negativa es faltante. Solo para un AS o un AC.
    */
-  diferencia: string;
-  resultado: 'faltante' | 'sobrante' | 'cuadrado';
+  diferencia?: string;
+  /**
+   * Solo para un AS o un AC.
+   */
+  resultado?: 'faltante' | 'sobrante' | 'cuadrado';
   /**
    * Solo en las respuestas para un AS o un AC.
    */

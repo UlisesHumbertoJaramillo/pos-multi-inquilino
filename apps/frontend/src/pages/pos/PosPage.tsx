@@ -1,6 +1,7 @@
 // Punto de venta del VO: apertura de turno, ingresos y retiros con PIN, Corte X y Corte Z ciegos
 // (T-141, T-142; RF-089, RF-091 a RF-095). La venta se suma en la Fase 10. Esta pantalla nunca
-// recibe el saldo teórico: el backend no lo envía a un VO (RF-112).
+// recibe el saldo teórico ni el resultado del arqueo: el backend no los envía a un VO (RF-112,
+// D-80).
 import type { CashCount } from '@pos/contracts';
 import {
   Alert,

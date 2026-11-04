@@ -139,11 +139,11 @@ describe('[RF-089] [RF-092] caja del VO', () => {
     expect(await within(table).findByText('Retiro')).toBeInTheDocument();
   });
 
-  it('el VO hace el Corte X a ciegas y ve el resultado del arqueo sin el teórico', async () => {
+  it('[D-80] el VO hace el Corte X a ciegas y no ve el resultado del arqueo', async () => {
     const own: OwnShift = { turno: shift(), movimientos: [] };
     const closure: ShiftClosure = {
       turno: shift({ estado: 'cerrado' }),
-      arqueo: { declarado: '950.00', diferencia: '-50.00', resultado: 'faltante' },
+      arqueo: { declarado: '950.00' },
     };
     mockApi({
       ...signedIn('VO'),
@@ -164,8 +164,11 @@ describe('[RF-089] [RF-092] caja del VO', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cerrar turno' }));
 
     const result = await screen.findByRole('dialog', { name: 'Turno cerrado' });
-    expect(within(result).getByText('Arqueo: Faltante')).toBeInTheDocument();
-    expect(within(result).queryByText(/Teórico/)).not.toBeInTheDocument();
+    expect(
+      within(result).getByText('Cierre registrado. El resultado del arqueo lo ven el AS y el AC.'),
+    ).toBeInTheDocument();
+    expect(within(result).getByText('Declarado: $ 950,00')).toBeInTheDocument();
+    expect(within(result).queryByText(/Teórico|Diferencia|Faltante/)).not.toBeInTheDocument();
   });
 });
 

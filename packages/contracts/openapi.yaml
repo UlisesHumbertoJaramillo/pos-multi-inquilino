@@ -2757,7 +2757,7 @@ paths:
       tags:
         - Caja
       summary: Corte X ciego
-      description: Cierra el turno del VO con su declaración ciega y devuelve el arqueo, sin el teórico. Se rechaza con ventas en curso (RF-094, RF-117). Si la diferencia supera la tolerancia, avisa al AS y al AC (RF-098).
+      description: Cierra el turno del VO con su declaración ciega y devuelve solo lo declarado (D-80). Se rechaza con ventas en curso (RF-094, RF-117). Si la diferencia supera la tolerancia, avisa al AS y al AC (RF-098).
       requestBody:
         required: true
         content:
@@ -2829,7 +2829,7 @@ paths:
       tags:
         - Caja
       summary: Corte Z ciego
-      description: Sin turnos abiertos ni ventas en curso, consolida los turnos de la jornada, calcula el arqueo final contra el teórico de toda la jornada y la cierra (RF-095, RF-096, D-76). VO o AS de la sucursal. Para un VO, la respuesta no incluye el teórico.
+      description: Sin turnos abiertos ni ventas en curso, consolida los turnos de la jornada, calcula el arqueo final contra el teórico de toda la jornada y la cierra (RF-095, RF-096, D-76). VO o AS de la sucursal. Para un VO, el arqueo trae solo lo declarado (D-80).
       parameters: *a45
       requestBody:
         required: true
@@ -5280,22 +5280,22 @@ components:
       additionalProperties: false
       required:
         - declarado
-        - diferencia
-        - resultado
       properties:
         declarado: *a80
         diferencia:
           type: string
-          description: 'Declarado menos teórico: negativa es faltante.'
+          description: 'Declarado menos teórico: negativa es faltante. Solo para un AS o un AC.'
         resultado:
           type: string
           enum:
             - faltante
             - sobrante
             - cuadrado
+          description: Solo para un AS o un AC.
         teorico:
           type: string
           description: Solo en las respuestas para un AS o un AC.
+      description: Arqueo de un cierre. Para un VO solo trae lo declarado; el resultado, la diferencia y el teórico van solo a un AS o un AC (D-80).
     ShiftClosure:
       type: object
       additionalProperties: false

@@ -330,10 +330,13 @@ describe('[RF-094] [RF-099] [RF-117] Corte X ciego', () => {
     expect(response.status, JSON.stringify(response.body)).toBe(200);
     expectToMatchContract(response, 'post', '/caja/turno/corte-x');
     const body = response.body as ShiftClosure;
-    expect(body.arqueo).toEqual({ declarado: `${declarado}.00`, diferencia, resultado });
+    // El VO solo recibe lo que declaró (D-80); el arqueo queda en el turno.
+    expect(body.arqueo).toEqual({ declarado: `${declarado}.00` });
     expect(body.turno.estado).toBe('cerrado');
-    const row = await ownerSelect<{ teorico: string }>('SELECT teorico FROM turno');
-    expect(row).toEqual([{ teorico: '1000.00' }]);
+    const row = await ownerSelect<{ teorico: string; diferencia: string; resultado: string }>(
+      'SELECT teorico, diferencia, resultado FROM turno',
+    );
+    expect(row).toEqual([{ teorico: '1000.00', diferencia, resultado }]);
     expect((await get('/caja/turno', vo)).body).toMatchObject({ turno: null });
   });
 
@@ -392,23 +395,32 @@ describe('[RF-095] [RF-096] Corte Z ciego', () => {
       caja: 'Caja 1',
       fechaJornada: TODAY,
       turnos: 2,
-      arqueo: { declarado: '1550.00', diferencia: '-50.00', resultado: 'faltante' },
     });
-    expect(body.arqueo).not.toHaveProperty('teorico');
-    const journeys = await ownerSelect<{ estado: string; teorico_z: string }>(
-      'SELECT estado, teorico_z FROM jornada',
-    );
-    expect(journeys).toEqual([{ estado: 'cerrada', teorico_z: '1600.00' }]);
+    expect(body.arqueo).toEqual({ declarado: '1550.00' });
+    const journeys = await ownerSelect<{
+      estado: string;
+      teorico_z: string;
+      diferencia_z: string;
+      resultado_z: string;
+    }>('SELECT estado, teorico_z, diferencia_z, resultado_z FROM jornada');
+    expect(journeys).toEqual([
+      { estado: 'cerrada', teorico_z: '1600.00', diferencia_z: '-50.00', resultado_z: 'faltante' },
+    ]);
     expect((await corteZ('1550', as)).body).toMatchObject({ codigo: 'SIN_JORNADA' });
   });
 
-  it('para un AS la respuesta incluye el teórico', async () => {
+  it('para un AS la respuesta incluye el resultado, la diferencia y el teórico', async () => {
     await openedShift();
     await corteX('1000');
 
     const response = await corteZ('1000', as);
 
-    expect((response.body as JourneyClosure).arqueo).toMatchObject({ teorico: '1000.00' });
+    expect((response.body as JourneyClosure).arqueo).toEqual({
+      declarado: '1000.00',
+      diferencia: '0.00',
+      resultado: 'cuadrado',
+      teorico: '1000.00',
+    });
   });
 });
 
@@ -491,7 +503,7 @@ describe('[RF-098] arqueo fuera de tolerancia', () => {
   });
 });
 
-describe('[RF-112] [RF-093] ninguna respuesta para un VO incluye el teórico', () => {
+describe('[RF-112] [RF-093] [D-80] ninguna respuesta para un VO incluye el teórico ni el arqueo', () => {
   it('recorre los endpoints de caja como VO', async () => {
     const bodies: unknown[] = [];
     const keep = (response: request.Response) => {
@@ -508,7 +520,9 @@ describe('[RF-112] [RF-093] ninguna respuesta para un VO incluye el teórico', (
     keep(await corteZ('1100'));
 
     expect(bodies).toHaveLength(8);
-    for (const body of bodies) expect(JSON.stringify(body)).not.toContain('teorico');
+    for (const body of bodies) {
+      expect(JSON.stringify(body)).not.toMatch(/teorico|"diferencia"|"resultado"/);
+    }
   });
 });
 

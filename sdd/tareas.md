@@ -341,7 +341,7 @@
 - [x] **T-141** · Frontend POS: apertura de turno, ingresos y retiros (con el modal de PIN). · RF: RF-089, RF-091, RF-092 · Dep: T-136, T-046
   - Hecho cuando: en https://localhost:5173/pos, el VO demo abre un turno y registra un retiro autorizado por el AS demo.
 - [x] **T-142** · Frontend POS: Corte X y Corte Z ciegos. · RF: RF-093, RF-094, RF-095 · Dep: T-141, T-138
-  - Hecho cuando: el VO declara sin ver el teórico y luego ve el resultado del arqueo.
+  - Hecho cuando: el VO declara sin ver el teórico y luego recibe la confirmación del cierre, sin el resultado del arqueo (D-80).
 - [x] **T-143** · Frontend del AS: turnos abiertos y cierre forzado. · RF: RF-115 · Dep: T-139, T-070
   - Hecho cuando: desde /admin, el AS fuerza el cierre de un turno del VO demo.
 - [x] **T-144** · Sumar las acciones de caja al generador de la matriz. · RF: RF-004 · Dep: T-143
