@@ -168,6 +168,44 @@ export class AuthorizeOperation {
   }
 }
 
+export interface Authorizer {
+  id: string;
+  name: string;
+  role: 'AS' | 'AC';
+}
+
+// Quiénes pueden autorizar con PIN una operación en la sucursal (para el modal de PIN del POS):
+// los AS de esa sucursal y los AC del comercio, activos y con PIN, salvo el propio solicitante.
+export class ListAuthorizers {
+  constructor(private readonly deps: AuthorizationDependencies) {}
+
+  async execute(context: SecurityContext, branchId: string): Promise<Authorizer[]> {
+    const tenantId = this.deps.access.requireTenant(context);
+    if (context.activeRole === null || context.activeRole === 'SA') throw forbiddenError();
+    if (context.activeRole !== 'AC' && !context.branchIds.includes(branchId)) {
+      throw forbiddenError();
+    }
+    const users = await this.deps.users.listByTenant(tenantId);
+    const authorizers: Authorizer[] = [];
+    await this.deps.uow.run(
+      async () => {
+        for (const user of users) {
+          if (!user.isActive || user.id === context.userId) continue;
+          const role = authorizingRole(user, tenantId, branchId);
+          if (role === null) continue;
+          if ((await this.deps.credentials.findPinHash(tenantId, user.id)) === undefined) continue;
+          authorizers.push({ id: user.id, name: user.name, role });
+        }
+      },
+      { tenantId },
+    );
+    // Primero los AS de la sucursal, después los AC.
+    return authorizers.sort((a, b) =>
+      a.role === b.role ? a.name.localeCompare(b.name, 'es') : a.role === 'AS' ? -1 : 1,
+    );
+  }
+}
+
 // Consulta de una autorización por quien la pidió, el AS de la sucursal o el AC.
 export class GetAuthorization {
   constructor(private readonly deps: AuthorizationDependencies) {}

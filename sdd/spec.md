@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 8. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-74).
+Surgieron al construir las fases 3 a 9. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-79).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -117,6 +117,11 @@ Surgieron al construir las fases 3 a 8. El responsable del producto las validó 
 | D-72 | Cuota sin asignar | Un VO sin cuota asignada en una sucursal tiene sus dos límites en cero, y el tope de un comercio que todavía no lo fijó también es cero: todo descuento manual exige autorización. | Nadie descuenta por su cuenta hasta que lo habiliten (validado el 2026-11-03). |
 | D-73 | Cambio de la cuota durante el día | Si el AS cambia el monto asignado a un VO, o el tope lo recorta, el saldo de su última fecha de jornada se ajusta por la diferencia y nunca queda negativo. | El cambio rige en el acto sin devolverle lo ya consumido (validado el 2026-11-03). |
 | D-74 | Autoasignación de cuota | Un AS que también es VO no se asigna su propia cuota: se la asigna otro AS de la sucursal. | Extiende la segregación de funciones (Const. 13) a la cuota (validado el 2026-11-03). |
+| D-75 | Efectivo que deja un turno | El saldo inicial de un turno se compara con lo que declaró el turno anterior de la misma jornada en su Corte X. El primer turno de la jornada no se compara. | Lo declarado es lo que realmente quedó en la caja (validado el 2026-11-03). |
+| D-76 | Teórico del Corte Z | El saldo teórico de la jornada es el saldo inicial de su primer turno más todos los movimientos en efectivo de todos sus turnos. | El arqueo final muestra el faltante o sobrante acumulado de la jornada (validado el 2026-11-03). |
+| D-77 | Jornada sin Corte Z | Un turno nuevo continúa la jornada abierta de la caja mientras no pasen 24 h desde su apertura. Pasado ese plazo, la caja no abre turnos hasta hacer el Corte Z y se alerta al AS una vez. | Compatibiliza D-13 (sin fecha de corte) con RF-097 (validado el 2026-11-03). |
+| D-78 | Motivo de un retiro rechazado | El VO recibe un mensaje que no revela el saldo teórico; el detalle (monto y efectivo teórico) llega al AS de la sucursal como alerta. La autorización usada queda consumida. | El PIN se ingresa en la pantalla del VO, así que el motivo no puede mostrarse ahí (validado el 2026-11-03). |
+| D-79 | Cierre forzado sin PIN | El AS que fuerza el cierre de un turno ajeno lo hace con su propia sesión, sin PIN: la operación ya es suya y queda en la auditoría con el AS y el VO titular. | El PIN sirve para que otra persona autorice en la pantalla del solicitante; aquí no hay otra persona (validado el 2026-11-03). |
 
 ## 4. Supuestos validados
 
@@ -364,22 +369,22 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
-| RF-089 | Cuando un VO abre un turno en una caja, el sistema deberá registrar el saldo inicial declarado y, si difiere del efectivo que dejó el turno anterior de la misma jornada, registrar la diferencia y notificar al AS. | UC-VO-01, D-48 |
+| RF-089 | Cuando un VO abre un turno en una caja, el sistema deberá registrar el saldo inicial declarado y, si difiere del efectivo que dejó el turno anterior de la misma jornada, registrar la diferencia y notificar al AS. | UC-VO-01, D-48, D-75 |
 | RF-090 | Mientras una caja tenga un turno abierto, el sistema deberá impedir que otro usuario abra un turno en esa misma caja. | Glosario (Corte X) |
 | RF-154 | Mientras un VO tenga un turno abierto, el sistema deberá impedirle abrir otro en cualquier caja. | D-48 |
 | RF-091 | Cuando un VO registra un ingreso o un retiro manual de efectivo, el sistema deberá exigir un motivo y asociar el movimiento a su turno. | RF-18, UC-VO-09 |
-| RF-092 | Cuando se solicita un retiro manual, el sistema deberá exigir el PIN o la credencial de un AS de la sucursal. Si el retiro supera el efectivo teórico de la caja, deberá rechazarlo e informar el motivo solo al AS que autoriza. | D-7, Integridad |
+| RF-092 | Cuando se solicita un retiro manual, el sistema deberá exigir el PIN o la credencial de un AS de la sucursal. Si el retiro supera el efectivo teórico de la caja, deberá rechazarlo e informar el motivo solo al AS que autoriza. | D-7, Integridad, D-78 |
 | RF-093 | Mientras se declara el dinero físico en un cierre, el sistema deberá ocultarle el saldo teórico a quien declara. | RN-05, D-10 |
 | RF-112 | Mientras un turno esté abierto, el sistema deberá impedir que el VO conozca o deduzca el saldo teórico por cualquier vía, incluidos los mensajes de rechazo. | RN-05, D-7 |
 | RF-094 | Cuando un VO confirma un Corte X, el sistema deberá cerrar su turno, calcular el arqueo (faltante, sobrante o cuadrado) y dejar la caja disponible para un nuevo turno de la misma jornada. | RN-05, RF-18 |
 | RF-117 | Si se solicita un Corte X con ventas en curso en ese turno, entonces el sistema deberá rechazarlo e indicar qué ventas hay que cobrar, descartar o traspasar, salvo en un cierre forzado (RF-115). | D-12 |
 | RF-118 | El sistema deberá abrir la jornada de una caja con el primer turno posterior a su último Corte Z, cerrarla con el siguiente Corte Z y fecharla con su fecha de apertura en la zona horaria configurada para el comercio. | D-13 |
-| RF-095 | Cuando un VO o un AS de la sucursal sin turno abierto en esa caja confirma un Corte Z, el sistema deberá exigirle la declaración ciega del efectivo total, consolidar todos los turnos de la jornada, calcular el arqueo final contra el saldo teórico de la jornada y cerrarla. | RN-05, RF-18, D-14 |
+| RF-095 | Cuando un VO o un AS de la sucursal sin turno abierto en esa caja confirma un Corte Z, el sistema deberá exigirle la declaración ciega del efectivo total, consolidar todos los turnos de la jornada, calcular el arqueo final contra el saldo teórico de la jornada y cerrarla. | RN-05, RF-18, D-14, D-76 |
 | RF-096 | Si se solicita un Corte Z con turnos abiertos o ventas en curso en esa caja, entonces el sistema deberá rechazarlo e indicar qué falta cerrar. | D-5 |
-| RF-097 | Si una caja tiene una jornada anterior sin Corte Z, entonces el sistema deberá impedir que abra una nueva jornada y alertar al AS. | D-5 |
+| RF-097 | Si una caja tiene una jornada anterior sin Corte Z, entonces el sistema deberá impedir que abra una nueva jornada y alertar al AS. | D-5, D-77 |
 | RF-098 | Cuando un arqueo da un faltante o un sobrante mayor que la tolerancia configurada por el AC (por defecto 0), el sistema deberá notificar al AS de la sucursal y al AC. | RN-05, D-51 |
 | RF-099 | El sistema deberá impedir que se modifique un cierre ya confirmado. | RN-05, RN-02 |
-| RF-115 | Cuando un AS de la sucursal fuerza el cierre de un turno ajeno, el sistema deberá exigirle la declaración ciega del efectivo, descartar las ventas en curso de ese turno liberando sus reservas, registrar el Corte X como forzado con el VO titular y el AS que lo ejecutó, y notificar al AC. | D-10 |
+| RF-115 | Cuando un AS de la sucursal fuerza el cierre de un turno ajeno, el sistema deberá exigirle la declaración ciega del efectivo, descartar las ventas en curso de ese turno liberando sus reservas, registrar el Corte X como forzado con el VO titular y el AS que lo ejecutó, y notificar al AC. | D-10, D-79 |
 
 ### 5.15 Facturación y contingencia fiscal
 

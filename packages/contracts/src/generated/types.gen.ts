@@ -1112,6 +1112,121 @@ export type BranchSellerQuotas = {
   vendedores: Array<SellerQuota>;
 };
 
+export type CashRegisterStatus = {
+  id: string;
+  nombre: string;
+  jornada: {
+    id: string;
+    fecha: string;
+    abiertaEn: string;
+  } | null;
+  turnoAbierto: {
+    id: string;
+    vendedorId: string;
+    vendedor: string;
+    abiertoEn: string;
+  } | null;
+  requiereCorteZ: boolean;
+};
+
+export type CashShift = {
+  id: string;
+  cajaId: string;
+  caja: string;
+  sucursalId: string;
+  jornadaId: string;
+  fechaJornada: string;
+  vendedorId: string;
+  vendedor: string;
+  saldoInicial: string;
+  /**
+   * Diferencia con lo declarado en el Corte X anterior de la jornada; null si no hubo.
+   */
+  diferenciaInicial: string | null;
+  abiertoEn: string;
+  estado: 'abierto' | 'cerrado';
+  forzado: boolean;
+};
+
+export type CashMovement = {
+  id: string;
+  tipo: 'ingreso' | 'retiro' | 'venta' | 'reintegro' | 'cobro' | 'anulacion';
+  enEfectivo: boolean;
+  monto: string;
+  motivo: string | null;
+  registradoEn: string;
+};
+
+export type OwnShift = {
+  turno: CashShift | null;
+  movimientos: Array<CashMovement>;
+};
+
+export type CashCount = {
+  declarado: string;
+  /**
+   * Declarado menos teórico: negativa es faltante.
+   */
+  diferencia: string;
+  resultado: 'faltante' | 'sobrante' | 'cuadrado';
+  /**
+   * Solo en las respuestas para un AS o un AC.
+   */
+  teorico?: string;
+};
+
+export type ShiftClosure = {
+  turno: CashShift;
+  arqueo: CashCount;
+};
+
+export type JourneyClosure = {
+  jornadaId: string;
+  cajaId: string;
+  caja: string;
+  fechaJornada: string;
+  turnos: number;
+  arqueo: CashCount;
+};
+
+export type ShiftOpenRequest = {
+  cajaId: string;
+  /**
+   * Efectivo con el que arranca el turno.
+   */
+  saldoInicial: string;
+};
+
+export type CashInRequest = {
+  /**
+   * Mayor que cero.
+   */
+  monto: string;
+  motivo: string;
+};
+
+export type WithdrawalRequest = {
+  /**
+   * Mayor que cero.
+   */
+  monto: string;
+  motivo: string;
+  autorizacionId: string;
+};
+
+export type CashDeclarationRequest = {
+  /**
+   * Efectivo contado, a ciegas.
+   */
+  declarado: string;
+};
+
+export type Authorizer = {
+  id: string;
+  nombre: string;
+  rol: 'AS' | 'AC';
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -5232,3 +5347,376 @@ export type SetSellerQuotaResponses = {
 };
 
 export type SetSellerQuotaResponse = SetSellerQuotaResponses[keyof SetSellerQuotaResponses];
+
+export type ListCashRegistersData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/caja/sucursales/{id}/cajas';
+};
+
+export type ListCashRegistersErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListCashRegistersError = ListCashRegistersErrors[keyof ListCashRegistersErrors];
+
+export type ListCashRegistersResponses = {
+  /**
+   * Cajas.
+   */
+  200: Array<CashRegisterStatus>;
+};
+
+export type ListCashRegistersResponse =
+  ListCashRegistersResponses[keyof ListCashRegistersResponses];
+
+export type GetOwnShiftData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/caja/turno';
+};
+
+export type GetOwnShiftErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetOwnShiftError = GetOwnShiftErrors[keyof GetOwnShiftErrors];
+
+export type GetOwnShiftResponses = {
+  /**
+   * Turno.
+   */
+  200: OwnShift;
+};
+
+export type GetOwnShiftResponse = GetOwnShiftResponses[keyof GetOwnShiftResponses];
+
+export type OpenShiftData = {
+  body: ShiftOpenRequest;
+  path?: never;
+  query?: never;
+  url: '/caja/turnos';
+};
+
+export type OpenShiftErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type OpenShiftError = OpenShiftErrors[keyof OpenShiftErrors];
+
+export type OpenShiftResponses = {
+  /**
+   * Turno abierto.
+   */
+  201: CashShift;
+};
+
+export type OpenShiftResponse = OpenShiftResponses[keyof OpenShiftResponses];
+
+export type RecordCashInData = {
+  body: CashInRequest;
+  path?: never;
+  query?: never;
+  url: '/caja/turno/ingresos';
+};
+
+export type RecordCashInErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RecordCashInError = RecordCashInErrors[keyof RecordCashInErrors];
+
+export type RecordCashInResponses = {
+  /**
+   * Ingreso registrado.
+   */
+  201: CashMovement;
+};
+
+export type RecordCashInResponse = RecordCashInResponses[keyof RecordCashInResponses];
+
+export type RecordWithdrawalData = {
+  body: WithdrawalRequest;
+  path?: never;
+  query?: never;
+  url: '/caja/turno/retiros';
+};
+
+export type RecordWithdrawalErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RecordWithdrawalError = RecordWithdrawalErrors[keyof RecordWithdrawalErrors];
+
+export type RecordWithdrawalResponses = {
+  /**
+   * Retiro registrado.
+   */
+  201: CashMovement;
+};
+
+export type RecordWithdrawalResponse = RecordWithdrawalResponses[keyof RecordWithdrawalResponses];
+
+export type CloseOwnShiftData = {
+  body: CashDeclarationRequest;
+  path?: never;
+  query?: never;
+  url: '/caja/turno/corte-x';
+};
+
+export type CloseOwnShiftErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CloseOwnShiftError = CloseOwnShiftErrors[keyof CloseOwnShiftErrors];
+
+export type CloseOwnShiftResponses = {
+  /**
+   * Turno cerrado.
+   */
+  200: ShiftClosure;
+};
+
+export type CloseOwnShiftResponse = CloseOwnShiftResponses[keyof CloseOwnShiftResponses];
+
+export type ListOpenShiftsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/caja/sucursales/{id}/turnos-abiertos';
+};
+
+export type ListOpenShiftsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListOpenShiftsError = ListOpenShiftsErrors[keyof ListOpenShiftsErrors];
+
+export type ListOpenShiftsResponses = {
+  /**
+   * Turnos.
+   */
+  200: Array<CashShift>;
+};
+
+export type ListOpenShiftsResponse = ListOpenShiftsResponses[keyof ListOpenShiftsResponses];
+
+export type ForceCloseShiftData = {
+  body: CashDeclarationRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/caja/turnos/{id}/cierre-forzado';
+};
+
+export type ForceCloseShiftErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ForceCloseShiftError = ForceCloseShiftErrors[keyof ForceCloseShiftErrors];
+
+export type ForceCloseShiftResponses = {
+  /**
+   * Turno cerrado.
+   */
+  200: ShiftClosure;
+};
+
+export type ForceCloseShiftResponse = ForceCloseShiftResponses[keyof ForceCloseShiftResponses];
+
+export type CloseJourneyData = {
+  body: CashDeclarationRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/caja/cajas/{id}/corte-z';
+};
+
+export type CloseJourneyErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type CloseJourneyError = CloseJourneyErrors[keyof CloseJourneyErrors];
+
+export type CloseJourneyResponses = {
+  /**
+   * Jornada cerrada.
+   */
+  200: JourneyClosure;
+};
+
+export type CloseJourneyResponse = CloseJourneyResponses[keyof CloseJourneyResponses];
+
+export type ListAuthorizersData = {
+  body?: never;
+  path?: never;
+  query: {
+    sucursalId: string;
+  };
+  url: '/autorizaciones/autorizantes';
+};
+
+export type ListAuthorizersErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListAuthorizersError = ListAuthorizersErrors[keyof ListAuthorizersErrors];
+
+export type ListAuthorizersResponses = {
+  /**
+   * Autorizantes.
+   */
+  200: Array<Authorizer>;
+};
+
+export type ListAuthorizersResponse = ListAuthorizersResponses[keyof ListAuthorizersResponses];

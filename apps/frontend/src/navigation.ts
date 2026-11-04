@@ -44,13 +44,11 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Transferencias', path: '/admin/transferencias', available: true },
     { label: 'Recepción de compras', path: '/admin/recepciones', available: true },
     { label: 'Cuotas de descuento', path: '/admin/cuotas', available: true },
+    { label: 'Caja', path: '/admin/caja', available: true },
     { label: 'Clientes', path: '/admin/clientes', available: false },
     { label: 'Informe diario', path: '/admin/informe', available: false },
   ],
-  VO: [
-    { label: 'Punto de venta', path: '/pos', available: true },
-    { label: 'Caja', path: '/pos/caja', available: false },
-  ],
+  VO: [{ label: 'Punto de venta', path: '/pos', available: true }],
 };
 
 // Pantalla inicial de cada rol.

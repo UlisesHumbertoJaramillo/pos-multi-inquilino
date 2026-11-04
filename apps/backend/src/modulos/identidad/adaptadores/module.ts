@@ -21,6 +21,7 @@ import {
 import {
   AuthorizeOperation,
   ConsumeAuthorization,
+  ListAuthorizers,
   GetAuthorization,
   SetAuthorizationPin,
 } from '../aplicacion/authorizations.js';
@@ -151,6 +152,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     setPin: new SetAuthorizationPin(authorizationDeps),
     authorize: new AuthorizeOperation(authorizationDeps),
     getAuthorization: new GetAuthorization(authorizationDeps),
+    listAuthorizers: new ListAuthorizers(authorizationDeps),
     consumeAuthorization: new ConsumeAuthorization(authorizationDeps),
   };
   return {

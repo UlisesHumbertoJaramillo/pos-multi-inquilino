@@ -13,6 +13,7 @@ import type {
   TransferReceptionRequest,
   WasteRequest,
 } from '@pos/contracts';
+import { formatMoney } from './catalog';
 import type { Request } from './platform';
 
 const send = (method: string, body?: unknown): RequestInit => ({
@@ -94,6 +95,30 @@ export function describeAlert(alert: Alert): string {
       .map((item) => `${formatQuantity(item.faltante)} × ${item.producto}`)
       .join(', ');
     return `Una transferencia llegó con faltante: ${items}.`;
+  }
+  const cash = alert.detalle as {
+    caja?: string;
+    vendedor?: string;
+    declarado?: string;
+    anterior?: string;
+    diferencia?: string;
+    monto?: string;
+    efectivoTeorico?: string;
+    resultado?: string;
+    fechaJornada?: string;
+  };
+  const money = (value?: string) => formatMoney(value ?? null);
+  switch (alert.tipo) {
+    case 'diferencia_apertura':
+      return `${cash.vendedor ?? 'Un vendedor'} abrió ${cash.caja ?? 'una caja'} con ${money(cash.declarado)}, pero el turno anterior declaró ${money(cash.anterior)} (diferencia ${money(cash.diferencia)}).`;
+    case 'retiro_rechazado':
+      return `Se rechazó un retiro de ${money(cash.monto)} de ${cash.vendedor ?? 'un vendedor'} en ${cash.caja ?? 'una caja'}: el efectivo teórico era ${money(cash.efectivoTeorico)}.`;
+    case 'arqueo_fuera_de_tolerancia':
+      return `Arqueo de ${cash.caja ?? 'una caja'}${cash.vendedor ? ` (${cash.vendedor})` : ''} con ${cash.resultado ?? 'diferencia'} de ${money(cash.diferencia)}.`;
+    case 'cierre_forzado':
+      return `Se forzó el cierre del turno de ${cash.vendedor ?? 'un vendedor'} en ${cash.caja ?? 'una caja'}.`;
+    case 'jornada_sin_z':
+      return `${cash.caja ?? 'Una caja'} tiene la jornada del ${cash.fechaJornada ?? '—'} sin Corte Z: no se pueden abrir turnos hasta hacerlo.`;
   }
   return alert.tipo;
 }

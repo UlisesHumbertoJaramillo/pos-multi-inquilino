@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.9.0
+  version: 0.10.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -31,6 +31,8 @@ tags:
     description: Promociones automáticas con tipos cerrados (NxM, porcentaje, precio por cantidad) y vigencia (AC).
   - name: Cuota de descuento
     description: Tope del comercio (AC) y cuota de descuento de cada VO por sucursal (AS).
+  - name: Caja
+    description: Jornadas, turnos, movimientos de efectivo y cortes X y Z ciegos (VO y AS). Ninguna respuesta para un VO incluye el saldo teórico.
 paths:
   /salud:
     get:
@@ -2628,6 +2630,253 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /caja/sucursales/{id}/cajas:
+    get:
+      operationId: listCashRegisters
+      tags:
+        - Caja
+      summary: Cajas de una sucursal
+      description: Con su jornada abierta, su turno abierto y si exige el Corte Z (jornada de más de 24 h, D-77). VO o AS de la sucursal.
+      parameters: &a45
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cajas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashRegisterStatus'
+        '401': &a41
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a42
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /caja/turno:
+    get:
+      operationId: getOwnShift
+      tags:
+        - Caja
+      summary: Mi turno abierto
+      description: El turno abierto del VO y sus movimientos, sin el saldo teórico (RF-112).
+      responses:
+        '200':
+          description: Turno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnShift'
+        '401': *a41
+        '403': *a42
+  /caja/turnos:
+    post:
+      operationId: openShift
+      tags:
+        - Caja
+      summary: Abrir un turno
+      description: Abre la jornada si la caja no tiene una (fecha en la zona horaria del comercio, RF-118) y restablece la cuota del VO en el primer turno de la fecha (RF-067). Si el saldo inicial difiere de lo declarado en el Corte X anterior de la jornada, se registra y se avisa al AS (RF-089, D-75). Se rechaza si la caja o el VO ya tienen un turno abierto (RF-090, RF-154) o si la jornada lleva más de 24 h sin Corte Z (RF-097, D-77). Solo un VO de la sucursal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftOpenRequest'
+      responses:
+        '201':
+          description: Turno abierto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashShift'
+        '400': &a43
+          $ref: '#/components/responses/BadRequest'
+        '401': *a41
+        '403': *a42
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409': &a44
+          $ref: '#/components/responses/Conflict'
+  /caja/turno/ingresos:
+    post:
+      operationId: recordCashIn
+      tags:
+        - Caja
+      summary: Ingreso manual de efectivo
+      description: Con motivo, en el turno abierto del VO (RF-091).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashInRequest'
+      responses:
+        '201':
+          description: Ingreso registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashMovement'
+        '400': *a43
+        '401': *a41
+        '403': *a42
+        '409': *a44
+  /caja/turno/retiros:
+    post:
+      operationId: recordWithdrawal
+      tags:
+        - Caja
+      summary: Retiro manual de efectivo
+      description: Con motivo y una autorización por PIN de tipo retiro cuya operacionRef es "retiro:{turnoId}:{monto con 2 decimales}" (RF-092). Si supera el efectivo teórico se rechaza con RETIRO_RECHAZADO y un mensaje que no lo revela; el detalle va en una alerta al AS (D-7, D-78).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawalRequest'
+      responses:
+        '201':
+          description: Retiro registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashMovement'
+        '400': *a43
+        '401': *a41
+        '403': *a42
+        '409': *a44
+  /caja/turno/corte-x:
+    post:
+      operationId: closeOwnShift
+      tags:
+        - Caja
+      summary: Corte X ciego
+      description: Cierra el turno del VO con su declaración ciega y devuelve el arqueo, sin el teórico. Se rechaza con ventas en curso (RF-094, RF-117). Si la diferencia supera la tolerancia, avisa al AS y al AC (RF-098).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashDeclarationRequest'
+      responses:
+        '200':
+          description: Turno cerrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftClosure'
+        '400': *a43
+        '401': *a41
+        '403': *a42
+        '409': *a44
+  /caja/sucursales/{id}/turnos-abiertos:
+    get:
+      operationId: listOpenShifts
+      tags:
+        - Caja
+      summary: Turnos abiertos de una sucursal
+      description: Para el cierre forzado (RF-115). Solo el AS de la sucursal.
+      parameters: *a45
+      responses:
+        '200':
+          description: Turnos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashShift'
+        '401': *a41
+        '403': *a42
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /caja/turnos/{id}/cierre-forzado:
+    post:
+      operationId: forceCloseShift
+      tags:
+        - Caja
+      summary: Cierre forzado de un turno ajeno
+      description: El AS declara a ciegas; se descartan las ventas en curso del turno, el cierre queda marcado como forzado y se avisa al AC (RF-115, D-10). Solo el AS de la sucursal, nunca sobre su propio turno.
+      parameters: *a45
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashDeclarationRequest'
+      responses:
+        '200':
+          description: Turno cerrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftClosure'
+        '400': *a43
+        '401': *a41
+        '403': *a42
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409': *a44
+  /caja/cajas/{id}/corte-z:
+    post:
+      operationId: closeJourney
+      tags:
+        - Caja
+      summary: Corte Z ciego
+      description: Sin turnos abiertos ni ventas en curso, consolida los turnos de la jornada, calcula el arqueo final contra el teórico de toda la jornada y la cierra (RF-095, RF-096, D-76). VO o AS de la sucursal. Para un VO, la respuesta no incluye el teórico.
+      parameters: *a45
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashDeclarationRequest'
+      responses:
+        '200':
+          description: Jornada cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyClosure'
+        '400': *a43
+        '401': *a41
+        '403': *a42
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409': *a44
+  /autorizaciones/autorizantes:
+    get:
+      operationId: listAuthorizers
+      tags:
+        - Autorizaciones
+      summary: Quiénes pueden autorizar con PIN
+      description: Los AS de la sucursal y los AC del comercio, activos y con PIN, salvo quien consulta (RF-141, RF-113). Para el modal de PIN.
+      parameters:
+        - name: sucursalId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Autorizantes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Authorizer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': *a41
+        '403': *a42
 components:
   securitySchemes:
     tokenAcceso:
@@ -2957,7 +3206,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a41
+        id: &a46
           type: string
           format: uuid
         nombre:
@@ -2977,7 +3226,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a42
+        creadoEn: &a47
           type: string
           format: date-time
     TenantCreateRequest:
@@ -3051,7 +3300,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a41
+        usuarioId: *a46
         email:
           type: string
     TicketStatus:
@@ -3072,16 +3321,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a41
-        comercioId: *a41
+        id: *a46
+        comercioId: *a46
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a42
-        actualizadoEn: *a42
+        creadoEn: *a47
+        actualizadoEn: *a47
     TicketMessage:
       type: object
       additionalProperties: false
@@ -3091,13 +3340,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a41
+        id: *a46
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a42
+        creadoEn: *a47
     TicketDetail:
       type: object
       additionalProperties: false
@@ -3111,16 +3360,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a41
-        comercioId: *a41
+        id: *a46
+        comercioId: *a46
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a42
-        actualizadoEn: *a42
+        creadoEn: *a47
+        actualizadoEn: *a47
         mensajes:
           type: array
           items:
@@ -3162,17 +3411,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a41
-        momento: *a42
+        id: *a46
+        momento: *a47
         tipoEvento:
           type: string
         actorId:
-          type: &a43
+          type: &a48
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a43
+          type: *a48
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -3207,7 +3456,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a42
+              momento: *a47
               metodo:
                 type: string
               ruta:
@@ -3254,7 +3503,7 @@ components:
         - direccion
         - activa
       properties:
-        id: &a44
+        id: &a49
           type: string
           format: uuid
         nombre:
@@ -3275,8 +3524,8 @@ components:
         - puntoVentaFiscal
         - activa
       properties:
-        id: *a44
-        sucursalId: *a44
+        id: *a49
+        sucursalId: *a49
         nombre:
           type: string
         puntoVentaFiscal:
@@ -3301,7 +3550,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a44
+            id: *a49
             nombre:
               type: string
         sucursales:
@@ -3316,7 +3565,7 @@ components:
               - activa
               - cajas
             properties:
-              id: *a44
+              id: *a49
               nombre:
                 type: string
               direccion:
@@ -3415,7 +3664,7 @@ components:
         - correoValidado
         - roles
       properties:
-        id: *a44
+        id: *a49
         email:
           type: string
         nombre:
@@ -3539,7 +3788,7 @@ components:
         - recargoPct
         - activo
       properties:
-        id: *a44
+        id: *a49
         nombre:
           type: string
         tipo:
@@ -3587,7 +3836,7 @@ components:
         - tasaIva
         - activa
       properties:
-        id: &a46
+        id: &a51
           type: string
           format: uuid
         nombre:
@@ -3609,7 +3858,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: &a45
+        tasaIva: &a50
           type: string
           description: Número decimal, por ejemplo "21" o "10.5".
     CategoryUpdateRequest:
@@ -3621,7 +3870,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: *a45
+        tasaIva: *a50
     Product:
       type: object
       additionalProperties: false
@@ -3637,38 +3886,38 @@ components:
         - tieneImagen
         - disponible
       properties:
-        id: *a46
-        tipo: &a49
+        id: *a51
+        tipo: &a54
           type: string
           enum:
             - simple
             - combo
-        nombre: &a50
+        nombre: &a55
           type: string
-        codigoBarras: &a51
+        codigoBarras: &a56
           type:
             - string
             - 'null'
-        categoriaId: &a52
+        categoriaId: &a57
           type:
             - string
             - 'null'
           format: uuid
-        costo: &a53
-          type: &a47
+        costo: &a58
+          type: &a52
             - string
             - 'null'
           pattern: ^\d+\.\d{2}$
           description: Costo sin IVA; null en un combo.
-        precioCombo: &a54
-          type: *a47
+        precioCombo: &a59
+          type: *a52
           pattern: ^\d+\.\d{2}$
           description: Precio único del combo; null en un producto simple.
-        activo: &a55
+        activo: &a60
           type: boolean
-        tieneImagen: &a56
+        tieneImagen: &a61
           type: boolean
-        disponible: &a57
+        disponible: &a62
           type: boolean
           description: 'Se puede vender: activo y, si es combo, con todos sus componentes activos.'
     ProductCreateRequest:
@@ -3683,14 +3932,14 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: &a48
+        codigoBarras: &a53
           type:
             - string
             - 'null'
           maxLength: 48
           description: 'Letras, números y guiones. Vacío o null: sin código.'
-        categoriaId: *a46
-        costo: *a45
+        categoriaId: *a51
+        costo: *a50
     ProductUpdateRequest:
       type: object
       additionalProperties: false
@@ -3700,9 +3949,9 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a48
-        categoriaId: *a46
-        costo: *a45
+        codigoBarras: *a53
+        categoriaId: *a51
+        costo: *a50
     ComboComponent:
       type: object
       additionalProperties: false
@@ -3712,7 +3961,7 @@ components:
         - cantidad
         - activo
       properties:
-        productoId: *a46
+        productoId: *a51
         nombre:
           type: string
         cantidad:
@@ -3737,16 +3986,16 @@ components:
         - disponible
         - componentes
       properties:
-        id: *a46
-        tipo: *a49
-        nombre: *a50
-        codigoBarras: *a51
-        categoriaId: *a52
-        costo: *a53
-        precioCombo: *a54
-        activo: *a55
-        tieneImagen: *a56
-        disponible: *a57
+        id: *a51
+        tipo: *a54
+        nombre: *a55
+        codigoBarras: *a56
+        categoriaId: *a57
+        costo: *a58
+        precioCombo: *a59
+        activo: *a60
+        tieneImagen: *a61
+        disponible: *a62
         componentes:
           type: array
           items:
@@ -3763,21 +4012,21 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a48
-        precio: *a45
+        codigoBarras: *a53
+        precio: *a50
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: &a58
+          items: &a63
             type: object
             additionalProperties: false
             required:
               - productoId
               - cantidad
             properties:
-              productoId: *a46
-              cantidad: *a45
+              productoId: *a51
+              cantidad: *a50
     ComboUpdateRequest:
       type: object
       additionalProperties: false
@@ -3787,13 +4036,13 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a48
-        precio: *a45
+        codigoBarras: *a53
+        precio: *a50
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: *a58
+          items: *a63
     PriceRuleType:
       type: string
       enum:
@@ -3828,7 +4077,7 @@ components:
         - regla
         - activa
       properties:
-        id: *a46
+        id: *a51
         nombre:
           type: string
         regla:
@@ -3881,7 +4130,7 @@ components:
               - categoria
               - precioFinal
             properties:
-              productoId: *a46
+              productoId: *a51
               nombre:
                 type: string
               codigoBarras:
@@ -3898,7 +4147,7 @@ components:
                   - string
                   - 'null'
               precioFinal:
-                type: *a47
+                type: *a52
                 pattern: ^\d+\.\d{2}$
                 description: Precio final con IVA; null si no tiene precio en esta lista.
     ManualPriceRequest:
@@ -3920,17 +4169,17 @@ components:
         - nombre
         - listaId
       properties:
-        sucursalId: *a46
+        sucursalId: *a51
         nombre:
           type: string
-        listaId: *a52
+        listaId: *a57
     BranchPriceListRequest:
       type: object
       additionalProperties: false
       required:
         - listaId
       properties:
-        listaId: *a46
+        listaId: *a51
     StockBalance:
       type: object
       additionalProperties: false
@@ -3943,23 +4192,23 @@ components:
         - umbralMinimo
         - alertaActiva
       properties:
-        productoId: &a60
+        productoId: &a65
           type: string
           format: uuid
-        disponible: &a59
+        disponible: &a64
           type: string
           pattern: ^\d+\.\d{3}$
           description: Cantidad con tres decimales.
-        reservado: *a59
-        enRevision: *a59
-        enTransito: *a59
-        umbralMinimo: &a61
-          type: &a65
+        reservado: *a64
+        enRevision: *a64
+        enTransito: *a64
+        umbralMinimo: &a66
+          type: &a70
             - string
             - 'null'
           pattern: ^\d+\.\d{3}$
           description: 'null: sin umbral.'
-        alertaActiva: &a62
+        alertaActiva: &a67
           type: boolean
           description: El disponible está por debajo del umbral y ya se alertó.
     StockRow:
@@ -3977,13 +4226,13 @@ components:
         - codigoBarras
         - activo
       properties:
-        productoId: *a60
-        disponible: *a59
-        reservado: *a59
-        enRevision: *a59
-        enTransito: *a59
-        umbralMinimo: *a61
-        alertaActiva: *a62
+        productoId: *a65
+        disponible: *a64
+        reservado: *a64
+        enRevision: *a64
+        enTransito: *a64
+        umbralMinimo: *a66
+        alertaActiva: *a67
         nombre:
           type: string
         codigoBarras:
@@ -4000,7 +4249,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a60
+        productoId: *a65
         cantidad:
           type: string
           maxLength: 20
@@ -4034,7 +4283,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a60
+        productoId: *a65
         cantidad:
           type: string
           maxLength: 20
@@ -4084,8 +4333,8 @@ components:
         - usuarioId
         - momento
       properties:
-        id: *a60
-        productoId: *a60
+        id: *a65
+        productoId: *a65
         nombre:
           type: string
         tipo:
@@ -4103,7 +4352,7 @@ components:
             - cancelacion
             - devolucion
             - reingreso
-        estadoOrigen: &a63
+        estadoOrigen: &a68
           type:
             - string
             - 'null'
@@ -4113,9 +4362,9 @@ components:
             - en_revision
             - en_transito
             - null
-        estadoDestino: *a63
-        cantidad: *a59
-        referencia: &a64
+        estadoDestino: *a68
+        cantidad: *a64
+        referencia: &a69
           type:
             - string
             - 'null'
@@ -4124,7 +4373,7 @@ components:
           type:
             - string
             - 'null'
-        usuarioId: *a60
+        usuarioId: *a65
         momento:
           type: string
           format: date-time
@@ -4139,7 +4388,7 @@ components:
         - detalle
         - creadaEn
       properties:
-        id: *a60
+        id: *a65
         tipo:
           type: string
           description: stock_minimo o transferencia_faltante.
@@ -4149,7 +4398,7 @@ components:
             - info
             - advertencia
             - critica
-        referencia: *a64
+        referencia: *a69
         detalle:
           type: object
         creadaEn:
@@ -4164,7 +4413,7 @@ components:
         - unidades
         - vendible
       properties:
-        comboId: *a60
+        comboId: *a65
         nombre:
           type: string
         unidades:
@@ -4181,7 +4430,7 @@ components:
         - nombre
         - propia
       properties:
-        id: *a60
+        id: *a65
         nombre:
           type: string
         propia:
@@ -4206,7 +4455,7 @@ components:
         - cerradaEn
         - items
       properties:
-        id: *a60
+        id: *a65
         origen:
           type: object
           additionalProperties: false
@@ -4214,7 +4463,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a60
+            id: *a65
             nombre:
               type: string
         destino:
@@ -4224,7 +4473,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a60
+            id: *a65
             nombre:
               type: string
         estado:
@@ -4250,15 +4499,15 @@ components:
               - rechazada
               - faltante
             properties:
-              productoId: *a60
+              productoId: *a65
               nombre:
                 type: string
-              enviada: *a59
-              recibida: &a66
-                type: *a65
+              enviada: *a64
+              recibida: &a71
+                type: *a70
                 pattern: ^\d+\.\d{3}$
-              rechazada: *a66
-              faltante: *a66
+              rechazada: *a71
+              faltante: *a71
     TransferCreateRequest:
       type: object
       additionalProperties: false
@@ -4267,8 +4516,8 @@ components:
         - destinoId
         - items
       properties:
-        origenId: *a60
-        destinoId: *a60
+        origenId: *a65
+        destinoId: *a65
         items:
           type: array
           minItems: 1
@@ -4280,7 +4529,7 @@ components:
               - productoId
               - cantidad
             properties:
-              productoId: *a60
+              productoId: *a65
               cantidad:
                 type: string
                 maxLength: 20
@@ -4303,7 +4552,7 @@ components:
               - recibida
               - rechazada
             properties:
-              productoId: *a60
+              productoId: *a65
               recibida:
                 type: string
                 maxLength: 20
@@ -4323,7 +4572,7 @@ components:
         - saldoAdeudado
         - activo
       properties:
-        id: &a68
+        id: &a73
           type: string
           format: uuid
         razonSocial:
@@ -4347,7 +4596,7 @@ components:
       additionalProperties: false
       required:
         - razonSocial
-      properties: &a67
+      properties: &a72
         razonSocial:
           type: string
           minLength: 1
@@ -4367,7 +4616,7 @@ components:
       type: object
       additionalProperties: false
       required: []
-      properties: *a67
+      properties: *a72
     SupplierStatement:
       type: object
       additionalProperties: false
@@ -4394,11 +4643,11 @@ components:
                 enum:
                   - compra
                   - pago
-              id: *a68
+              id: *a73
               momento:
                 type: string
                 format: date-time
-              importe: &a69
+              importe: &a74
                 type: string
                 pattern: ^-?\d+\.\d{2}$
                 description: Monto con dos decimales.
@@ -4417,7 +4666,7 @@ components:
         - preciosRecalculados
         - errores
       properties:
-        id: *a68
+        id: *a73
         filasOk:
           type: integer
           minimum: 0
@@ -4494,8 +4743,8 @@ components:
             - confirmadoExceso
             - momento
           properties:
-            id: *a68
-            monto: *a69
+            id: *a73
+            monto: *a74
             metodo:
               $ref: '#/components/schemas/SupplierPaymentMethod'
             comprobante:
@@ -4505,7 +4754,7 @@ components:
             momento:
               type: string
               format: date-time
-        saldoAdeudado: *a69
+        saldoAdeudado: *a74
     Purchase:
       type: object
       additionalProperties: false
@@ -4520,7 +4769,7 @@ components:
         - recibidaEn
         - items
       properties:
-        id: *a68
+        id: *a73
         proveedor:
           type: object
           additionalProperties: false
@@ -4528,7 +4777,7 @@ components:
             - id
             - razonSocial
           properties:
-            id: *a68
+            id: *a73
             razonSocial:
               type: string
         sucursal:
@@ -4538,7 +4787,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a68
+            id: *a73
             nombre:
               type: string
         estado:
@@ -4551,7 +4800,7 @@ components:
             - string
             - 'null'
           description: Factura o remito del proveedor.
-        total: *a69
+        total: *a74
         registradaEn:
           type: string
           format: date-time
@@ -4574,22 +4823,22 @@ components:
               - recibida
               - diferencia
             properties:
-              productoId: *a68
+              productoId: *a73
               nombre:
                 type: string
               cantidad:
                 type: string
                 pattern: ^\d+\.\d{3}$
                 description: Cantidad con tres decimales.
-              costoUnitario: *a69
-              subtotal: *a69
+              costoUnitario: *a74
+              subtotal: *a74
               recibida:
-                type: &a70
+                type: &a75
                   - string
                   - 'null'
                 pattern: ^\d+\.\d{3}$
               diferencia:
-                type: *a70
+                type: *a75
                 pattern: ^\d+\.\d{3}$
                 description: Lo comprado que no llegó.
     PurchaseCreateRequest:
@@ -4600,8 +4849,8 @@ components:
         - sucursalId
         - items
       properties:
-        proveedorId: *a68
-        sucursalId: *a68
+        proveedorId: *a73
+        sucursalId: *a73
         comprobante:
           type:
             - string
@@ -4619,7 +4868,7 @@ components:
               - cantidad
               - costoUnitario
             properties:
-              productoId: *a68
+              productoId: *a73
               cantidad:
                 type: string
                 maxLength: 20
@@ -4645,7 +4894,7 @@ components:
               - productoId
               - recibida
             properties:
-              productoId: *a68
+              productoId: *a73
               recibida:
                 type: string
                 maxLength: 20
@@ -4715,7 +4964,7 @@ components:
         - activa
         - vigente
       properties:
-        id: &a71
+        id: &a76
           type: string
           format: uuid
         nombre:
@@ -4734,7 +4983,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a71
+            id: *a76
             nombre:
               type: string
         vigenteDesde:
@@ -4747,7 +4996,7 @@ components:
           type:
             - array
             - 'null'
-          items: *a71
+          items: *a76
         activa:
           type: boolean
         vigente:
@@ -4764,7 +5013,7 @@ components:
         - vigenteDesde
         - vigenteHasta
         - sucursales
-      properties: &a72
+      properties: &a77
         nombre:
           type: string
           minLength: 1
@@ -4790,13 +5039,13 @@ components:
           type:
             - array
             - 'null'
-          items: *a71
+          items: *a76
           description: 'null: todas las sucursales.'
     PromotionUpdateRequest:
       type: object
       additionalProperties: false
       required: []
-      properties: *a72
+      properties: *a77
     DiscountCap:
       type: object
       additionalProperties: false
@@ -4804,7 +5053,7 @@ components:
         - porcentajeMaximo
         - montoMaximo
       properties:
-        porcentajeMaximo: &a73
+        porcentajeMaximo: &a78
           type: string
           maxLength: 20
           description: Porcentaje máximo de descuento por venta, entre 0 y 100, con hasta 4 decimales.
@@ -4832,7 +5081,7 @@ components:
         - porcentajeMaximo
         - monto
       properties:
-        porcentajeMaximo: *a73
+        porcentajeMaximo: *a78
         monto:
           type: string
           maxLength: 20
@@ -4891,3 +5140,261 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SellerQuota'
+    CashRegisterStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - jornada
+        - turnoAbierto
+        - requiereCorteZ
+      properties:
+        id: &a79
+          type: string
+          format: uuid
+        nombre: &a80
+          type: string
+        jornada:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+                - fecha
+                - abiertaEn
+              properties:
+                id: *a79
+                fecha:
+                  type: string
+                  format: date
+                abiertaEn: &a81
+                  type: string
+                  format: date-time
+            - type: 'null'
+        turnoAbierto:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+                - vendedorId
+                - vendedor
+                - abiertoEn
+              properties:
+                id: *a79
+                vendedorId: *a79
+                vendedor: *a80
+                abiertoEn: *a81
+            - type: 'null'
+        requiereCorteZ:
+          type: boolean
+    CashShift:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - cajaId
+        - caja
+        - sucursalId
+        - jornadaId
+        - fechaJornada
+        - vendedorId
+        - vendedor
+        - saldoInicial
+        - diferenciaInicial
+        - abiertoEn
+        - estado
+        - forzado
+      properties:
+        id: *a79
+        cajaId: *a79
+        caja: *a80
+        sucursalId: *a79
+        jornadaId: *a79
+        fechaJornada:
+          type: string
+          format: date
+        vendedorId: *a79
+        vendedor: *a80
+        saldoInicial: *a80
+        diferenciaInicial:
+          type:
+            - string
+            - 'null'
+          description: Diferencia con lo declarado en el Corte X anterior de la jornada; null si no hubo.
+        abiertoEn: *a81
+        estado:
+          type: string
+          enum:
+            - abierto
+            - cerrado
+        forzado:
+          type: boolean
+    CashMovement:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tipo
+        - enEfectivo
+        - monto
+        - motivo
+        - registradoEn
+      properties:
+        id: *a79
+        tipo:
+          type: string
+          enum:
+            - ingreso
+            - retiro
+            - venta
+            - reintegro
+            - cobro
+            - anulacion
+        enEfectivo:
+          type: boolean
+        monto: *a80
+        motivo:
+          type:
+            - string
+            - 'null'
+        registradoEn: *a81
+    OwnShift:
+      type: object
+      additionalProperties: false
+      required:
+        - turno
+        - movimientos
+      properties:
+        turno:
+          oneOf:
+            - $ref: '#/components/schemas/CashShift'
+            - type: 'null'
+        movimientos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashMovement'
+    CashCount:
+      type: object
+      additionalProperties: false
+      required:
+        - declarado
+        - diferencia
+        - resultado
+      properties:
+        declarado: *a80
+        diferencia:
+          type: string
+          description: 'Declarado menos teórico: negativa es faltante.'
+        resultado:
+          type: string
+          enum:
+            - faltante
+            - sobrante
+            - cuadrado
+        teorico:
+          type: string
+          description: Solo en las respuestas para un AS o un AC.
+    ShiftClosure:
+      type: object
+      additionalProperties: false
+      required:
+        - turno
+        - arqueo
+      properties:
+        turno:
+          $ref: '#/components/schemas/CashShift'
+        arqueo:
+          $ref: '#/components/schemas/CashCount'
+    JourneyClosure:
+      type: object
+      additionalProperties: false
+      required:
+        - jornadaId
+        - cajaId
+        - caja
+        - fechaJornada
+        - turnos
+        - arqueo
+      properties:
+        jornadaId: *a79
+        cajaId: *a79
+        caja: *a80
+        fechaJornada:
+          type: string
+          format: date
+        turnos:
+          type: integer
+          minimum: 0
+        arqueo:
+          $ref: '#/components/schemas/CashCount'
+    ShiftOpenRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - cajaId
+        - saldoInicial
+      properties:
+        cajaId: *a79
+        saldoInicial:
+          type: string
+          maxLength: 20
+          description: Efectivo con el que arranca el turno.
+    CashInRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - monto
+        - motivo
+      properties:
+        monto:
+          type: string
+          maxLength: 20
+          description: Mayor que cero.
+        motivo:
+          type: string
+          minLength: 1
+          maxLength: 200
+    WithdrawalRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - monto
+        - motivo
+        - autorizacionId
+      properties:
+        monto:
+          type: string
+          maxLength: 20
+          description: Mayor que cero.
+        motivo:
+          type: string
+          minLength: 1
+          maxLength: 200
+        autorizacionId: *a79
+    CashDeclarationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - declarado
+      properties:
+        declarado:
+          type: string
+          maxLength: 20
+          description: Efectivo contado, a ciegas.
+    Authorizer:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nombre
+        - rol
+      properties:
+        id: *a79
+        nombre: *a80
+        rol:
+          type: string
+          enum:
+            - AS
+            - AC

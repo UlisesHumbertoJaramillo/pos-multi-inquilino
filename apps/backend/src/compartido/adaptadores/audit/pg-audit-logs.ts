@@ -80,6 +80,7 @@ const OWNED_TABLES: Readonly<Record<string, string>> = {
   auditoria_comercial: 'auditoria_comercial',
   sucursal: 'sucursal',
   caja: 'caja',
+  turno: 'turno',
   metodo_pago: 'metodo_pago',
   categoria: 'categoria',
   producto: 'producto',

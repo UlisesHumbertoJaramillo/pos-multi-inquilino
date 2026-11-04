@@ -29,6 +29,13 @@ import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
 import { createQuotaModule, type QuotaModule } from './modulos/cuota/adaptadores/module.js';
 import {
+  type CashModule,
+  createCashModule,
+  noSalesInProgressYet,
+} from './modulos/caja/adaptadores/module.js';
+import type { SalesInProgress } from './modulos/caja/aplicacion/ports.js';
+import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
+import {
   createPromotionModule,
   type PromotionModule,
 } from './modulos/promociones/adaptadores/module.js';
@@ -94,6 +101,8 @@ export interface ApiDependencies {
   // Para las pruebas: dependencias simuladas de sucursales, cajas, usuarios y productos.
   dependencies?: DependencyQuery;
   productDependencies?: ProductDependencyQuery;
+  // Para las pruebas: ventas en curso simuladas (hasta T-149 no hay ventas).
+  salesInProgress?: SalesInProgress;
 }
 
 export interface Api {
@@ -106,6 +115,7 @@ export interface Api {
   suppliers: SupplierModule;
   promotions: PromotionModule;
   quotas: QuotaModule;
+  cash: CashModule;
   routes: HttpRoute[];
 }
 
@@ -155,13 +165,22 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     access,
     commercialAudit,
   });
-  // Bajas de sucursales (RF-025, RF-148): el stock y las transferencias los aporta el inventario;
-  // turnos y ventas en curso siguen simulados hasta las Fases 9 y 10.
+  // Bajas de sucursales, cajas y usuarios (RF-025, RF-148, D-42): el stock y las transferencias
+  // los aporta el inventario y los turnos abiertos, la caja; las ventas en curso siguen simuladas
+  // hasta la Fase 10. El módulo de caja se arma más abajo: se usa recién al dar de baja.
   const branchDependencies: DependencyQuery = {
-    ...noDependenciesYet,
     forBranch: async (tenantId, branchId) => ({
       ...(await noDependenciesYet.forBranch(tenantId, branchId)),
       ...(await inventory.dependencies.forBranch(tenantId, branchId)),
+      openShifts: await cash.openShifts(tenantId, { branchId }),
+    }),
+    forRegister: async (tenantId, registerId) => ({
+      ...(await noDependenciesYet.forRegister(tenantId, registerId)),
+      openShifts: await cash.openShifts(tenantId, { registerId }),
+    }),
+    forUser: async (tenantId, userId) => ({
+      ...(await noDependenciesYet.forUser(tenantId, userId)),
+      openShifts: await cash.openShifts(tenantId, { userId }),
     }),
   };
 
@@ -233,6 +252,22 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     },
   });
 
+  const cash = createCashModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    defaultTolerance: DEFAULT_PARAMETERS.cashCountTolerance,
+    sales: deps.salesInProgress ?? noSalesInProgressYet,
+    // El primer turno de cada fecha de jornada restablece la cuota del VO (RF-067).
+    quota: quotas.discounts,
+    // Un retiro consume una autorización por PIN de identidad (RF-092).
+    authorizations: {
+      consume: (input) => identity.useCases.consumeAuthorization.execute(input),
+    },
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -242,6 +277,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...suppliers.routes,
     ...promotions.routes,
     ...quotas.routes,
+    ...cash.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -265,6 +301,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     suppliers,
     promotions,
     quotas,
+    cash,
     routes,
   };
 }

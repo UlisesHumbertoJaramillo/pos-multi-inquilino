@@ -314,37 +314,37 @@
 
 ## Fase 9 — Caja
 
-- [ ] **T-129** · Crear las migraciones `jornada`, `turno` y `movimiento_caja`, con índices únicos parciales (una jornada abierta por caja, un turno abierto por caja y por VO). · RF: RF-090, RF-154 · Dep: T-060
+- [x] **T-129** · Crear las migraciones `jornada`, `turno` y `movimiento_caja`, con índices únicos parciales (una jornada abierta por caja, un turno abierto por caja y por VO). · RF: RF-090, RF-154 · Dep: T-060
   - Hecho cuando: una prueba que intenta abrir dos turnos en la misma caja falla en la base.
-- [ ] **T-130** · Abrir un turno: abre la jornada si corresponde (fecha en la zona horaria del comercio) y rechaza si hay una jornada anterior sin Corte Z. · RF: RF-118, RF-097, RF-090, RF-154 · Dep: T-129
+- [x] **T-130** · Abrir un turno: abre la jornada si corresponde (fecha en la zona horaria del comercio) y rechaza si hay una jornada anterior sin Corte Z. · RF: RF-118, RF-097, RF-090, RF-154 · Dep: T-129
   - Hecho cuando: hay pruebas de primer turno, de segundo turno de la misma jornada y de jornada anterior sin Z.
-- [ ] **T-131** · Saldo inicial declarado y diferencia con el efectivo del turno anterior, con aviso al AS. · RF: RF-089 · Dep: T-130, T-092
+- [x] **T-131** · Saldo inicial declarado y diferencia con el efectivo del turno anterior, con aviso al AS. · RF: RF-089 · Dep: T-130, T-092
   - Hecho cuando: una diferencia genera una alerta al AS.
-- [ ] **T-132** · Restablecer la cuota en el primer turno de cada fecha de jornada. · RF: RF-067 · Dep: T-130, T-126
+- [x] **T-132** · Restablecer la cuota en el primer turno de cada fecha de jornada. · RF: RF-067 · Dep: T-130, T-126
   - Hecho cuando: una prueba con dos turnos en la misma fecha restablece una sola vez.
-- [ ] **T-133** · Ingreso manual de efectivo con motivo. · RF: RF-091 · Dep: T-130
+- [x] **T-133** · Ingreso manual de efectivo con motivo. · RF: RF-091 · Dep: T-130
   - Hecho cuando: en /docs, el VO registra un ingreso y queda asociado a su turno.
-- [ ] **T-134** · Dominio: saldo teórico de la caja a partir del saldo inicial y los movimientos en efectivo. · RF: RF-112 · Dep: T-133
+- [x] **T-134** · Dominio: saldo teórico de la caja a partir del saldo inicial y los movimientos en efectivo. · RF: RF-112 · Dep: T-133
   - Hecho cuando: pasa una tabla de casos con ingresos, retiros y ventas.
-- [ ] **T-135** · DTO por rol: ninguna respuesta dirigida a un VO incluye el saldo teórico. · RF: RF-093, RF-112 · Dep: T-134
+- [x] **T-135** · DTO por rol: ninguna respuesta dirigida a un VO incluye el saldo teórico. · RF: RF-093, RF-112 · Dep: T-134
   - Hecho cuando: una prueba recorre los endpoints de caja como VO y verifica que el teórico no aparece en ninguna respuesta.
-- [ ] **T-136** · Retiro manual con PIN, con validación contra el teórico y el detalle del rechazo solo para el AS. · RF: RF-092 · Dep: T-135, T-044
+- [x] **T-136** · Retiro manual con PIN, con validación contra el teórico y el detalle del rechazo solo para el AS. · RF: RF-092 · Dep: T-135, T-044
   - Hecho cuando: un retiro excesivo se rechaza, el VO recibe un mensaje genérico y el AS ve el motivo.
-- [ ] **T-137** · Corte X ciego: cierre del turno, arqueo e inmutabilidad, con verificación de ventas en curso a través de un puerto simulado hasta T-149. · RF: RF-094, RF-099, RF-117 · Dep: T-135
+- [x] **T-137** · Corte X ciego: cierre del turno, arqueo e inmutabilidad, con verificación de ventas en curso a través de un puerto simulado hasta T-149. · RF: RF-094, RF-099, RF-117 · Dep: T-135
   - Hecho cuando: hay pruebas de faltante, sobrante y cuadrado, y un cierre confirmado no se puede modificar.
-- [ ] **T-138** · Corte Z ciego: sin turnos abiertos, ejecutado por un VO o un AS sin turno en esa caja, consolidación y arqueo final. · RF: RF-095, RF-096 · Dep: T-137
+- [x] **T-138** · Corte Z ciego: sin turnos abiertos, ejecutado por un VO o un AS sin turno en esa caja, consolidación y arqueo final. · RF: RF-095, RF-096 · Dep: T-137
   - Hecho cuando: un Z con un turno abierto se rechaza indicando qué falta, y un Z válido cierra la jornada.
-- [ ] **T-139** · Cierre forzado de un turno ajeno por un AS, con su declaración ciega. · RF: RF-115 · Dep: T-137, T-044
+- [x] **T-139** · Cierre forzado de un turno ajeno por un AS, con su declaración ciega. · RF: RF-115 · Dep: T-137, T-044
   - Hecho cuando: el turno queda marcado como forzado, con el VO titular y el AS, y el AC recibe una alerta.
-- [ ] **T-140** · Notificación de un arqueo que supera la tolerancia. · RF: RF-098 · Dep: T-137, T-065
+- [x] **T-140** · Notificación de un arqueo que supera la tolerancia. · RF: RF-098 · Dep: T-137, T-065
   - Hecho cuando: con tolerancia 0 cualquier diferencia notifica al AS y al AC, y con tolerancia 100 una diferencia de 50 no notifica.
-- [ ] **T-141** · Frontend POS: apertura de turno, ingresos y retiros (con el modal de PIN). · RF: RF-089, RF-091, RF-092 · Dep: T-136, T-046
+- [x] **T-141** · Frontend POS: apertura de turno, ingresos y retiros (con el modal de PIN). · RF: RF-089, RF-091, RF-092 · Dep: T-136, T-046
   - Hecho cuando: en https://localhost:5173/pos, el VO demo abre un turno y registra un retiro autorizado por el AS demo.
-- [ ] **T-142** · Frontend POS: Corte X y Corte Z ciegos. · RF: RF-093, RF-094, RF-095 · Dep: T-141, T-138
+- [x] **T-142** · Frontend POS: Corte X y Corte Z ciegos. · RF: RF-093, RF-094, RF-095 · Dep: T-141, T-138
   - Hecho cuando: el VO declara sin ver el teórico y luego ve el resultado del arqueo.
-- [ ] **T-143** · Frontend del AS: turnos abiertos y cierre forzado. · RF: RF-115 · Dep: T-139, T-070
+- [x] **T-143** · Frontend del AS: turnos abiertos y cierre forzado. · RF: RF-115 · Dep: T-139, T-070
   - Hecho cuando: desde /admin, el AS fuerza el cierre de un turno del VO demo.
-- [ ] **T-144** · Sumar las acciones de caja al generador de la matriz. · RF: RF-004 · Dep: T-143
+- [x] **T-144** · Sumar las acciones de caja al generador de la matriz. · RF: RF-004 · Dep: T-143
   - Hecho cuando: las pruebas generadas pasan y un VO no puede forzar cierres.
 
 ## Fase 10 — Ventas (POS)

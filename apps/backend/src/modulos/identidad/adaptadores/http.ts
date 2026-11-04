@@ -17,6 +17,7 @@ import type {
 import type {
   AuthorizeOperation,
   GetAuthorization,
+  ListAuthorizers,
   SetAuthorizationPin,
 } from '../aplicacion/authorizations.js';
 import { AUTHORIZATION_TYPES, type Authorization } from '../aplicacion/ports.js';
@@ -44,6 +45,7 @@ export interface IdentityUseCases {
   setPin: SetAuthorizationPin;
   authorize: AuthorizeOperation;
   getAuthorization: GetAuthorization;
+  listAuthorizers: ListAuthorizers;
 }
 
 const email = z.string().trim().max(254).pipe(z.email());
@@ -57,6 +59,7 @@ const emailBody = z.object({ email }).strict();
 const tokenBody = z.object({ token: opaqueToken }).strict();
 const resetBody = z.object({ token: opaqueToken, nuevaContrasena: secret }).strict();
 const pinBody = z.object({ pin: z.string().max(20) }).strict();
+const authorizersQuery = z.object({ sucursalId: z.uuid() });
 const authorizeBody = z
   .object({
     tipo: z.enum(AUTHORIZATION_TYPES),
@@ -245,6 +248,16 @@ export function identityRoutes(useCases: IdentityUseCases): HttpRoute[] {
           ip: clientIp(req),
         });
         res.status(201).json(authorizationDto(authorization));
+      },
+    },
+    {
+      // Antes de /autorizaciones/:id, para que "autorizantes" no se tome como un id.
+      method: 'get',
+      path: '/autorizaciones/autorizantes',
+      handler: async (req, res) => {
+        const { sucursalId } = parseInput(authorizersQuery, req.query);
+        const list = await useCases.listAuthorizers.execute(securityContextOf(res), sucursalId);
+        res.json(list.map((a) => ({ id: a.id, nombre: a.name, rol: a.role })));
       },
     },
     {
