@@ -16,6 +16,7 @@ import {
   OpenShift,
   RecordCashIn,
   RecordWithdrawal,
+  ShiftSales,
 } from '../aplicacion/cash.js';
 import type { SalesInProgress, ShiftQuota, WithdrawalAuthorizations } from '../aplicacion/ports.js';
 import { cashRoutes, type CashUseCases } from './http.js';
@@ -38,6 +39,10 @@ export interface CashModule {
   useCases: CashUseCases;
   // Para organización: turnos abiertos que impiden bajas (D-42).
   openShifts: PgCashRepository['countOpenShifts'];
+  // Para ventas: turno abierto del VO e ingreso del cobro en la caja.
+  sales: ShiftSales;
+  // Para el cierre de sesión: si el usuario tiene un turno abierto (RF-080).
+  hasOpenShift: (tenantId: string, userId: string) => Promise<boolean>;
 }
 
 // Hasta T-149 no hay ventas: ningún turno ni caja tiene ventas en curso.
@@ -78,5 +83,10 @@ export function createCashModule(deps: CashModuleDependencies): CashModule {
     useCases,
     openShifts: (tenantId, filter) =>
       deps.db.run(() => cash.countOpenShifts(tenantId, filter), { tenantId }),
+    sales: new ShiftSales(dependencies),
+    hasOpenShift: (tenantId, userId) =>
+      deps.db.run(async () => (await cash.openShiftOfSeller(tenantId, userId)) !== undefined, {
+        tenantId,
+      }),
   };
 }

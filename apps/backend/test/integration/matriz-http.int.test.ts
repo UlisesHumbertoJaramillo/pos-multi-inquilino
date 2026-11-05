@@ -112,6 +112,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const TRANSFER_A = 'a7000000-0000-4000-8000-000000000001';
   const JOURNEY_A = 'ac000000-0000-4000-8000-000000000001';
   const SHIFT_A = 'ad000000-0000-4000-8000-000000000001';
+  const SALE_A = 'ae000000-0000-4000-8000-000000000001';
+  const SALE_TRANSFER_A = 'af000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
@@ -127,6 +129,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     compras: { resourceType: 'compra', id: PURCHASE_A },
     promociones: { resourceType: 'promocion', id: PROMOTION_A },
     turnos: { resourceType: 'turno', id: SHIFT_A },
+    ventas: { resourceType: 'venta', id: SALE_A },
+    traspasos: { resourceType: 'traspaso', id: SALE_TRANSFER_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -142,6 +146,10 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     if (path.endsWith('/revision/:productoId')) return { accion: 'reingresar', cantidad: '1' };
     if (path.endsWith('/recepcion')) return { items: [] };
     if (path.endsWith('/corte-z') || path.endsWith('/cierre-forzado')) return { declarado: '0' };
+    if (path === '/ventas/:id/items') return { productoId: PRODUCT_A, cantidad: '1' };
+    if (path === '/ventas/:id/items/:itemId') return { cantidad: '1' };
+    if (path.endsWith('/descuento')) return { descuento: null };
+    if (path.endsWith('/traspaso')) return { receptorId: USERS.asVo.id };
     if (path.endsWith('/vendedores/:usuarioId')) return { porcentajeMaximo: '0', monto: '0' };
     if (path.endsWith('/pagos'))
       return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
@@ -159,6 +167,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
         'promociones',
         'cuota',
         'caja',
+        'ventas',
       ].includes(route.path.split('/')[1] ?? ''),
   );
 
@@ -222,6 +231,17 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
        VALUES ($1, $2, $3, $4, $5, $6, 0, now())`,
       [SHIFT_A, TENANT_A, REGISTER_A, BRANCH_CENTRO, JOURNEY_A, USERS.vo.id],
     );
+    await ownerQuery(
+      `INSERT INTO venta (id, tenant_id, sucursal_id, caja_id, turno_id, vendedor_id, creada_en,
+         ultima_actividad)
+       VALUES ($1, $2, $3, $4, $5, $6, now(), now())`,
+      [SALE_A, TENANT_A, BRANCH_CENTRO, REGISTER_A, SHIFT_A, USERS.vo.id],
+    );
+    await ownerQuery(
+      `INSERT INTO traspaso (id, tenant_id, venta_id, emisor_id, receptor_id, creado_en, vence_en)
+       VALUES ($1, $2, $3, $4, $5, now(), now() + interval '15 minutes')`,
+      [SALE_TRANSFER_A, TENANT_A, SALE_A, USERS.vo.id, USERS.asVo.id],
+    );
   });
 
   // Recurso de la ruta: el segmento anterior a :id (/proveedores/:id/pagos → proveedores).
@@ -241,16 +261,18 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     const target = FOREIGN[resourceSegment(route.path)];
     if (!target) throw new Error(`Falta un recurso para ${route.path}`);
     // El inventario es del AS (§5.18); el resto, del AC.
-    // Si la acción no es del AC (inventario, recepción de compras), intenta el AS del comercio B.
+    // Si la acción no es del AC, intenta el AS del comercio B; si tampoco es del AS (ventas), su VO.
     if (route.action === undefined) throw new Error(`Falta la acción de ${route.path}`);
     const roles: Partial<Record<Role, unknown>> = PERMISSIONS[route.action].roles;
-    const intruder = roles.AC === undefined ? USERS.asB : USERS.acB;
+    const intruder =
+      roles.AC !== undefined ? USERS.acB : roles.AS !== undefined ? USERS.asB : USERS.voB;
     const auth = (await signIn(api.app, intruder.email)).authorization;
     const path = route.path
       .replace(':id', target.id)
       .replace(':productoId', PRODUCT_A)
       .replace(':alertaId', TRANSFER_A)
-      .replace(':usuarioId', USERS.vo.id);
+      .replace(':usuarioId', USERS.vo.id)
+      .replace(':itemId', SALE_A);
 
     const pending = request(api.app)[route.method](path).set('Authorization', auth);
     const response = route.binaryBody

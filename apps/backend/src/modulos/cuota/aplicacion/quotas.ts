@@ -328,6 +328,18 @@ export class DiscountQuota {
     );
   }
 
+  // Controla un descuento contra la cuota sin consumirla, para el carrito (D-83).
+  async check(
+    actor: Actor,
+    input: Pick<DiscountInput, 'branchId' | 'journeyDate' | 'discount'>,
+  ): Promise<{ withinQuota: boolean; reasons: ExcessReason[] }> {
+    const key = { tenantId: actor.tenantId, userId: actor.userId, branchId: input.branchId };
+    const quota = (await this.deps.quotas.quota(key, false)) ?? ZERO_LIMITS;
+    const balance = await this.openDay(actor, input.branchId, input.journeyDate);
+    const check = checkDiscount(input.discount, quota, balance);
+    return check.withinQuota ? { withinQuota: true, reasons: [] } : check;
+  }
+
   // Aplica un descuento manual del VO (RF-065, RF-066). Dentro de la cuota, descuenta el saldo.
   // Fuera de ella, exige una autorización por PIN de otra persona; así autorizado no consume el
   // saldo y queda en la auditoría (D-34).

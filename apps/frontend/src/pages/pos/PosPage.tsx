@@ -1,5 +1,5 @@
 // Punto de venta del VO: apertura de turno, ingresos y retiros con PIN, Corte X y Corte Z ciegos
-// (T-141, T-142; RF-089, RF-091 a RF-095). La venta se suma en la Fase 10. Esta pantalla nunca
+// (T-141, T-142; RF-089, RF-091 a RF-095), y las ventas del turno (SalesPanel). Esta pantalla nunca
 // recibe el saldo teórico ni el resultado del arqueo: el backend no los envía a un VO (RF-112,
 // D-80).
 import type { CashCount } from '@pos/contracts';
@@ -30,6 +30,7 @@ import { errorMessage, PageSection } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
 import { useLoader } from '../../hooks/useLoader';
 import { AmountDialog, type AmountRequest, CountResultDialog } from '../cash/CashDialogs';
+import { SalesPanel } from './SalesPanel';
 
 type Operation =
   | { kind: 'abrir'; registerId: string; name: string }
@@ -237,6 +238,8 @@ export function PosPage() {
                 Corte X
               </Button>
             </Stack>
+            <SalesPanel onChanged={loaded.reload} />
+            <Typography variant="subtitle1">Movimientos de caja</Typography>
             <Table size="small" aria-label="Movimientos del turno">
               <TableHead>
                 <TableRow>

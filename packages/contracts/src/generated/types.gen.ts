@@ -1233,6 +1233,148 @@ export type Authorizer = {
   rol: 'AS' | 'AC';
 };
 
+export type SaleTransfer = {
+  id: string;
+  ventaId: string;
+  emisorId: string;
+  emisor: string;
+  receptorId: string;
+  receptor: string;
+  estado: 'pendiente' | 'aceptado' | 'rechazado' | 'vencido';
+  creadoEn: string;
+  venceEn: string;
+};
+
+export type CartItem = {
+  id: string;
+  productoId: string;
+  tipo: 'simple' | 'combo';
+  nombre: string;
+  cantidad: string;
+  /**
+   * Fijado al agregar el ítem (RF-030, RF-031).
+   */
+  precioUnitario: string;
+  /**
+   * Promoción aplicada, para resaltarla (RF-050).
+   */
+  promocion: {
+    id: string;
+    nombre: string;
+  } | null;
+  descuentoPromocion: string;
+  descuentoManual: string;
+  importeFinal: string;
+};
+
+export type Cart = {
+  id: string;
+  estado: 'en_curso' | 'pago_por_verificar' | 'confirmada' | 'descartada' | 'anulada';
+  /**
+   * Correlativo por comercio, al confirmar (D-81).
+   */
+  numeroTicket: number | null;
+  sucursalId: string;
+  cajaId: string;
+  turnoId: string;
+  vendedorId: string;
+  items: Array<CartItem>;
+  /**
+   * Después de promociones.
+   */
+  subtotal: string;
+  descuentoPromociones: string;
+  descuentoManual: string;
+  descuento: {
+    tipo: 'porcentaje' | 'monto';
+    valor: string;
+    /**
+     * Autorizado por PIN por superar la cuota.
+     */
+    autorizado: boolean;
+  } | null;
+  total: string;
+  iva: Array<{
+    tasa: string;
+    base: string;
+    neto: string;
+    iva: string;
+  }>;
+  traspaso: SaleTransfer | null;
+  ultimaActividad: string;
+};
+
+export type SalesOverview = {
+  ventas: Array<Cart>;
+  traspasosRecibidos: Array<SaleTransfer>;
+};
+
+export type SaleSearchResult = {
+  id: string;
+  nombre: string;
+  tipo: 'simple' | 'combo';
+  codigoBarras: string | null;
+  /**
+   * null: sin precio en la lista de la sucursal.
+   */
+  precio: string | null;
+  /**
+   * En un combo, cuántos se pueden armar (RF-052).
+   */
+  disponible: string;
+};
+
+export type SaleReceipt = {
+  venta: Cart;
+  numeroTicket: number;
+  /**
+   * Total más el recargo o descuento del efectivo.
+   */
+  cobrado: string;
+  ajuste: string;
+  entregado: string;
+  vuelto: string;
+  seFactura: boolean;
+  estadoFiscal: 'no_se_factura' | 'pendiente' | 'en_contingencia' | 'emitida' | 'rechazada';
+};
+
+export type TransferTarget = {
+  id: string;
+  nombre: string;
+};
+
+export type SaleItemRequest = {
+  productoId: string;
+  cantidad: string;
+};
+
+export type SaleQuantityRequest = {
+  cantidad: string;
+};
+
+export type SaleDiscountRequest = {
+  descuento: {
+    tipo: 'porcentaje' | 'monto';
+    valor: string;
+  } | null;
+  autorizacionId?: string | null;
+};
+
+export type SalePaymentRequest = {
+  /**
+   * Efectivo entregado; si se omite, lo justo. El excedente es el vuelto.
+   */
+  entregado?: string | null;
+  /**
+   * Con una política de facturación opcional, la decisión del VO (RF-167).
+   */
+  facturar?: boolean | null;
+};
+
+export type SaleTransferRequest = {
+  receptorId: string;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -1335,6 +1477,10 @@ export type LogoutErrors = {
    * Sin token válido, credenciales incorrectas o sesión vencida.
    */
   401: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
 };
 
 export type LogoutError = LogoutErrors[keyof LogoutErrors];
@@ -5726,3 +5872,553 @@ export type ListAuthorizersResponses = {
 };
 
 export type ListAuthorizersResponse = ListAuthorizersResponses[keyof ListAuthorizersResponses];
+
+export type ListOwnSalesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/ventas';
+};
+
+export type ListOwnSalesErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ListOwnSalesError = ListOwnSalesErrors[keyof ListOwnSalesErrors];
+
+export type ListOwnSalesResponses = {
+  /**
+   * Ventas.
+   */
+  200: SalesOverview;
+};
+
+export type ListOwnSalesResponse = ListOwnSalesResponses[keyof ListOwnSalesResponses];
+
+export type StartSaleData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/ventas';
+};
+
+export type StartSaleErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type StartSaleError = StartSaleErrors[keyof StartSaleErrors];
+
+export type StartSaleResponses = {
+  /**
+   * Venta creada.
+   */
+  201: Cart;
+};
+
+export type StartSaleResponse = StartSaleResponses[keyof StartSaleResponses];
+
+export type SearchSaleProductsData = {
+  body?: never;
+  path?: never;
+  query: {
+    q: string;
+  };
+  url: '/ventas/productos';
+};
+
+export type SearchSaleProductsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type SearchSaleProductsError = SearchSaleProductsErrors[keyof SearchSaleProductsErrors];
+
+export type SearchSaleProductsResponses = {
+  /**
+   * Productos.
+   */
+  200: Array<SaleSearchResult>;
+};
+
+export type SearchSaleProductsResponse =
+  SearchSaleProductsResponses[keyof SearchSaleProductsResponses];
+
+export type GetSaleData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}';
+};
+
+export type GetSaleErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetSaleError = GetSaleErrors[keyof GetSaleErrors];
+
+export type GetSaleResponses = {
+  /**
+   * Venta.
+   */
+  200: Cart;
+};
+
+export type GetSaleResponse = GetSaleResponses[keyof GetSaleResponses];
+
+export type AddSaleItemData = {
+  body: SaleItemRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/items';
+};
+
+export type AddSaleItemErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type AddSaleItemError = AddSaleItemErrors[keyof AddSaleItemErrors];
+
+export type AddSaleItemResponses = {
+  /**
+   * Carrito actualizado.
+   */
+  200: Cart;
+};
+
+export type AddSaleItemResponse = AddSaleItemResponses[keyof AddSaleItemResponses];
+
+export type UpdateSaleItemData = {
+  body: SaleQuantityRequest;
+  path: {
+    id: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/items/{itemId}';
+};
+
+export type UpdateSaleItemErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateSaleItemError = UpdateSaleItemErrors[keyof UpdateSaleItemErrors];
+
+export type UpdateSaleItemResponses = {
+  /**
+   * Carrito actualizado.
+   */
+  200: Cart;
+};
+
+export type UpdateSaleItemResponse = UpdateSaleItemResponses[keyof UpdateSaleItemResponses];
+
+export type RemoveSaleItemData = {
+  body?: never;
+  path: {
+    id: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/items/{itemId}/baja';
+};
+
+export type RemoveSaleItemErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RemoveSaleItemError = RemoveSaleItemErrors[keyof RemoveSaleItemErrors];
+
+export type RemoveSaleItemResponses = {
+  /**
+   * Carrito actualizado.
+   */
+  200: Cart;
+};
+
+export type RemoveSaleItemResponse = RemoveSaleItemResponses[keyof RemoveSaleItemResponses];
+
+export type SetSaleDiscountData = {
+  body: SaleDiscountRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/descuento';
+};
+
+export type SetSaleDiscountErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SetSaleDiscountError = SetSaleDiscountErrors[keyof SetSaleDiscountErrors];
+
+export type SetSaleDiscountResponses = {
+  /**
+   * Carrito actualizado.
+   */
+  200: Cart;
+};
+
+export type SetSaleDiscountResponse = SetSaleDiscountResponses[keyof SetSaleDiscountResponses];
+
+export type DiscardSaleData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/descarte';
+};
+
+export type DiscardSaleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type DiscardSaleError = DiscardSaleErrors[keyof DiscardSaleErrors];
+
+export type DiscardSaleResponses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type DiscardSaleResponse = DiscardSaleResponses[keyof DiscardSaleResponses];
+
+export type ConfirmCashSaleData = {
+  body: SalePaymentRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/cobro';
+};
+
+export type ConfirmCashSaleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ConfirmCashSaleError = ConfirmCashSaleErrors[keyof ConfirmCashSaleErrors];
+
+export type ConfirmCashSaleResponses = {
+  /**
+   * Venta confirmada.
+   */
+  200: SaleReceipt;
+};
+
+export type ConfirmCashSaleResponse = ConfirmCashSaleResponses[keyof ConfirmCashSaleResponses];
+
+export type ListTransferTargetsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/receptores';
+};
+
+export type ListTransferTargetsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListTransferTargetsError = ListTransferTargetsErrors[keyof ListTransferTargetsErrors];
+
+export type ListTransferTargetsResponses = {
+  /**
+   * Vendedores.
+   */
+  200: Array<TransferTarget>;
+};
+
+export type ListTransferTargetsResponse =
+  ListTransferTargetsResponses[keyof ListTransferTargetsResponses];
+
+export type SendTransferData = {
+  body: SaleTransferRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/traspaso';
+};
+
+export type SendTransferErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SendTransferError = SendTransferErrors[keyof SendTransferErrors];
+
+export type SendTransferResponses = {
+  /**
+   * Traspaso enviado.
+   */
+  201: SaleTransfer;
+};
+
+export type SendTransferResponse = SendTransferResponses[keyof SendTransferResponses];
+
+export type AcceptTransferData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/traspasos/{id}/aceptacion';
+};
+
+export type AcceptTransferErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type AcceptTransferError = AcceptTransferErrors[keyof AcceptTransferErrors];
+
+export type AcceptTransferResponses = {
+  /**
+   * Venta recibida.
+   */
+  200: Cart;
+};
+
+export type AcceptTransferResponse = AcceptTransferResponses[keyof AcceptTransferResponses];
+
+export type RejectTransfer2Data = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/traspasos/{id}/rechazo';
+};
+
+export type RejectTransfer2Errors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type RejectTransfer2Error = RejectTransfer2Errors[keyof RejectTransfer2Errors];
+
+export type RejectTransfer2Responses = {
+  /**
+   * Hecho.
+   */
+  204: void;
+};
+
+export type RejectTransfer2Response = RejectTransfer2Responses[keyof RejectTransfer2Responses];

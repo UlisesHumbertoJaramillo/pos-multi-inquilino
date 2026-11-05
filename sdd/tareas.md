@@ -349,45 +349,45 @@
 
 ## Fase 10 — Ventas (POS)
 
-- [ ] **T-145** · Crear las migraciones `venta` (tres estados), `venta_item`, `traspaso` y `autorizacion` (CHECK de solicitante distinto del autorizante). · RF: RF-153 · Dep: T-129, T-072
+- [x] **T-145** · Crear las migraciones `venta` (tres estados), `venta_item`, `traspaso` y `autorizacion` (CHECK de solicitante distinto del autorizante). · RF: RF-153 · Dep: T-129, T-072
   - Hecho cuando: las migraciones aplican y una autorización con solicitante igual al autorizante falla en la base.
-- [ ] **T-146** · Crear una venta en curso, solo con un turno abierto. · RF: RF-053 · Dep: T-145, T-130
+- [x] **T-146** · Crear una venta en curso, solo con un turno abierto. · RF: RF-053 · Dep: T-145, T-130
   - Hecho cuando: un VO sin turno recibe un rechazo.
-- [ ] **T-147** · Búsqueda de productos por nombre y por código de barras. · RF: RF-054 · Dep: T-074
+- [x] **T-147** · Búsqueda de productos por nombre y por código de barras. · RF: RF-054 · Dep: T-074
   - Hecho cuando: en /docs, la búsqueda por código exacto y por nombre parcial devuelve resultados del comercio propio.
-- [ ] **T-148** · Agregar un ítem: reserva atómica de todo o nada, con el precio fijado de la lista activa de la sucursal y el disponible informado si no alcanza. · RF: RF-030, RF-055, RF-056 · Dep: T-146, T-089, T-079
+- [x] **T-148** · Agregar un ítem: reserva atómica de todo o nada, con el precio fijado de la lista activa de la sucursal y el disponible informado si no alcanza. · RF: RF-030, RF-055, RF-056 · Dep: T-146, T-089, T-079
   - Hecho cuando: agregar 5 unidades con 3 disponibles se rechaza informando 3, y no reserva ninguna.
-- [ ] **T-149** · Puerto `ConsultaVentasEnCurso`: conectar el rechazo del Corte X y del Corte Z con ventas en curso reales. · RF: RF-117, RF-096 · Dep: T-148, T-138
+- [x] **T-149** · Puerto `ConsultaVentasEnCurso`: conectar el rechazo del Corte X y del Corte Z con ventas en curso reales. · RF: RF-117, RF-096 · Dep: T-148, T-138
   - Hecho cuando: un Corte X con una venta en curso se rechaza indicando cuál.
-- [ ] **T-150** · Consumir el evento de suspensión de comercio para descartar sus carritos y liberar las reservas. · RF: RF-146 · Dep: T-148, T-052
+- [x] **T-150** · Consumir el evento de suspensión de comercio para descartar sus carritos y liberar las reservas. · RF: RF-146 · Dep: T-148, T-052
   - Hecho cuando: al suspender el comercio demo, sus carritos pasan a "Descartado" y el stock vuelve.
-- [ ] **T-151** · Agregar un combo reservando cada componente. · RF: RF-051 · Dep: T-148, T-097
+- [x] **T-151** · Agregar un combo reservando cada componente. · RF: RF-051 · Dep: T-148, T-097
   - Hecho cuando: agregar un combo descuenta del disponible la cantidad de cada componente.
-- [ ] **T-152** · Quitar un ítem y descartar una venta: liberación inmediata, y la venta descartada se conserva con su motivo. · RF: RF-058, RF-116 · Dep: T-148
+- [x] **T-152** · Quitar un ítem y descartar una venta: liberación inmediata, y la venta descartada se conserva con su motivo. · RF: RF-058, RF-116 · Dep: T-148
   - Hecho cuando: el stock vuelve y la venta queda en "Descartada" con el motivo "manual".
-- [ ] **T-153** · Mantener el precio y la promoción fijados aunque cambien la lista o la vigencia. · RF: RF-031, RF-143 · Dep: T-148, T-121
+- [x] **T-153** · Mantener el precio y la promoción fijados aunque cambien la lista o la vigencia. · RF: RF-031, RF-143 · Dep: T-148, T-121
   - Hecho cuando: una prueba cambia el precio de lista con el ítem en el carrito y el ítem conserva su precio.
-- [ ] **T-154** · Respuesta del carrito con subtotal, descuentos y total calculados por el motor en cada cambio. · RF: RF-060, RF-121, RF-050 · Dep: T-153, T-114
+- [x] **T-154** · Respuesta del carrito con subtotal, descuentos y total calculados por el motor en cada cambio. · RF: RF-060, RF-121, RF-050 · Dep: T-153, T-114
   - Hecho cuando: agregar dos unidades con un 2x1 vigente devuelve el descuento aplicado y resaltado.
-- [ ] **T-155** · Descuento manual en el carrito con cuota o autorización. · RF: RF-065, RF-066 · Dep: T-154, T-127
+- [x] **T-155** · Descuento manual en el carrito con cuota o autorización. · RF: RF-065, RF-066 · Dep: T-154, T-127
   - Hecho cuando: un descuento dentro de la cuota se aplica sin PIN y uno mayor pide autorización.
-- [ ] **T-156** · Prueba de concurrencia de la última unidad entre dos VO, a través de la API. · RF: RF-057, RF-152 · Dep: T-148
+- [x] **T-156** · Prueba de concurrencia de la última unidad entre dos VO, a través de la API. · RF: RF-057, RF-152 · Dep: T-148
   - Hecho cuando: con 20 repeticiones, uno solo obtiene la unidad y el otro recibe "sin stock".
-- [ ] **T-157** · Worker de expiración de carritos inactivos, con la excepción de los que tienen pagos aprobados o por verificar. · RF: RF-059 · Dep: T-152, T-021
+- [x] **T-157** · Worker de expiración de carritos inactivos, con la excepción de los que tienen pagos aprobados o por verificar. · RF: RF-059 · Dep: T-152, T-021
   - Hecho cuando: una prueba con reloj simulado descarta el carrito vencido por "inactividad" y libera su stock.
-- [ ] **T-158** · Confirmar una venta en efectivo de forma atómica: consume las reservas, registra la caja, la auditoría y la cuota y, si se factura, deja el pedido fiscal en el outbox. · RF: RF-076, RF-153 · Dep: T-154, T-133, T-022, T-041
+- [x] **T-158** · Confirmar una venta en efectivo de forma atómica: consume las reservas, registra la caja, la auditoría y la cuota y, si se factura, deja el pedido fiscal en el outbox. · RF: RF-076, RF-153 · Dep: T-154, T-133, T-022, T-041
   - Hecho cuando: una prueba que fuerza una falla a mitad de la confirmación verifica que no quedan cambios parciales.
-- [ ] **T-159** · Traspaso: enviar, aceptar sin liberar reservas, rechazar y vencer. · RF: RF-077, RF-078, RF-079 · Dep: T-152, T-157
+- [x] **T-159** · Traspaso: enviar, aceptar sin liberar reservas, rechazar y vencer. · RF: RF-077, RF-078, RF-079 · Dep: T-152, T-157
   - Hecho cuando: hay pruebas de los cuatro caminos, y el stock reservado no cambia durante el traspaso.
-- [ ] **T-160** · Aviso al cerrar sesión voluntariamente con turno abierto o ventas en curso. · RF: RF-080 · Dep: T-159, T-137
+- [x] **T-160** · Aviso al cerrar sesión voluntariamente con turno abierto o ventas en curso. · RF: RF-080 · Dep: T-159, T-137
   - Hecho cuando: el endpoint de cierre de sesión devuelve las ventas pendientes y exige el Corte X.
-- [ ] **T-161** · Conectar el puerto `ConsultaDependencias` con ventas y transferencias reales: bajas de sucursal, caja, producto, cliente, proveedor y usuario. · RF: RF-025, RF-148 · Dep: T-158, T-093, T-063
+- [x] **T-161** · Conectar el puerto `ConsultaDependencias` con ventas y transferencias reales: bajas de sucursal, caja, producto, cliente, proveedor y usuario. · RF: RF-025, RF-148 · Dep: T-158, T-093, T-063
   - Hecho cuando: hay pruebas de cada baja con dependencias y el mensaje de cada rechazo indica la causa.
-- [ ] **T-162** · Frontend POS: búsqueda y carrito táctil con los totales que devuelve el backend. · RF: RF-054, RF-060, RF-157 · Dep: T-154, T-141
+- [x] **T-162** · Frontend POS: búsqueda y carrito táctil con los totales que devuelve el backend. · RF: RF-054, RF-060, RF-157 · Dep: T-154, T-141
   - Hecho cuando: en /pos se arma un carrito por búsqueda y la pantalla muestra la promoción resaltada.
-- [ ] **T-163** · Frontend POS: descuento manual, descarte, cobro en efectivo y traspasos. · RF: RF-065, RF-077, RF-080 · Dep: T-162, T-158, T-159
+- [x] **T-163** · Frontend POS: descuento manual, descarte, cobro en efectivo y traspasos. · RF: RF-065, RF-077, RF-080 · Dep: T-162, T-158, T-159
   - Hecho cuando: se confirma una venta en efectivo y se traspasa otra entre dos VO demo en dos navegadores.
-- [ ] **T-164** · Sumar las acciones de ventas al generador de la matriz. · RF: RF-004 · Dep: T-163
+- [x] **T-164** · Sumar las acciones de ventas al generador de la matriz. · RF: RF-004 · Dep: T-163
   - Hecho cuando: las pruebas generadas pasan y un AC no puede vender desde el POS.
 - [ ] **T-165** · **[Localhost]** Guion de las Fases 6 a 10. · RF: — · Dep: T-110, T-122, T-128, T-144, T-164
   - Hecho cuando: (1) se abre un turno, (2) se vende con un 2x1 y un descuento manual, (3) dos navegadores compiten por la última unidad, (4) un carrito abandonado expira, (5) se hacen los cortes X y Z, (6) el teórico no aparece en la pestaña de red del VO.

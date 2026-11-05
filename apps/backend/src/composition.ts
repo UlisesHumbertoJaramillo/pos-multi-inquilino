@@ -28,12 +28,9 @@ import type { DependencyQuery } from './modulos/organizacion/aplicacion/ports.js
 import type { ProductDependencyQuery } from './modulos/catalogo/aplicacion/ports.js';
 import { createCatalogModule, type CatalogModule } from './modulos/catalogo/adaptadores/module.js';
 import { createQuotaModule, type QuotaModule } from './modulos/cuota/adaptadores/module.js';
-import {
-  type CashModule,
-  createCashModule,
-  noSalesInProgressYet,
-} from './modulos/caja/adaptadores/module.js';
+import { type CashModule, createCashModule } from './modulos/caja/adaptadores/module.js';
 import type { SalesInProgress } from './modulos/caja/aplicacion/ports.js';
+import { createSalesModule, type SalesModule } from './modulos/ventas/adaptadores/module.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -116,6 +113,7 @@ export interface Api {
   promotions: PromotionModule;
   quotas: QuotaModule;
   cash: CashModule;
+  sales: SalesModule;
   routes: HttpRoute[];
 }
 
@@ -139,6 +137,18 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     commercialAudit,
     access,
     sessionPolicy: tenantSessionIdlePolicy(deps.db),
+    // No se cierra sesión con un turno abierto o ventas en curso (RF-080). Caja y ventas se arman
+    // más abajo: se usan recién al cerrar sesión.
+    logoutGuard: {
+      pending: async (tenantId, userId) => ({
+        openShift: await cash.hasOpenShift(tenantId, userId),
+        sales: (
+          await deps.db.run(() => sales.maintenance.inProgressOfSeller(tenantId, userId), {
+            tenantId,
+          })
+        ).map((s) => s.label),
+      }),
+    },
     config: {
       ...DEFAULT_IDENTITY_CONFIG,
       sessionIdleMs: config.sessionIdleMinutes * 60_000,
@@ -173,14 +183,17 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
       ...(await noDependenciesYet.forBranch(tenantId, branchId)),
       ...(await inventory.dependencies.forBranch(tenantId, branchId)),
       openShifts: await cash.openShifts(tenantId, { branchId }),
+      carts: await sales.inProgress(tenantId, { branchId }),
     }),
     forRegister: async (tenantId, registerId) => ({
       ...(await noDependenciesYet.forRegister(tenantId, registerId)),
       openShifts: await cash.openShifts(tenantId, { registerId }),
+      carts: await sales.inProgress(tenantId, { registerId }),
     }),
     forUser: async (tenantId, userId) => ({
       ...(await noDependenciesYet.forUser(tenantId, userId)),
       openShifts: await cash.openShifts(tenantId, { userId }),
+      carts: await sales.inProgress(tenantId, { userId }),
     }),
   };
 
@@ -259,10 +272,48 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     access,
     commercialAudit,
     defaultTolerance: DEFAULT_PARAMETERS.cashCountTolerance,
-    sales: deps.salesInProgress ?? noSalesInProgressYet,
+    // Ventas en curso reales (T-149); las pruebas pueden simularlas.
+    sales: deps.salesInProgress ?? {
+      forShift: (tenantId, shiftId) => sales.maintenance.inProgressOfShift(tenantId, shiftId),
+      forRegister: (tenantId, registerId) =>
+        sales.maintenance.inProgressOfRegister(tenantId, registerId),
+      discardForShift: (actor, shiftId) =>
+        sales.maintenance.discardForShift({ ...actor, role: 'AS' }, shiftId),
+    },
     // El primer turno de cada fecha de jornada restablece la cuota del VO (RF-067).
     quota: quotas.discounts,
     // Un retiro consume una autorización por PIN de identidad (RF-092).
+    authorizations: {
+      consume: (input) => identity.useCases.consumeAuthorization.execute(input),
+    },
+  });
+
+  const sales = createSalesModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    defaults: {
+      cartIdleMinutes: DEFAULT_PARAMETERS.cartIdleMinutes,
+      billingPolicy: DEFAULT_PARAMETERS.billingPolicy,
+    },
+    // Las promociones fijadas en un carrito se mantienen aunque venzan o se den de baja (RF-143).
+    promotions: { all: (tenantId) => promotions.promotions.list(tenantId, true) },
+    stock: {
+      apply: async (actor, change) => {
+        await inventory.ledger.apply(actor, change);
+      },
+    },
+    shifts: cash.sales,
+    cash: cash.sales,
+    quota: {
+      check: (actor, input) => quotas.discounts.check(actor, input),
+      consume: async (actor, input) => {
+        await quotas.discounts.applyDiscount(actor, input);
+      },
+    },
+    // Un descuento fuera de cuota consume una autorización por PIN (RF-066).
     authorizations: {
       consume: (input) => identity.useCases.consumeAuthorization.execute(input),
     },
@@ -278,6 +329,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...promotions.routes,
     ...quotas.routes,
     ...cash.routes,
+    ...sales.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -302,6 +354,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     promotions,
     quotas,
     cash,
+    sales,
     routes,
   };
 }

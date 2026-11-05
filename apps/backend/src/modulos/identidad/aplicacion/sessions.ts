@@ -52,6 +52,13 @@ export interface SessionDependencies {
   ids: IdGenerator;
   config: IdentityConfig;
   sessionPolicy: SessionPolicy;
+  logoutGuard: LogoutGuard;
+}
+
+// Lo que impide cerrar sesión voluntariamente (RF-080): un turno abierto o ventas en curso. Lo
+// proveen caja y ventas; el vencimiento de sesión por inactividad no lo consulta (D-11).
+export interface LogoutGuard {
+  pending(tenantId: string, userId: string): Promise<{ openShift: boolean; sales: string[] }>;
 }
 
 // Inactividad de sesión de cada comercio (RF-009, RF-135). La provee el módulo de organización;
@@ -294,6 +301,22 @@ export class RefreshSession extends SessionUseCase {
 
 export class Logout extends SessionUseCase {
   async execute(context: SecurityContext): Promise<void> {
+    if (context.tenantId !== null) {
+      const pending = await this.deps.logoutGuard.pending(context.tenantId, context.userId);
+      if (pending.openShift || pending.sales.length > 0) {
+        const steps = [
+          pending.sales.length > 0
+            ? `resolvé tus ventas en curso (${pending.sales.join('; ')}) cobrándolas, descartándolas o traspasándolas`
+            : null,
+          pending.openShift ? 'cerrá tu turno con un Corte X' : null,
+        ].filter((s) => s !== null);
+        throw new ApplicationError(
+          'conflict',
+          'CIERRE_PENDIENTE',
+          `Antes de salir, ${steps.join(' y ')}.`,
+        );
+      }
+    }
     await this.deps.sessions.revokeSession(context.sessionId, this.deps.clock.now());
   }
 }

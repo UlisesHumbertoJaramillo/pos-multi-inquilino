@@ -35,6 +35,7 @@ import {
   Logout,
   RefreshSession,
   SelectActiveRole,
+  type LogoutGuard,
   type SessionPolicy,
 } from '../aplicacion/sessions.js';
 import { cryptoOpaqueTokens } from './crypto.js';
@@ -61,6 +62,8 @@ export interface IdentityModuleDependencies {
   config: IdentityConfig;
   // Inactividad de sesión por comercio. Sin ella, rige el valor de la plataforma.
   sessionPolicy?: SessionPolicy;
+  // Turno abierto y ventas en curso que impiden cerrar sesión (RF-080). Sin él, no hay nada.
+  logoutGuard?: LogoutGuard;
 }
 
 export interface IdentityModule {
@@ -109,6 +112,9 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     config: deps.config,
     sessionPolicy: deps.sessionPolicy ?? {
       idleMs: () => Promise.resolve(deps.config.sessionIdleMs),
+    },
+    logoutGuard: deps.logoutGuard ?? {
+      pending: () => Promise.resolve({ openShift: false, sales: [] }),
     },
   };
   const recoveryDeps = {

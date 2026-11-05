@@ -12,6 +12,7 @@ import { createPinoLogger } from './compartido/adaptadores/logging/pino-logger.j
 import { PgOutboxDispatcher } from './compartido/adaptadores/outbox/pg-outbox-dispatcher.js';
 import { PgDatabase } from './compartido/adaptadores/postgres/pg-database.js';
 import { appDatabaseConfigFromEnv, createPgPool } from './compartido/adaptadores/postgres/pool.js';
+import { apiConfigFromEnv, createApi } from './composition.js';
 
 const ENV_PATH = resolve(import.meta.dirname, '../../../.env');
 if (existsSync(ENV_PATH)) {
@@ -24,20 +25,22 @@ const WORKER_ID = `${hostname()}:${String(process.pid)}`;
 
 const logger = createPinoLogger();
 
-// Manejadores por tipo de trabajo y de evento. Cada módulo agrega los suyos cuando los necesita.
-const JOB_HANDLERS: Record<string, JobHandler> = {};
-// Eventos de plataforma: todavía sin consumidores. En T-150, ventas descarta los carritos
-// del comercio suspendido; hasta entonces se registran y se marcan procesados.
+const db = new PgDatabase(createPgPool(appDatabaseConfigFromEnv(process.env), logger));
+// Los módulos se arman igual que en la API; el worker usa sus manejadores, no sus rutas.
+const api = createApi(apiConfigFromEnv(process.env), { db, clock: systemClock, logger });
+
 const logPlatformEvent: EventHandler = (event) => {
   logger.info('Evento de plataforma despachado', { type: event.type, tenantId: event.tenantId });
   return Promise.resolve();
 };
+// Manejadores por tipo de trabajo y de evento. Cada módulo aporta los suyos.
+const JOB_HANDLERS: Record<string, JobHandler> = { ...api.sales.jobHandlers };
 const EVENT_HANDLERS: Record<string, EventHandler> = {
-  'comercio.suspendido': logPlatformEvent,
   'comercio.reactivado': logPlatformEvent,
+  // Suspensión (RF-146): ventas descarta los carritos del comercio y libera sus reservas.
+  ...api.sales.eventHandlers,
 };
 
-const db = new PgDatabase(createPgPool(appDatabaseConfigFromEnv(process.env), logger));
 const jobs = new PgJobWorker(db, systemClock, logger, {
   workerId: WORKER_ID,
   handlers: JOB_HANDLERS,

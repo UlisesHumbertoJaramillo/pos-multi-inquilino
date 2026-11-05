@@ -19,7 +19,7 @@ import {
 
 // La elección de promociones para un carrito (RF-050), para el módulo de ventas.
 export { type AppliedPromotion, type CartLine, choosePromotions } from '../dominio/evaluator.js';
-export { isApplicable } from '../dominio/promotions.js';
+export { isApplicable, type Promotion } from '../dominio/promotions.js';
 
 export interface PromotionRepository {
   list(tenantId: string, includeInactive: boolean): Promise<Promotion[]>;

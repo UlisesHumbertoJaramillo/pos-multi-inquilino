@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 9. El responsable del producto las validó el 2026-11-02 (D-61 a D-65) y el 2026-11-03 (D-66 a D-79), y el 2026-11-04 (D-80).
+Surgieron al construir las fases 3 a 10. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) y el 2026-11-04 (D-80 a D-84).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -123,6 +123,10 @@ Surgieron al construir las fases 3 a 9. El responsable del producto las validó 
 | D-78 | Motivo de un retiro rechazado | El VO recibe un mensaje que no revela el saldo teórico; el detalle (monto y efectivo teórico) llega al AS de la sucursal como alerta. La autorización usada queda consumida. | El PIN se ingresa en la pantalla del VO, así que el motivo no puede mostrarse ahí (validado el 2026-11-03). |
 | D-79 | Cierre forzado sin PIN | El AS que fuerza el cierre de un turno ajeno lo hace con su propia sesión, sin PIN: la operación ya es suya y queda en la auditoría con el AS y el VO titular. | El PIN sirve para que otra persona autorice en la pantalla del solicitante; aquí no hay otra persona (validado el 2026-11-03). |
 | D-80 | Resultado del arqueo para el VO | Después de un Corte X o de un Corte Z, el VO solo ve lo que declaró. El resultado (faltante, sobrante o cuadrado), la diferencia y el teórico los ven el AS y el AC. | Con lo declarado y la diferencia, el VO podría deducir el teórico de su caja. Reemplaza lo que T-142 decía sobre ver el resultado (validado el 2026-11-04). |
+| D-81 | Número de ticket | Solo las ventas confirmadas reciben número, correlativo por comercio y sin saltos. Un carrito descartado no consume número. | Numeración simple y auditable (validado el 2026-11-04). |
+| D-82 | Varias ventas en curso | Un VO puede tener varias ventas en curso a la vez y pasar de una a otra. | Permite atender a otro cliente sin perder el carrito anterior; coincide con RF-080 (validado el 2026-11-04). |
+| D-83 | Consumo de la cuota | Aplicar un descuento manual solo lo controla contra la cuota; el saldo se descuenta al confirmar la venta. Si para entonces ya no alcanza, la confirmación pide la autorización. | Un carrito descartado no gasta cuota (validado el 2026-11-04). |
+| D-84 | Detalles del carrito | La promoción de cada ítem se elige entre las vigentes en la sucursal y las ya fijadas en el carrito, aunque hayan vencido (RF-143). Agregar un producto que ya está en el carrito suma a su ítem, que conserva el precio fijado. Una autorización de descuento vale por el monto autorizado: si el descuento cambia, se pierde. La suspensión del comercio descarta los carritos con el motivo "suspensión". El cierre de sesión voluntario se bloquea con un turno abierto o ventas en curso, sea cual sea el rol activo. | Hace deterministas los casos que el spec no detalla. (validado el 2026-11-04). |
 
 ## 4. Supuestos validados
 
@@ -268,7 +272,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-048 | El sistema deberá permitir al AC crear reglas de promoción automáticas (por ejemplo, 2x1) con vigencia definida. | RF-09, UC-AC-08 |
 | RF-049 | El sistema deberá permitir al AC definir combos con un precio único y una lista de componentes con sus cantidades. | RF-09, D-63 |
 | RF-050 | Cuando un carrito cumple las condiciones de una o más promociones vigentes, el sistema deberá aplicar automáticamente a cada ítem como máximo una, la más beneficiosa para el cliente, sin aplicarlas a los componentes de un combo, y resaltarla en pantalla. | RF-13, UC-VO-02, D-33, D-69, D-71 |
-| RF-143 | Mientras un ítem permanezca en el carrito, el sistema deberá mantener la promoción que se le aplicó aunque esta venza. | D-33, S-1 |
+| RF-143 | Mientras un ítem permanezca en el carrito, el sistema deberá mantener la promoción que se le aplicó aunque esta venza. | D-33, S-1, D-84 |
 | RF-051 | Cuando se agrega un combo al carrito, el sistema deberá reservar el stock de cada componente en la cantidad que corresponde. | RF-09, S-3 |
 | RF-124 | El sistema deberá prorratear el precio de un combo entre sus componentes según el precio de lista de cada uno, aplicar a cada parte la tasa de IVA de su categoría y usar ese mismo prorrateo en las devoluciones. | D-18 |
 | RF-052 | El sistema deberá calcular el stock disponible de un combo como el mínimo, entre todos sus componentes, del stock disponible del componente dividido por la cantidad que requiere el combo, redondeado hacia abajo. | S-3 |
@@ -301,7 +305,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-063 | El sistema deberá permitir al AC fijar el tope de cuota de descuento de su comercio, compuesto por un porcentaje máximo por venta y un monto acumulado. | D-6, D-32, RF-04, D-72 |
 | RF-064 | El sistema deberá permitir al AS asignar a cada VO, para su sucursal, una cuota de descuento (porcentaje máximo por venta y monto acumulado) que no supere ninguno de los dos límites del tope del comercio. | D-6, D-32, RN-07, D-73, D-74 |
 | RF-142 | Cuando el AC reduce el tope del comercio, el sistema deberá recortar al nuevo tope las cuotas asignadas que lo superen. | D-32, D-73 |
-| RF-065 | Cuando un VO aplica un descuento manual que no supera su porcentaje máximo por venta y cabe en el saldo de su cuota, el sistema deberá aplicarlo sin pedir autorización y descontar su importe del saldo. | RN-07, UC-VO-06, D-32, D-70 |
+| RF-065 | Cuando un VO aplica un descuento manual que no supera su porcentaje máximo por venta y cabe en el saldo de su cuota, el sistema deberá aplicarlo sin pedir autorización y descontar su importe del saldo. | RN-07, UC-VO-06, D-32, D-70, D-83 |
 | RF-066 | Si un descuento manual supera el porcentaje máximo por venta o el saldo de la cuota del VO, entonces el sistema deberá exigir el PIN o la credencial de un AS de la sucursal para aplicarlo. Un descuento así autorizado no consume la cuota. | D-6, D-34 |
 | RF-067 | Cuando un VO abre su primer turno de una fecha de jornada en una sucursal, el sistema deberá restablecer el saldo de su cuota al monto asignado para esa sucursal. Los turnos siguientes con la misma fecha de jornada no lo restablecen. | D-32 |
 
@@ -312,7 +316,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
 | RF-068 | El sistema deberá permitir cobrar una venta combinando varios métodos de pago, incluida la cuenta corriente del cliente, en la moneda única del comercio. | RF-14, UC-VO-03, D-44 |
-| RF-153 | El sistema deberá llevar para cada venta, por separado, su estado comercial (en curso, pago por verificar, confirmada, descartada, anulada), su estado de cobro (pagada, con saldo en cuenta corriente) y su estado fiscal (no se factura, pendiente, en contingencia, emitida, rechazada). | D-44, D-57 |
+| RF-153 | El sistema deberá llevar para cada venta, por separado, su estado comercial (en curso, pago por verificar, confirmada, descartada, anulada), su estado de cobro (pagada, con saldo en cuenta corriente) y su estado fiscal (no se factura, pendiente, en contingencia, emitida, rechazada). | D-44, D-57, D-81 |
 | RF-121 | El sistema deberá calcular el total de la venta aplicando, en este orden, el precio fijado de cada ítem, las promociones automáticas y el descuento manual, y deberá prorratear entre los ítems afectados, según su importe, los descuentos que afectan a más de uno. | D-17, Const. 7 |
 | RF-069 | El sistema deberá aplicar el recargo o descuento de cada método de pago solo sobre la fracción del monto abonada con ese método. | RN-09 |
 | RF-122 | El sistema deberá calcular el total a cobrar como la suma de las fracciones asignadas a cada medio de pago, cada una con su recargo o descuento, e incluir esos recargos y descuentos en la base del IVA. | D-17 |
@@ -341,7 +345,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-077 | El sistema deberá permitir al VO traspasar una venta en curso a otro VO con turno abierto en la misma sucursal. | RF-15, UC-VO-05, S-6 |
 | RF-078 | Cuando el VO receptor acepta un traspaso, el sistema deberá transferirle la venta y sus reservas sin liberarlas en ningún momento. | RF-15, S-6 |
 | RF-079 | Si el VO receptor rechaza el traspaso o no lo acepta dentro del tiempo de inactividad del carrito, entonces el sistema deberá devolver la venta al VO que la envió. Mientras el traspaso esté pendiente, cuenta como venta en curso del emisor. | RF-15, D-46 |
-| RF-080 | Cuando un VO intenta cerrar sesión voluntariamente con el turno abierto o con ventas en curso, el sistema deberá avisarle y exigirle que resuelva cada venta en curso (cobrándola, descartándola o traspasándola) y que cierre el turno con un Corte X antes de salir. | RF-16, UC-VO-01, D-11, D-12 |
+| RF-080 | Cuando un VO intenta cerrar sesión voluntariamente con el turno abierto o con ventas en curso, el sistema deberá avisarle y exigirle que resuelva cada venta en curso (cobrándola, descartándola o traspasándola) y que cierre el turno con un Corte X antes de salir. | RF-16, UC-VO-01, D-11, D-12, D-82, D-84 |
 
 ### 5.13 Anulaciones y devoluciones
 

@@ -610,3 +610,51 @@ export class CloseJourney extends CashUseCase {
     });
   }
 }
+
+// Lo que la caja ofrece a ventas, dentro de la transacción de la venta (plan §2.10): el turno
+// abierto de un VO, los VO con turno en una sucursal y el ingreso del cobro en efectivo.
+export class ShiftSales {
+  constructor(private readonly deps: Pick<CashDependencies, 'cash' | 'ids'>) {}
+
+  async openShiftOf(tenantId: string, sellerId: string) {
+    const shift = await this.deps.cash.openShiftOfSeller(tenantId, sellerId);
+    return (
+      shift && {
+        id: shift.id,
+        registerId: shift.registerId,
+        branchId: shift.branchId,
+        journeyDate: shift.journeyDate,
+        sellerName: shift.sellerName,
+      }
+    );
+  }
+
+  async sellersWithOpenShift(tenantId: string, branchId: string) {
+    return (await this.deps.cash.openShifts(tenantId, branchId)).map((s) => ({
+      id: s.sellerId,
+      name: s.sellerName,
+    }));
+  }
+
+  // Ingreso de una venta en el turno (RF-076). El turno tiene que seguir abierto.
+  async recordSale(
+    actor: { tenantId: string; userId: string; at: Date },
+    input: { shiftId: string; amount: string; methodId: string | null },
+  ): Promise<void> {
+    const shift = await this.deps.cash.findShift(actor.tenantId, input.shiftId, true);
+    if (shift?.status !== 'abierto') {
+      throw new DomainError('SIN_TURNO', 'El turno de la venta ya está cerrado.');
+    }
+    await this.deps.cash.addMovement(actor.tenantId, {
+      id: this.deps.ids.next(),
+      shiftId: shift.id,
+      type: 'venta',
+      inCash: true,
+      amount: input.amount,
+      reason: null,
+      authorizationId: null,
+      userId: actor.userId,
+      at: actor.at,
+    });
+  }
+}
