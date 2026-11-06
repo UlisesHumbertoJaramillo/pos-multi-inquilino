@@ -43,9 +43,13 @@ export function priceCart(
   promotions: readonly Promotion[],
   branchId: string,
   at: Date,
+  // Con pagos aprobados el total queda fijo (D-85): no entran promociones nuevas.
+  frozen = false,
 ): PricedCart {
   const fixed = new Set(items.map((i) => i.promotionId).filter((id) => id !== null));
-  const candidates = promotions.filter((p) => fixed.has(p.id) || isApplicable(p, at, branchId));
+  const candidates = promotions.filter(
+    (p) => fixed.has(p.id) || (!frozen && isApplicable(p, at, branchId)),
+  );
   const applied = new Map(
     choosePromotions(
       items.map((i) => ({

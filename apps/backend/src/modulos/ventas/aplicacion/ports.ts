@@ -1,4 +1,5 @@
 // Puertos del módulo de ventas (plan §2.10).
+import type { PaymentMethod, PaymentType } from '../../cobros/aplicacion/gateway.js';
 import type { Promotion } from '../../promociones/aplicacion/promotions.js';
 import type {
   BillingPolicy,
@@ -35,6 +36,8 @@ export interface Sale {
   lastActivity: Date;
   confirmedAt: Date | null;
   discardReason: DiscardReason | null;
+  customerId: string | null;
+  creditAuthorizationId: string | null;
 }
 
 export interface SaleComponent {
@@ -74,15 +77,26 @@ export interface Transfer {
   expiresAt: Date;
 }
 
+export type PaymentState =
+  'pendiente' | 'aprobado' | 'rechazado' | 'por_verificar' | 'revirtiendo' | 'revertido';
+
 export interface Payment {
   id: string;
   saleId: string;
   methodId: string | null;
-  type: 'efectivo';
+  methodName: string;
+  type: PaymentType;
   fraction: string;
   adjustment: string;
   tendered: string;
   change: string;
+  state: PaymentState;
+  key: string | null;
+  reference: string | null;
+  checks: number;
+  manuallyResolved: boolean;
+  lateApprovedAt: Date | null;
+  authorizationId: string | null;
   at: Date;
 }
 
@@ -102,6 +116,11 @@ export interface SalesRepository {
   removeItem(tenantId: string, itemId: string, at: Date): Promise<void>;
   nextTicket(tenantId: string): Promise<number>;
   addPayment(tenantId: string, payment: Payment): Promise<void>;
+  savePayment(tenantId: string, payment: Payment): Promise<void>;
+  paymentsOf(tenantId: string, saleId: string): Promise<Payment[]>;
+  findPayment(tenantId: string, id: string): Promise<Payment | undefined>;
+  paymentByKey(tenantId: string, key: string): Promise<Payment | undefined>;
+  // Pagos que retienen la venta: aprobados o sin un resultado definitivo.
   hasLivePayments(tenantId: string, saleId: string): Promise<boolean>;
   insertTransfer(tenantId: string, transfer: Transfer): Promise<void>;
   pendingTransfer(tenantId: string, saleId: string): Promise<Transfer | undefined>;
@@ -176,8 +195,28 @@ export interface SaleShifts {
 export interface SaleCash {
   recordSale(
     actor: Actor,
-    input: { shiftId: string; amount: string; methodId: string | null },
+    input: { shiftId: string; amount: string; methodId: string | null; inCash: boolean },
   ): Promise<void>;
+}
+
+export interface SaleCustomer {
+  id: string;
+  name: string;
+  document: string | null;
+  isActive: boolean;
+  hasAccount: boolean;
+  creditLimit: string;
+  balance: string;
+}
+
+export interface SaleCustomers {
+  search(tenantId: string, query: string): Promise<SaleCustomer[]>;
+  find(tenantId: string, id: string): Promise<SaleCustomer | undefined>;
+  // Suma a la cuenta corriente; sin allowExcess, informa el disponible si supera el límite.
+  charge(
+    actor: Actor,
+    input: { customerId: string; amount: string; saleId: string; allowExcess: boolean },
+  ): Promise<{ ok: true; balance: string } | { ok: false; available: string }>;
 }
 
 export interface QuotaDiscount {
@@ -202,7 +241,7 @@ export interface SaleQuota {
 export interface SaleAuthorizations {
   consume(input: {
     id: string;
-    type: 'descuento';
+    type: 'descuento' | 'credito' | 'pago_por_verificar';
     operationRef: string;
     requesterId: string;
   }): Promise<void>;
@@ -211,6 +250,6 @@ export interface SaleAuthorizations {
 export interface SaleSettings {
   cartIdleMinutes(tenantId: string): Promise<number>;
   billing(tenantId: string): Promise<{ module: boolean; policy: BillingPolicy }>;
-  // Método de pago en efectivo activo del comercio, con su recargo o descuento.
-  cashMethod(tenantId: string): Promise<{ id: string; adjustmentPct: string } | undefined>;
+  // Medios de pago activos del comercio, con su recargo o descuento.
+  methods(tenantId: string): Promise<PaymentMethod[]>;
 }

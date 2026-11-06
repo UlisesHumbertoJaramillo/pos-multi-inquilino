@@ -45,7 +45,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Recepción de compras', path: '/admin/recepciones', available: true },
     { label: 'Cuotas de descuento', path: '/admin/cuotas', available: true },
     { label: 'Caja', path: '/admin/caja', available: true },
-    { label: 'Clientes', path: '/admin/clientes', available: false },
+    { label: 'Clientes', path: '/admin/clientes', available: true },
     { label: 'Informe diario', path: '/admin/informe', available: false },
   ],
   VO: [{ label: 'Punto de venta', path: '/pos', available: true }],

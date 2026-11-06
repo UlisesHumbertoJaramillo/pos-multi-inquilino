@@ -114,6 +114,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const SHIFT_A = 'ad000000-0000-4000-8000-000000000001';
   const SALE_A = 'ae000000-0000-4000-8000-000000000001';
   const SALE_TRANSFER_A = 'af000000-0000-4000-8000-000000000001';
+  const CUSTOMER_A = 'b0000000-0000-4000-8000-000000000001';
+  const COLLECTION_A = 'b1000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
@@ -131,6 +133,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     turnos: { resourceType: 'turno', id: SHIFT_A },
     ventas: { resourceType: 'venta', id: SALE_A },
     traspasos: { resourceType: 'traspaso', id: SALE_TRANSFER_A },
+    clientes: { resourceType: 'cliente', id: CUSTOMER_A },
+    cobros: { resourceType: 'cobro_cuenta_corriente', id: COLLECTION_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -151,8 +155,16 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     if (path.endsWith('/descuento')) return { descuento: null };
     if (path.endsWith('/traspaso')) return { receptorId: USERS.asVo.id };
     if (path.endsWith('/vendedores/:usuarioId')) return { porcentajeMaximo: '0', monto: '0' };
+    if (path === '/ventas/:id/pagos')
+      return { metodoPagoId: PAYMENT_METHOD_A, fraccion: '1', claveIdempotencia: TRANSFER_A };
     if (path.endsWith('/pagos'))
       return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
+    if (path.endsWith('/resolucion')) return { resultado: 'aprobado', autorizacionId: TRANSFER_A };
+    if (path === '/ventas/:id/cliente') return { clienteId: null };
+    if (path === '/clientes/:id') return { razonSocial: 'X', condicionFiscal: 'exento' };
+    if (path.endsWith('/credito')) return { cuentaCorriente: true, limite: '1' };
+    if (path.endsWith('/cobros'))
+      return { metodoPagoId: PAYMENT_METHOD_A, monto: '1', claveIdempotencia: TRANSFER_A };
     return {};
   };
   const crossTenantRoutes = routesWithAction.filter(
@@ -168,6 +180,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
         'cuota',
         'caja',
         'ventas',
+        'clientes',
+        'cuenta-corriente',
       ].includes(route.path.split('/')[1] ?? ''),
   );
 
@@ -242,6 +256,17 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
        VALUES ($1, $2, $3, $4, $5, now(), now() + interval '15 minutes')`,
       [SALE_TRANSFER_A, TENANT_A, SALE_A, USERS.vo.id, USERS.asVo.id],
     );
+    await ownerQuery(
+      `INSERT INTO cliente (id, tenant_id, razon_social, condicion_fiscal, creado_en)
+       VALUES ($1, $2, 'Cliente A', 'consumidor_final', now())`,
+      [CUSTOMER_A, TENANT_A],
+    );
+    await ownerQuery(
+      `INSERT INTO cobro_cuenta_corriente (id, tenant_id, cliente_id, sucursal_id, turno_id,
+         vendedor_id, monto, estado, creado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, 1, 'por_verificar', now())`,
+      [COLLECTION_A, TENANT_A, CUSTOMER_A, BRANCH_CENTRO, SHIFT_A, USERS.vo.id],
+    );
   });
 
   // Recurso de la ruta: el segmento anterior a :id (/proveedores/:id/pagos → proveedores).
@@ -272,7 +297,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
       .replace(':productoId', PRODUCT_A)
       .replace(':alertaId', TRANSFER_A)
       .replace(':usuarioId', USERS.vo.id)
-      .replace(':itemId', SALE_A);
+      .replace(':itemId', SALE_A)
+      .replace(':pagoId', SALE_A);
 
     const pending = request(api.app)[route.method](path).set('Authorization', auth);
     const response = route.binaryBody

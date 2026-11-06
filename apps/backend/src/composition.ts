@@ -31,6 +31,11 @@ import { createQuotaModule, type QuotaModule } from './modulos/cuota/adaptadores
 import { type CashModule, createCashModule } from './modulos/caja/adaptadores/module.js';
 import type { SalesInProgress } from './modulos/caja/aplicacion/ports.js';
 import { createSalesModule, type SalesModule } from './modulos/ventas/adaptadores/module.js';
+import {
+  type CollectionsModule,
+  createCollectionsModule,
+} from './modulos/cobros/adaptadores/module.js';
+import { DomainError } from './compartido/dominio/errors.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -113,6 +118,7 @@ export interface Api {
   promotions: PromotionModule;
   quotas: QuotaModule;
   cash: CashModule;
+  collections: CollectionsModule;
   sales: SalesModule;
   routes: HttpRoute[];
 }
@@ -273,16 +279,42 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     commercialAudit,
     defaultTolerance: DEFAULT_PARAMETERS.cashCountTolerance,
     // Ventas en curso reales (T-149); las pruebas pueden simularlas.
+    // Un cobro de cuenta corriente sin resultado retiene el turno igual que una venta (D-86).
     sales: deps.salesInProgress ?? {
-      forShift: (tenantId, shiftId) => sales.maintenance.inProgressOfShift(tenantId, shiftId),
+      forShift: async (tenantId, shiftId) => [
+        ...(await sales.maintenance.inProgressOfShift(tenantId, shiftId)),
+        ...(await collections.verification.pendingOfShift(tenantId, shiftId)),
+      ],
       forRegister: (tenantId, registerId) =>
         sales.maintenance.inProgressOfRegister(tenantId, registerId),
-      discardForShift: (actor, shiftId) =>
-        sales.maintenance.discardForShift({ ...actor, role: 'AS' }, shiftId),
+      discardForShift: async (actor, shiftId) => {
+        const pending = await collections.verification.pendingOfShift(actor.tenantId, shiftId);
+        if (pending.length > 0) {
+          throw new DomainError(
+            'PAGOS_POR_REVERTIR',
+            'El turno tiene un cobro de cuenta corriente sin resultado: resolvelo antes de cerrarlo.',
+          );
+        }
+        await sales.maintenance.discardForShift({ ...actor, role: 'AS' }, shiftId);
+      },
     },
     // El primer turno de cada fecha de jornada restablece la cuota del VO (RF-067).
     quota: quotas.discounts,
     // Un retiro consume una autorización por PIN de identidad (RF-092).
+    authorizations: {
+      consume: (input) => identity.useCases.consumeAuthorization.execute(input),
+    },
+  });
+
+  const collections = createCollectionsModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    production: config.production,
+    shifts: cash.sales,
+    // Resolver a mano un cobro por verificar consume una autorización por PIN (RF-126).
     authorizations: {
       consume: (input) => identity.useCases.consumeAuthorization.execute(input),
     },
@@ -313,10 +345,13 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
         await quotas.discounts.applyDiscount(actor, input);
       },
     },
-    // Un descuento fuera de cuota consume una autorización por PIN (RF-066).
+    // Descuentos, excesos de crédito y pagos por verificar consumen un PIN (RF-066, RF-074, RF-126).
     authorizations: {
       consume: (input) => identity.useCases.consumeAuthorization.execute(input),
     },
+    customers: collections.credit,
+    gateway: collections.gateway,
+    alerts: collections.alerts,
   });
 
   const routes = [
@@ -329,6 +364,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...promotions.routes,
     ...quotas.routes,
     ...cash.routes,
+    ...collections.routes,
     ...sales.routes,
     ...(deps.extraRoutes ?? []),
   ];
@@ -354,6 +390,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     promotions,
     quotas,
     cash,
+    collections,
     sales,
     routes,
   };

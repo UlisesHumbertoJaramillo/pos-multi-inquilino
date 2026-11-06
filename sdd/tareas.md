@@ -394,33 +394,33 @@
 
 ## Fase 11 — Cobros, clientes y crédito
 
-- [ ] **T-166** · Crear las migraciones `pago` (clave de idempotencia única), `cliente`, `movimiento_cuenta_corriente` y `recibo`. · RF: RF-068 · Dep: T-145
+- [x] **T-166** · Crear las migraciones `pago` (clave de idempotencia única), `cliente`, `movimiento_cuenta_corriente` y `recibo`. · RF: RF-068 · Dep: T-145
   - Hecho cuando: las migraciones aplican y el saldo de un cliente no admite negativos.
-- [ ] **T-167** · ABM de clientes con su condición fiscal, a cargo del AS. · RF: RF-132 · Dep: T-166, T-023
+- [x] **T-167** · ABM de clientes con su condición fiscal, a cargo del AS. · RF: RF-132 · Dep: T-166, T-023
   - Hecho cuando: en /docs, el AS crea un cliente que se ve en todas las sucursales del comercio.
-- [ ] **T-168** · Límite de crédito por cliente. · RF: RF-072 · Dep: T-167
+- [x] **T-168** · Límite de crédito por cliente. · RF: RF-072 · Dep: T-167
   - Hecho cuando: el AS fija el límite y un VO no puede hacerlo.
-- [ ] **T-169** · Pago mixto en la confirmación: fracciones, vuelto y validación con el motor de cálculo. · RF: RF-068, RF-070, RF-071 · Dep: T-158, T-116
+- [x] **T-169** · Pago mixto en la confirmación: fracciones, vuelto y validación con el motor de cálculo. · RF: RF-068, RF-070, RF-071 · Dep: T-158, T-116
   - Hecho cuando: una venta efectivo + débito con recargo se confirma con los importes esperados de la tabla de casos.
-- [ ] **T-170** · Venta a crédito dentro del límite, y rechazo para un cliente dado de baja o sin cuenta corriente. · RF: RF-073, RF-144 · Dep: T-169, T-168
+- [x] **T-170** · Venta a crédito dentro del límite, y rechazo para un cliente dado de baja o sin cuenta corriente. · RF: RF-073, RF-144 · Dep: T-169, T-168
   - Hecho cuando: el saldo del cliente sube y un cliente sin cuenta corriente recibe un rechazo.
-- [ ] **T-171** · Exceso de crédito con autorización. · RF: RF-074 · Dep: T-170, T-044
+- [x] **T-171** · Exceso de crédito con autorización. · RF: RF-074 · Dep: T-170, T-044
   - Hecho cuando: sin PIN se rechaza informando el disponible, con PIN se confirma, y queda en la auditoría.
-- [ ] **T-172** · Cobro de cuenta corriente con recibo, que entra en la caja, y rechazo si excede la deuda. · RF: RF-128, RF-129 · Dep: T-170, T-133
+- [x] **T-172** · Cobro de cuenta corriente con recibo, que entra en la caja, y rechazo si excede la deuda. · RF: RF-128, RF-129 · Dep: T-170, T-133
   - Hecho cuando: el saldo baja, el teórico del turno sube y un cobro de más se rechaza.
-- [ ] **T-173** · Prueba de concurrencia del límite de crédito con dos ventas simultáneas. · RF: RF-152 · Dep: T-170
+- [x] **T-173** · Prueba de concurrencia del límite de crédito con dos ventas simultáneas. · RF: RF-152 · Dep: T-170
   - Hecho cuando: el límite nunca se supera en 20 repeticiones.
 - [ ] **T-174** · Puerto `PasarelaDePagos` y simulador local controlable desde /dev/simuladores. · RF: RF-075 · Dep: T-166
   - Hecho cuando: desde https://localhost:3000/dev/simuladores se elige "aprobar", "rechazar", "no responder" o "aprobar tarde".
-- [ ] **T-175** · Pago electrónico rechazado: la venta queda sin confirmar y conserva sus reservas y los pagos aprobados. · RF: RF-075 · Dep: T-174, T-169
+- [x] **T-175** · Pago electrónico rechazado: la venta queda sin confirmar y conserva sus reservas y los pagos aprobados. · RF: RF-075 · Dep: T-174, T-169
   - Hecho cuando: con el simulador en "rechazar", la segunda tarjeta falla y la primera sigue imputada.
-- [ ] **T-176** · Exigir la reversión de los pagos aprobados antes de descartar una venta. · RF: RF-125 · Dep: T-175
+- [x] **T-176** · Exigir la reversión de los pagos aprobados antes de descartar una venta. · RF: RF-125 · Dep: T-175
   - Hecho cuando: el descarte se rechaza hasta revertir el pago aprobado.
-- [ ] **T-177** · "Pago por verificar": clave de idempotencia, bloqueo del reintento con ese medio y estado de la venta. · RF: RF-126 · Dep: T-175
+- [x] **T-177** · "Pago por verificar": clave de idempotencia, bloqueo del reintento con ese medio y estado de la venta. · RF: RF-126 · Dep: T-175
   - Hecho cuando: con el simulador en "no responder", la venta queda por verificar y un reintento con el mismo medio se rechaza.
-- [ ] **T-178** · Worker de verificación de pagos y resolución manual por un AS. · RF: RF-126 · Dep: T-177, T-021, T-044
+- [x] **T-178** · Worker de verificación de pagos y resolución manual por un AS. · RF: RF-126 · Dep: T-177, T-021, T-044
   - Hecho cuando: el worker resuelve el pago al reactivar el simulador, y un AS lo resuelve a mano si sigue sin respuesta.
-- [ ] **T-179** · Alerta de reintegro pendiente ante la aprobación tardía de una venta descartada. · RF: RF-127 · Dep: T-178
+- [x] **T-179** · Alerta de reintegro pendiente ante la aprobación tardía de una venta descartada. · RF: RF-127 · Dep: T-178
   - Hecho cuando: con el simulador en "aprobar tarde", se descarta la venta y aparece la alerta para el AS y el AC.
 - [ ] **T-180** · Adaptador de Mercado Pago: crear la intención de pago en una terminal Point (sandbox). · RF: RF-075 · Dep: T-174
   - Hecho cuando: una prueba manual contra el sandbox crea la intención con la clave de idempotencia como referencia externa.
@@ -438,7 +438,7 @@
   - Hecho cuando: con el simulador en "no responder", la pantalla muestra la venta por verificar, y un cobro de cuenta corriente imprime su recibo en pantalla.
 - [ ] **T-187** · Frontend del AS: clientes y límites de crédito. · RF: RF-132, RF-072 · Dep: T-168, T-070
   - Hecho cuando: desde /admin, el AS crea un cliente con límite.
-- [ ] **T-188** · Sumar las acciones de cobros al generador de la matriz. · RF: RF-004 · Dep: T-187
+- [x] **T-188** · Sumar las acciones de cobros al generador de la matriz. · RF: RF-004 · Dep: T-187
   - Hecho cuando: las pruebas generadas pasan.
 
 ## Fase 12 — Facturación fiscal (módulo opcional)

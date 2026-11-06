@@ -1,5 +1,5 @@
 // Ventas del POS (T-146 a T-160; RF-030, RF-031, RF-053, RF-055, RF-058, RF-059, RF-077 a RF-079,
-// RF-116, RF-153, D-81 a D-85). Reglas puras: estados, cantidades, inactividad, traspasos y
+// RF-116, RF-153, D-81 a D-84). Reglas puras: estados, cantidades, inactividad, traspasos y
 // decisión de facturar.
 import {
   formatDecimal,
@@ -34,6 +34,12 @@ export interface ManualDiscountInput {
 
 // Una venta solo se modifica mientras está en curso y sin un traspaso pendiente.
 export function assertEditable(state: CommercialState, transferPending: boolean): void {
+  if (state === 'pago_por_verificar') {
+    throw new DomainError(
+      'PAGO_POR_VERIFICAR',
+      'La venta tiene un pago por verificar: esperá el resultado o pedí la resolución de un AS.',
+    );
+  }
   if (state !== 'en_curso') {
     throw new DomainError('VENTA_NO_EDITABLE', 'La venta ya no está en curso.');
   }

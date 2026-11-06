@@ -2,6 +2,7 @@
 // trabajo con el comercio fijado, y además cada consulta filtra por comercio. El catálogo, el
 // stock, los parámetros y los métodos de pago se leen sin modificarlos.
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
+import type { PaymentMethod } from '../../cobros/aplicacion/gateway.js';
 import type {
   BillingPolicy,
   CommercialState,
@@ -44,12 +45,14 @@ interface SaleRow {
   ultima_actividad: Date;
   confirmada_en: Date | null;
   motivo_descarte: DiscardReason | null;
+  cliente_id: string | null;
+  credito_autorizacion_id: string | null;
 }
 
 const SALE_COLUMNS = `id, tenant_id, sucursal_id, caja_id, turno_id, vendedor_id, numero_ticket,
   estado_comercial, estado_cobro, estado_fiscal, se_factura, subtotal, descuento_promos,
   descuento_manual, total, descuento_tipo, descuento_valor, descuento_autorizacion_id, creada_en,
-  ultima_actividad, confirmada_en, motivo_descarte`;
+  ultima_actividad, confirmada_en, motivo_descarte, cliente_id, credito_autorizacion_id`;
 
 const IN_PROGRESS = `estado_comercial IN ('en_curso', 'pago_por_verificar')`;
 
@@ -82,6 +85,8 @@ const toSale = (row: SaleRow): Sale => ({
   lastActivity: row.ultima_actividad,
   confirmedAt: row.confirmada_en,
   discardReason: row.motivo_descarte,
+  customerId: row.cliente_id,
+  creditAuthorizationId: row.credito_autorizacion_id,
 });
 
 interface ItemRow {
@@ -126,6 +131,52 @@ const toTransfer = (row: TransferRow): Transfer => ({
   state: row.estado,
   createdAt: row.creado_en,
   expiresAt: row.vence_en,
+});
+
+interface PaymentRow {
+  id: string;
+  venta_id: string;
+  metodo_pago_id: string | null;
+  metodo: string | null;
+  tipo: Payment['type'];
+  fraccion: string;
+  recargo: string;
+  monto_abonado: string;
+  vuelto: string;
+  estado: Payment['state'];
+  clave_idempotencia: string | null;
+  referencia_pasarela: string | null;
+  verificaciones: number;
+  resuelto_a_mano: boolean;
+  aprobado_tarde_en: Date | null;
+  autorizacion_id: string | null;
+  registrado_en: Date;
+}
+
+const PAYMENT_SELECT = `SELECT p.id, p.venta_id, p.metodo_pago_id, m.nombre AS metodo, p.tipo,
+    p.fraccion, p.recargo, p.monto_abonado, p.vuelto, p.estado, p.clave_idempotencia,
+    p.referencia_pasarela, p.verificaciones, p.resuelto_a_mano, p.aprobado_tarde_en,
+    p.autorizacion_id, p.registrado_en
+  FROM pago p LEFT JOIN metodo_pago m ON m.id = p.metodo_pago_id`;
+
+const toPayment = (row: PaymentRow): Payment => ({
+  id: row.id,
+  saleId: row.venta_id,
+  methodId: row.metodo_pago_id,
+  methodName: row.metodo ?? 'Efectivo',
+  type: row.tipo,
+  fraction: row.fraccion,
+  adjustment: row.recargo,
+  tendered: row.monto_abonado,
+  change: row.vuelto,
+  state: row.estado,
+  key: row.clave_idempotencia,
+  reference: row.referencia_pasarela,
+  checks: row.verificaciones,
+  manuallyResolved: row.resuelto_a_mano,
+  lateApprovedAt: row.aprobado_tarde_en,
+  authorizationId: row.autorizacion_id,
+  at: row.registrado_en,
 });
 
 export class PgSalesRepository implements SalesRepository {
@@ -201,6 +252,7 @@ export class PgSalesRepository implements SalesRepository {
          descuento_tipo = $15, descuento_valor = $16, descuento_autorizacion_id = $17,
          ultima_actividad = $18, confirmada_en = $19, motivo_descarte = $20,
          descartada_en = CASE WHEN $20::text IS NULL THEN NULL ELSE $18::timestamptz END,
+         cliente_id = $21, credito_autorizacion_id = $22,
          version = version + 1
         WHERE tenant_id = $1 AND id = $2`,
       [
@@ -224,6 +276,8 @@ export class PgSalesRepository implements SalesRepository {
         s.lastActivity,
         s.confirmedAt,
         s.discardReason,
+        s.customerId,
+        s.creditAuthorizationId,
       ],
     );
   }
@@ -344,8 +398,8 @@ export class PgSalesRepository implements SalesRepository {
   async addPayment(tenantId: string, p: Payment): Promise<void> {
     await this.db.query(
       `INSERT INTO pago (id, tenant_id, venta_id, metodo_pago_id, tipo, fraccion, recargo,
-         monto_abonado, vuelto, estado, registrado_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'aprobado', $10)`,
+         monto_abonado, vuelto, estado, clave_idempotencia, registrado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         p.id,
         tenantId,
@@ -356,15 +410,63 @@ export class PgSalesRepository implements SalesRepository {
         p.adjustment,
         p.tendered,
         p.change,
+        p.state,
+        p.key,
         p.at,
       ],
     );
   }
 
+  async savePayment(tenantId: string, p: Payment): Promise<void> {
+    await this.db.query(
+      `UPDATE pago SET estado = $3, referencia_pasarela = $4, verificaciones = $5,
+         resuelto_a_mano = $6, aprobado_tarde_en = $7, autorizacion_id = $8
+        WHERE tenant_id = $1 AND id = $2`,
+      [
+        tenantId,
+        p.id,
+        p.state,
+        p.reference,
+        p.checks,
+        p.manuallyResolved,
+        p.lateApprovedAt,
+        p.authorizationId,
+      ],
+    );
+  }
+
+  async paymentsOf(tenantId: string, saleId: string): Promise<Payment[]> {
+    const result = await this.db.query<PaymentRow>(
+      `${PAYMENT_SELECT} WHERE p.tenant_id = $1 AND p.venta_id = $2
+        ORDER BY p.registrado_en, p.id`,
+      [tenantId, saleId],
+    );
+    return result.rows.map(toPayment);
+  }
+
+  async findPayment(tenantId: string, id: string): Promise<Payment | undefined> {
+    const result = await this.db.query<PaymentRow>(
+      `${PAYMENT_SELECT} WHERE p.tenant_id = $1 AND p.id = $2 AND p.venta_id IS NOT NULL`,
+      [tenantId, id],
+    );
+    const row = result.rows[0];
+    return row ? toPayment(row) : undefined;
+  }
+
+  async paymentByKey(tenantId: string, key: string): Promise<Payment | undefined> {
+    const result = await this.db.query<PaymentRow>(
+      `${PAYMENT_SELECT}
+        WHERE p.tenant_id = $1 AND p.clave_idempotencia = $2 AND p.venta_id IS NOT NULL`,
+      [tenantId, key],
+    );
+    const row = result.rows[0];
+    return row ? toPayment(row) : undefined;
+  }
+
   async hasLivePayments(tenantId: string, saleId: string): Promise<boolean> {
     const result = await this.db.query(
       `SELECT 1 FROM pago WHERE tenant_id = $1 AND venta_id = $2
-          AND estado IN ('aprobado', 'por_verificar')`,
+          AND estado IN ('pendiente', 'aprobado', 'por_verificar', 'revirtiendo')`,
       [tenantId, saleId],
     );
     return result.rows.length > 0;
@@ -560,7 +662,7 @@ export class PgSalesCatalog implements SalesCatalog {
   }
 }
 
-// Parámetros del comercio, módulo de facturación y método de pago en efectivo, sin modificarlos.
+// Parámetros del comercio, módulo de facturación y métodos de pago, sin modificarlos.
 export class PgSaleSettings implements SaleSettings {
   constructor(
     private readonly db: PgDatabase,
@@ -592,13 +694,22 @@ export class PgSaleSettings implements SaleSettings {
     };
   }
 
-  async cashMethod(tenantId: string): Promise<{ id: string; adjustmentPct: string } | undefined> {
-    const result = await this.db.query<{ id: string; recargo_pct: string }>(
-      `SELECT id, recargo_pct FROM metodo_pago
-        WHERE tenant_id = $1 AND tipo = 'efectivo' AND is_active ORDER BY creado_en, id LIMIT 1`,
+  async methods(tenantId: string): Promise<PaymentMethod[]> {
+    const result = await this.db.query<{
+      id: string;
+      nombre: string;
+      tipo: PaymentMethod['type'];
+      recargo_pct: string;
+    }>(
+      `SELECT id, nombre, tipo, recargo_pct FROM metodo_pago
+        WHERE tenant_id = $1 AND is_active ORDER BY creado_en, id`,
       [tenantId],
     );
-    const row = result.rows[0];
-    return row ? { id: row.id, adjustmentPct: row.recargo_pct } : undefined;
+    return result.rows.map((r) => ({
+      id: r.id,
+      name: r.nombre,
+      type: r.tipo,
+      adjustmentPct: r.recargo_pct,
+    }));
   }
 }

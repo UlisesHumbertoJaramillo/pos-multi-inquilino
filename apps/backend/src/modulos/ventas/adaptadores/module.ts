@@ -10,10 +10,23 @@ import { PgJobScheduler } from '../../../compartido/adaptadores/jobs/pg-job-sche
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import { PgEventOutbox } from '../../../compartido/adaptadores/outbox/pg-event-outbox.js';
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
+import type { PaymentGateway, RefundAlerts } from '../../cobros/aplicacion/gateway.js';
 import type { BillingPolicy } from '../dominio/sales.js';
+import {
+  ChargeElectronic,
+  ConfirmSale,
+  ListPaymentMethods,
+  PAYMENT_VERIFICATION_JOB,
+  PaymentVerification,
+  ResolvePayment,
+  ReversePayment,
+  SearchCustomers,
+  SetSaleCustomer,
+} from '../aplicacion/payments.js';
 import type {
   SaleAuthorizations,
   SaleCash,
+  SaleCustomers,
   SalePromotions,
   SaleQuota,
   SaleShifts,
@@ -23,7 +36,6 @@ import {
   AcceptTransfer,
   AddItem,
   CART_EXPIRATION_JOB,
-  ConfirmCashSale,
   DiscardSale,
   GetSale,
   ListOwnSales,
@@ -55,6 +67,9 @@ export interface SalesModuleDependencies {
   cash: SaleCash;
   quota: SaleQuota;
   authorizations: SaleAuthorizations;
+  customers: SaleCustomers;
+  gateway: PaymentGateway;
+  alerts: RefundAlerts;
 }
 
 export interface SalesModule {
@@ -62,6 +77,7 @@ export interface SalesModule {
   useCases: SalesUseCases;
   // Vencimientos, suspensión y ventas en curso para caja y cierre de sesión.
   maintenance: SalesMaintenance;
+  verification: PaymentVerification;
   // Para organización: ventas en curso que impiden bajas (D-42).
   inProgress: PgSalesRepository['countInProgress'];
   jobHandlers: Record<string, JobHandler>;
@@ -82,6 +98,9 @@ export function createSalesModule(deps: SalesModuleDependencies): SalesModule {
     cash: deps.cash,
     quota: deps.quota,
     authorizations: deps.authorizations,
+    customers: deps.customers,
+    gateway: deps.gateway,
+    alerts: deps.alerts,
     settings: new PgSaleSettings(deps.db, deps.defaults),
     jobs: new PgJobScheduler(deps.db, deps.clock, deps.ids),
     outbox: new PgEventOutbox(deps.db, deps.clock, deps.ids),
@@ -100,17 +119,25 @@ export function createSalesModule(deps: SalesModuleDependencies): SalesModule {
     removeItem: new RemoveItem(dependencies),
     setManualDiscount: new SetManualDiscount(dependencies),
     discardSale: new DiscardSale(dependencies),
-    confirmCashSale: new ConfirmCashSale(dependencies),
+    confirmSale: new ConfirmSale(dependencies),
+    chargeElectronic: new ChargeElectronic(dependencies),
+    reversePayment: new ReversePayment(dependencies),
+    resolvePayment: new ResolvePayment(dependencies),
+    setSaleCustomer: new SetSaleCustomer(dependencies),
+    searchCustomers: new SearchCustomers(dependencies),
+    listPaymentMethods: new ListPaymentMethods(dependencies),
     listTransferTargets: new ListTransferTargets(dependencies),
     sendTransfer: new SendTransfer(dependencies),
     acceptTransfer: new AcceptTransfer(dependencies),
     rejectTransfer: new RejectTransfer(dependencies),
   };
   const maintenance = new SalesMaintenance(dependencies);
+  const verification = new PaymentVerification(dependencies);
   return {
     routes: salesRoutes(useCases),
     useCases,
     maintenance,
+    verification,
     inProgress: (tenantId, filter) =>
       deps.db.run(() => sales.countInProgress(tenantId, filter), { tenantId }),
     jobHandlers: {
@@ -118,6 +145,8 @@ export function createSalesModule(deps: SalesModuleDependencies): SalesModule {
         maintenance.expireCart(text(job.payload.tenantId), text(job.payload.saleId)),
       [TRANSFER_EXPIRATION_JOB]: (job) =>
         maintenance.expireTransfer(text(job.payload.tenantId), text(job.payload.transferId)),
+      [PAYMENT_VERIFICATION_JOB]: (job) =>
+        verification.verify(text(job.payload.tenantId), text(job.payload.paymentId)),
     },
     eventHandlers: {
       // Suspensión del comercio (RF-146, D-39): sus carritos se descartan y liberan sus reservas.

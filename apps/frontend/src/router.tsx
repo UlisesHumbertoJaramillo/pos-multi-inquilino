@@ -24,6 +24,8 @@ import { PromotionsPage } from './pages/promotions/PromotionsPage';
 import { DiscountCapPage } from './pages/quotas/DiscountCapPage';
 import { SellerQuotasPage } from './pages/quotas/SellerQuotasPage';
 import { BranchCashPage } from './pages/cash/BranchCashPage';
+import { CustomersPage } from './pages/customers/CustomersPage';
+import { SimulatorPage } from './pages/dev/SimulatorPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -75,6 +77,15 @@ export const routes: RouteObject[] = [
   { path: '/admin/cuota', element: acOnly(<DiscountCapPage />) },
   { path: '/admin/cuotas', element: asOnly(<SellerQuotasPage />) },
   { path: '/admin/caja', element: asOnly(<BranchCashPage />) },
+  { path: '/admin/clientes', element: asOnly(<CustomersPage />) },
+  {
+    path: '/dev/simuladores',
+    element: (
+      <RequireAuth roles={['AC', 'AS', 'VO']}>
+        <SimulatorPage />
+      </RequireAuth>
+    ),
+  },
   { path: '/admin/proveedores', element: acOnly(<SuppliersPage />) },
   { path: '/admin/compras', element: acOnly(<PurchasesPage />) },
   { path: '/admin/recepciones', element: asOnly(<ReceptionsPage />) },

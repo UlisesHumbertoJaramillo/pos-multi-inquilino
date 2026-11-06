@@ -34,7 +34,10 @@ const logPlatformEvent: EventHandler = (event) => {
   return Promise.resolve();
 };
 // Manejadores por tipo de trabajo y de evento. Cada módulo aporta los suyos.
-const JOB_HANDLERS: Record<string, JobHandler> = { ...api.sales.jobHandlers };
+const JOB_HANDLERS: Record<string, JobHandler> = {
+  ...api.sales.jobHandlers,
+  ...api.collections.jobHandlers,
+};
 const EVENT_HANDLERS: Record<string, EventHandler> = {
   'comercio.reactivado': logPlatformEvent,
   // Suspensión (RF-146): ventas descarta los carritos del comercio y libera sus reservas.

@@ -1,7 +1,16 @@
-// Ventas del turno (T-162, T-163; RF-054, RF-060, RF-065, RF-077, RF-157): carritos en curso,
-// búsqueda, carrito táctil, descuento manual con PIN si supera la cuota, cobro en efectivo y
-// traspasos. Todos los importes los calcula el backend: esta pantalla solo los muestra.
-import type { Cart, SaleReceipt, SaleSearchResult, TransferTarget } from '@pos/contracts';
+// Ventas del turno (T-162, T-163, T-185, T-186; RF-054, RF-060, RF-065, RF-068, RF-073, RF-077,
+// RF-126, RF-128, RF-157): carritos en curso, búsqueda, carrito táctil, descuento manual, cliente,
+// cobro mixto, pagos por verificar, traspasos y cobros de cuenta corriente. Todos los importes los
+// calcula el backend: esta pantalla solo los muestra.
+import type {
+  AccountCollection,
+  Cart,
+  SalePayment,
+  SalePaymentMethod,
+  SaleReceipt,
+  SaleSearchResult,
+  TransferTarget,
+} from '@pos/contracts';
 import {
   Alert,
   Autocomplete,
@@ -13,6 +22,7 @@ import {
   DialogTitle,
   IconButton,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   MenuItem,
@@ -27,26 +37,46 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatMoney } from '../../api/catalog';
+import { collectionsApi } from '../../api/collections';
 import { ApiError } from '../../api/httpClient';
 import { formatQuantity, salesApi } from '../../api/sales';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
 import { useLoader } from '../../hooks/useLoader';
+import { AccountCollectionDialog } from './AccountCollectionDialog';
+import { CustomerPicker } from './CustomerPicker';
+import { PaymentDialog, type PaymentLine } from './PaymentDialog';
 
 const SEARCH_DELAY_MS = 250;
+const REFRESH_MS = 15_000;
+
+const PAYMENT_STATES: Record<SalePayment['estado'], string> = {
+  pendiente: 'Procesando',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
+  por_verificar: 'Por verificar',
+  revirtiendo: 'Revirtiendo',
+  revertido: 'Revertido',
+};
+
+const isLive = (p: SalePayment) => p.estado !== 'rechazado' && p.estado !== 'revertido';
 
 type Dialogs =
   | { kind: 'descuento' }
-  | { kind: 'cobro' }
+  | { kind: 'cobro'; methods: SalePaymentMethod[] }
+  | { kind: 'cuenta'; methods: SalePaymentMethod[] }
   | { kind: 'traspaso'; targets: TransferTarget[] }
   | null;
 
 export function SalesPanel({ onChanged }: { onChanged: () => void }) {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
   const api = useMemo(() => salesApi(request), [request]);
+  const collections = useMemo(() => collectionsApi(request), [request]);
   const fetchSales = useCallback(() => api.listOwn(), [api]);
   const loaded = useLoader(fetchSales, 'No se pudieron cargar las ventas.');
+  const fetchPending = useCallback(() => collections.pendingCollections(), [collections]);
+  const pendingCollections = useLoader(fetchPending, 'No se pudieron cargar los cobros.');
   const [selected, setSelected] = useState<string | null>(null);
   const [override, setOverride] = useState<Cart | null>(null);
   const [query, setQuery] = useState('');
@@ -55,7 +85,9 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialogs>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [pin, setPin] = useState<(PinRequest & { discount: DiscountForm }) | null>(null);
+  const [pin, setPin] = useState<(PinRequest & { onAuthorized: (id: string) => void }) | null>(
+    null,
+  );
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
 
   const sales = loaded.data?.ventas ?? [];
@@ -63,6 +95,24 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   const fromList = sales.find((s) => s.id === selected) ?? sales[0] ?? null;
   // La última respuesta del backend manda: trae los totales recalculados.
   const cart = override?.id === fromList?.id ? override : fromList;
+
+  // El worker resuelve los pagos por verificar: la pantalla los vuelve a pedir mientras esperan.
+  const waiting =
+    sales.some((s) => s.estado === 'pago_por_verificar') ||
+    (pendingCollections.data ?? []).length > 0;
+  const { reload: reloadSales } = loaded;
+  const { reload: reloadPending } = pendingCollections;
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => {
+      setOverride(null);
+      reloadSales();
+      reloadPending();
+    }, REFRESH_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [waiting, reloadSales, reloadPending]);
 
   async function run<T>(action: () => Promise<T>, onDone?: (value: T) => void) {
     setError(null);
@@ -162,7 +212,11 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           operationRef: `descuento:${cart.id}`,
           branchId: cart.sucursalId,
           summary: `${e.message} Descuento: ${form.tipo === 'porcentaje' ? `${form.valor} %` : formatMoney(form.valor)}.`,
-          discount: form,
+          onAuthorized: (id) => {
+            void applyDiscount(form, id).then(() => {
+              setNotice('Descuento autorizado.');
+            });
+          },
         });
         return;
       }
@@ -170,24 +224,125 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  async function pay(tendered: string) {
+  async function pay(lines: PaymentLine[], authorizationId: string | null) {
     if (!cart) return;
     setDialogError(null);
     try {
-      const result = await api.payCash(cart.id, tendered.trim() === '' ? null : tendered.trim());
+      const result = await api.pay(cart.id, {
+        pagos: lines,
+        ...(authorizationId === null ? {} : { autorizacionId: authorizationId }),
+      });
       setDialog(null);
       setReceipt(result);
       setSelected(null);
       refresh();
     } catch (e: unknown) {
+      // Exceso de crédito (RF-074): el backend informa el disponible y pide el PIN de un AS.
+      if (e instanceof ApiError && e.code === 'CREDITO_EXCEDIDO') {
+        setPin({
+          type: 'credito',
+          operationRef: `credito:${cart.id}:${cart.total}`,
+          branchId: cart.sucursalId,
+          summary: e.message,
+          onAuthorized: (id) => {
+            void pay(lines, id);
+          },
+        });
+        return;
+      }
       setDialogError(errorMessage(e, 'No se pudo cobrar.'));
     }
   }
+
+  async function chargeElectronic(methodId: string, fraction: string) {
+    if (!cart) return;
+    setDialogError(null);
+    try {
+      const attempt = await api.charge(cart.id, methodId, fraction);
+      updated(attempt.venta);
+      loaded.reload();
+      if (attempt.pago.estado === 'rechazado') {
+        setDialogError('La pasarela rechazó el pago: probá con otro medio.');
+      }
+      if (attempt.pago.estado === 'por_verificar') {
+        setDialog(null);
+        setNotice('La pasarela no respondió: el pago quedó por verificar.');
+      }
+    } catch (e: unknown) {
+      setDialogError(errorMessage(e, 'No se pudo cobrar.'));
+    }
+  }
+
+  function askResolution(sale: Cart, payment: SalePayment, resultado: 'aprobado' | 'rechazado') {
+    setPin({
+      type: 'pago_por_verificar',
+      operationRef: `pago:${payment.id}`,
+      branchId: sale.sucursalId,
+      summary: `Pago de ${formatMoney(payment.fraccion)} con ${payment.metodo}: ${resultado === 'aprobado' ? 'se cobró' : 'no se cobró'}.`,
+      onAuthorized: (id) => {
+        void run(() => api.resolve(sale.id, payment.id, resultado, id), updated).then(() => {
+          loaded.reload();
+        });
+      },
+    });
+  }
+
+  function askCollectionResolution(c: AccountCollection, resultado: 'aprobado' | 'rechazado') {
+    const branchId = cart?.sucursalId ?? user?.sucursales[0] ?? '';
+    setPin({
+      type: 'pago_por_verificar',
+      operationRef: `pago:${c.pagoId}`,
+      branchId,
+      summary: `Cobro de ${c.cliente} por ${formatMoney(c.monto)}: ${resultado === 'aprobado' ? 'se cobró' : 'no se cobró'}.`,
+      onAuthorized: (id) => {
+        void run(
+          () => collections.resolveCollection(c.id, resultado, id),
+          () => {
+            pendingCollections.reload();
+            onChanged();
+          },
+        );
+      },
+    });
+  }
+
+  const locked = cart !== null && (cart.traspaso !== null || cart.pagos.some(isLive));
 
   return (
     <Stack spacing={2}>
       {(error ?? loaded.error) !== null && <Alert severity="error">{error ?? loaded.error}</Alert>}
       {notice !== null && <Alert severity="success">{notice}</Alert>}
+      {(pendingCollections.data ?? []).map((c) => (
+        <Alert
+          key={c.id}
+          severity="warning"
+          action={
+            c.resolucionManual ? (
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    askCollectionResolution(c, 'aprobado');
+                  }}
+                >
+                  Se cobró
+                </Button>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => {
+                    askCollectionResolution(c, 'rechazado');
+                  }}
+                >
+                  No se cobró
+                </Button>
+              </Stack>
+            ) : undefined
+          }
+        >
+          Cobro de {c.cliente} por {formatMoney(c.monto)}: por verificar.
+        </Alert>
+      ))}
       {incoming.map((t) => (
         <Alert
           key={t.id}
@@ -247,6 +402,19 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           }
         >
           Nueva venta
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() =>
+            void run(
+              () => api.methods(),
+              (methods) => {
+                setDialog({ kind: 'cuenta', methods });
+              },
+            )
+          }
+        >
+          Cobro de cuenta corriente
         </Button>
       </Stack>
 
@@ -334,7 +502,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                     >
                       <IconButton
                         aria-label={`Restar ${item.nombre}`}
-                        disabled={Number(item.cantidad) <= 1}
+                        disabled={locked || Number(item.cantidad) <= 1}
                         onClick={() =>
                           void run(
                             () =>
@@ -348,6 +516,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                       <span>{formatQuantity(item.cantidad)}</span>
                       <IconButton
                         aria-label={`Sumar ${item.nombre}`}
+                        disabled={locked}
                         onClick={() =>
                           void run(
                             () =>
@@ -366,6 +535,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                     <Button
                       size="small"
                       color="error"
+                      disabled={locked}
                       onClick={() => void run(() => api.removeItem(cart.id, item.id), updated)}
                     >
                       Quitar
@@ -397,6 +567,83 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             <Typography variant="h5">Total: {formatMoney(cart.total)}</Typography>
           </Stack>
 
+          {cart.estado === 'pago_por_verificar' && (
+            <Alert severity="warning">
+              Hay un pago por verificar: la venta espera el resultado de la pasarela.
+            </Alert>
+          )}
+          {cart.pagos.length > 0 && (
+            <List dense aria-label="Pagos de la venta">
+              {cart.pagos.map((p) => (
+                <ListItem
+                  key={p.id}
+                  secondaryAction={
+                    <Stack direction="row" spacing={1}>
+                      {p.estado === 'aprobado' && p.tipo === 'electronico' && (
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            void run(() => api.reverse(cart.id, p.id), updated).then(() => {
+                              loaded.reload();
+                            })
+                          }
+                        >
+                          Revertir
+                        </Button>
+                      )}
+                      {p.resolucionManual && (
+                        <>
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              askResolution(cart, p, 'aprobado');
+                            }}
+                          >
+                            Se cobró
+                          </Button>
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => {
+                              askResolution(cart, p, 'rechazado');
+                            }}
+                          >
+                            No se cobró
+                          </Button>
+                        </>
+                      )}
+                    </Stack>
+                  }
+                >
+                  <ListItemText
+                    primary={`${p.metodo}: ${formatMoney(p.fraccion)}`}
+                    secondary={PAYMENT_STATES[p.estado]}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+
+          {cart.cliente ? (
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Chip
+                label={`Cliente: ${cart.cliente.razonSocial}`}
+                onDelete={() => void run(() => api.setCustomer(cart.id, null), updated)}
+              />
+              {cart.cliente.cuentaCorriente && (
+                <Typography variant="caption" color="text.secondary">
+                  Disponible {formatMoney(cart.cliente.disponible)}
+                </Typography>
+              )}
+            </Stack>
+          ) : (
+            <CustomerPicker
+              search={api.customers}
+              label="Cliente de la venta (opcional)"
+              onPick={(c) => void run(() => api.setCustomer(cart.id, c.id), updated)}
+            />
+          )}
+
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={1}
@@ -404,7 +651,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           >
             <Button
               size="large"
-              disabled={cart.traspaso !== null}
+              disabled={locked}
               onClick={() => {
                 setDialog({ kind: 'descuento' });
               }}
@@ -413,7 +660,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             </Button>
             <Button
               size="large"
-              disabled={cart.traspaso !== null}
+              disabled={locked}
               onClick={() =>
                 void run(
                   () => api.transferTargets(cart.id),
@@ -428,7 +675,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             <Button
               size="large"
               color="error"
-              disabled={cart.traspaso !== null}
+              disabled={locked}
               onClick={() => {
                 if (window.confirm('¿Descartar la venta? Se liberan las reservas.')) {
                   void run(
@@ -447,12 +694,22 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             <Button
               size="large"
               variant="contained"
-              disabled={cart.items.length === 0 || cart.traspaso !== null}
-              onClick={() => {
-                setDialog({ kind: 'cobro' });
-              }}
+              disabled={
+                cart.items.length === 0 ||
+                cart.traspaso !== null ||
+                cart.estado === 'pago_por_verificar'
+              }
+              onClick={() =>
+                void run(
+                  () => api.methods(),
+                  (methods) => {
+                    setDialogError(null);
+                    setDialog({ kind: 'cobro', methods });
+                  },
+                )
+              }
             >
-              Cobrar en efectivo
+              Cobrar
             </Button>
           </Stack>
         </Stack>
@@ -474,13 +731,29 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         />
       )}
       {dialog?.kind === 'cobro' && cart && (
-        <PayDialog
-          total={cart.total}
+        <PaymentDialog
+          cart={cart}
+          methods={dialog.methods}
           error={dialogError}
-          onConfirm={(tendered) => void pay(tendered)}
+          onCharge={chargeElectronic}
+          onConfirm={(lines) => void pay(lines, null)}
           onCancel={() => {
             setDialog(null);
             setDialogError(null);
+          }}
+        />
+      )}
+      {dialog?.kind === 'cuenta' && (
+        <AccountCollectionDialog
+          methods={dialog.methods}
+          search={api.customers}
+          collect={collections.collect}
+          onDone={() => {
+            pendingCollections.reload();
+            onChanged();
+          }}
+          onClose={() => {
+            setDialog(null);
           }}
         />
       )}
@@ -535,11 +808,9 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         <PinDialog
           pending={pin}
           onAuthorized={(id) => {
-            const form = pin.discount;
+            const done = pin.onAuthorized;
             setPin(null);
-            void applyDiscount(form, id).then(() => {
-              setNotice('Descuento autorizado.');
-            });
+            done(id);
           }}
           onCancel={() => {
             setPin(null);
@@ -558,8 +829,18 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           <DialogTitle>Venta cobrada · Ticket {String(receipt.numeroTicket)}</DialogTitle>
           <DialogContent>
             <Stack spacing={1}>
+              {receipt.pagos.map((p) => (
+                <Typography key={p.id}>
+                  {p.metodo}: {formatMoney(p.fraccion)}
+                </Typography>
+              ))}
               <Typography>Cobrado: {formatMoney(receipt.cobrado)}</Typography>
-              <Typography>Entregado: {formatMoney(receipt.entregado)}</Typography>
+              {Number(receipt.entregado) > 0 && (
+                <Typography>Entregado: {formatMoney(receipt.entregado)}</Typography>
+              )}
+              {receipt.estadoCobro === 'saldo_cuenta_corriente' && (
+                <Typography>Con saldo en cuenta corriente.</Typography>
+              )}
               <Typography variant="h5">Vuelto: {formatMoney(receipt.vuelto)}</Typography>
             </Stack>
           </DialogContent>
@@ -634,52 +915,6 @@ function DiscountDialog({
           }}
         >
           Aplicar
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
-function PayDialog({
-  total,
-  error,
-  onConfirm,
-  onCancel,
-}: {
-  total: string;
-  error: string | null;
-  onConfirm: (tendered: string) => void;
-  onCancel: () => void;
-}) {
-  const [tendered, setTendered] = useState('');
-  return (
-    <Dialog open onClose={onCancel} fullWidth maxWidth="xs">
-      <DialogTitle>Cobrar en efectivo</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {error !== null && <Alert severity="error">{error}</Alert>}
-          <Typography variant="h5">Total: {formatMoney(total)}</Typography>
-          <TextField
-            label="Entregado"
-            value={tendered}
-            onChange={(e) => {
-              setTendered(e.target.value.replace(',', '.'));
-            }}
-            helperText="Vacío: el importe justo. El recargo o descuento del efectivo lo aplica el sistema."
-            slotProps={{ htmlInput: { inputMode: 'decimal' } }}
-            autoFocus
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel}>Cancelar</Button>
-        <Button
-          variant="contained"
-          onClick={() => {
-            onConfirm(tendered);
-          }}
-        >
-          Cobrar
         </Button>
       </DialogActions>
     </Dialog>

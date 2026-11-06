@@ -314,8 +314,8 @@ export class PgCashRepository implements CashRepository {
   async addMovement(tenantId: string, m: StoredMovement): Promise<void> {
     await this.db.query(
       `INSERT INTO movimiento_caja (id, tenant_id, turno_id, tipo, en_efectivo, monto, motivo,
-         autorizacion_id, registrado_por, registrado_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         autorizacion_id, registrado_por, registrado_en, metodo_pago_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         m.id,
         tenantId,
@@ -327,6 +327,7 @@ export class PgCashRepository implements CashRepository {
         m.authorizationId,
         m.userId,
         m.at,
+        m.methodId ?? null,
       ],
     );
   }

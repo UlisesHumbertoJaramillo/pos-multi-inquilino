@@ -11,11 +11,10 @@ import type { JobScheduler } from '../../../compartido/aplicacion/job-scheduler.
 import type { SecurityContext } from '../../../compartido/aplicacion/security-context.js';
 import type { UnitOfWork } from '../../../compartido/aplicacion/unit-of-work.js';
 import { DomainError } from '../../../compartido/dominio/errors.js';
-import { cents, money, planPayment } from '../../calculo/aplicacion/engine.js';
+import type { PaymentGateway, RefundAlerts } from '../../cobros/aplicacion/gateway.js';
 import {
   addQuantities,
   assertEditable,
-  billingDecision,
   cartExpired,
   componentQuantity,
   type DiscardReason,
@@ -37,6 +36,8 @@ import type {
   Sale,
   SaleAuthorizations,
   SaleCash,
+  SaleCustomer,
+  SaleCustomers,
   SaleItem,
   SalePromotions,
   SaleQuota,
@@ -64,6 +65,9 @@ export interface SalesDependencies {
   quota: SaleQuota;
   authorizations: SaleAuthorizations;
   settings: SaleSettings;
+  customers: SaleCustomers;
+  gateway: PaymentGateway;
+  alerts: RefundAlerts;
   jobs: JobScheduler;
   outbox: EventOutbox;
   access: AccessControl;
@@ -76,11 +80,15 @@ export interface CartView {
   sale: Sale;
   priced: PricedCart;
   transfer: Transfer | null;
+  payments: Payment[];
+  customer: SaleCustomer | null;
 }
 
 export interface Receipt {
   sale: Sale;
   priced: PricedCart;
+  payments: Payment[];
+  customer: SaleCustomer | null;
   charged: string;
   adjustment: string;
   tendered: string;
@@ -89,8 +97,15 @@ export interface Receipt {
 
 const OPERATE = 'ventas.operar' as const;
 
+export const LIVE_STATES: ReadonlySet<Payment['state']> = new Set([
+  'pendiente',
+  'aprobado',
+  'por_verificar',
+  'revirtiendo',
+]);
+
 // La base de todos los casos de uso del POS: permiso, comercio, transacción y venta propia.
-abstract class SalesUseCase {
+export abstract class SalesUseCase {
   constructor(protected readonly deps: SalesDependencies) {}
 
   protected async inTenant<T>(
@@ -113,26 +128,46 @@ abstract class SalesUseCase {
     return sale;
   }
 
-  protected async editableSale(context: SecurityContext, actor: Actor, id: string) {
+  // Venta en curso propia, sin un traspaso pendiente.
+  protected async openSale(context: SecurityContext, actor: Actor, id: string) {
     const sale = await this.ownSale(context, actor, id);
     const transfer = await this.deps.sales.pendingTransfer(actor.tenantId, sale.id);
     assertEditable(sale.state, transfer !== undefined);
     return sale;
   }
 
+  // Con un pago aprobado o sin resultado, el carrito queda fijo hasta revertirlo (D-85).
+  protected async editableSale(context: SecurityContext, actor: Actor, id: string) {
+    const sale = await this.openSale(context, actor, id);
+    if (await this.deps.sales.hasLivePayments(actor.tenantId, sale.id)) {
+      throw new DomainError(
+        'CARRITO_BLOQUEADO',
+        'La venta tiene un pago electrónico: revertilo antes de modificarla.',
+      );
+    }
+    return sale;
+  }
+
   protected async view(actor: Actor, sale: Sale): Promise<CartView> {
     const items = await this.deps.sales.items(actor.tenantId, sale.id);
+    const payments = await this.deps.sales.paymentsOf(actor.tenantId, sale.id);
     const priced = priceCart(
       items,
       sale.discount,
       await this.deps.promotions.all(actor.tenantId),
       sale.branchId,
       actor.at,
+      payments.some((p) => LIVE_STATES.has(p.state)) || sale.state === 'confirmada',
     );
     return {
       sale,
       priced,
       transfer: (await this.deps.sales.pendingTransfer(actor.tenantId, sale.id)) ?? null,
+      payments,
+      customer:
+        sale.customerId === null
+          ? null
+          : ((await this.deps.customers.find(actor.tenantId, sale.customerId)) ?? null),
     };
   }
 
@@ -280,6 +315,8 @@ export class StartSale extends SalesUseCase {
         lastActivity: actor.at,
         confirmedAt: null,
         discardReason: null,
+        customerId: null,
+        creditAuthorizationId: null,
       };
       await this.deps.sales.insert(sale);
       const idle = await this.deps.settings.cartIdleMinutes(actor.tenantId);
@@ -345,7 +382,7 @@ export class AddItem extends SalesUseCase {
       const items = await this.deps.sales.items(actor.tenantId, sale.id);
       const existing = items.find((i) => i.productId === entry.id);
       if (existing) {
-        // El mismo producto suma a su ítem, que conserva el precio fijado (RF-031, D-85).
+        // El mismo producto suma a su ítem, que conserva el precio fijado (RF-031, D-84).
         await this.moveStock(actor, sale, existing, 'reservar', quantity);
         await this.deps.sales.saveItem(actor.tenantId, {
           ...existing,
@@ -502,143 +539,19 @@ function quotaDiscount(priced: PricedCart, discount: ManualDiscountInput) {
 export class DiscardSale extends SalesUseCase {
   async execute(context: SecurityContext, saleId: string): Promise<Sale> {
     return this.inTenant(context, async (actor) => {
-      const sale = await this.editableSale(context, actor, saleId);
+      const sale = await this.openSale(context, actor, saleId);
+      // RF-125: los pagos aprobados se revierten antes de descartar.
+      if (await this.deps.sales.hasLivePayments(actor.tenantId, sale.id)) {
+        throw new DomainError(
+          'PAGOS_POR_REVERTIR',
+          'La venta tiene pagos electrónicos: revertilos antes de descartarla.',
+        );
+      }
       return this.discard(actor, sale, 'manual', 'VO');
     });
   }
 }
 
-// Confirmación en efectivo (RF-076, T-158), en una sola transacción: consume las reservas,
-// numera la venta, registra el pago y el ingreso a caja, consume la cuota, escribe la auditoría
-// y, si se factura, deja el pedido del comprobante en el outbox.
-export class ConfirmCashSale extends SalesUseCase {
-  async execute(
-    context: SecurityContext,
-    saleId: string,
-    input: { tendered: string | null; invoice: boolean | null },
-  ): Promise<Receipt> {
-    return this.inTenant(context, async (actor) => {
-      const sale = await this.editableSale(context, actor, saleId);
-      const shift = await this.deps.shifts.openShiftOf(actor.tenantId, actor.userId);
-      if (shift?.id !== sale.shiftId) {
-        throw new DomainError('SIN_TURNO', 'La venta no pertenece a tu turno abierto.');
-      }
-      const view = await this.reprice(actor, sale);
-      const priced = view.priced;
-      if (priced.items.length === 0) {
-        throw new DomainError('VENTA_VACIA', 'Agregá al menos un producto antes de cobrar.');
-      }
-
-      // Cuota (D-83): lo autorizado por PIN no la consume y queda en la auditoría (D-34).
-      if (cents(priced.manualDiscount) > 0n && view.sale.discount !== null) {
-        if (view.sale.discountAuthorizationId === null) {
-          await this.deps.quota.consume(actor, {
-            branchId: sale.branchId,
-            journeyDate: shift.journeyDate,
-            discount: quotaDiscount(priced, view.sale.discount),
-          });
-        } else {
-          await this.deps.audit.record({
-            tenantId: actor.tenantId,
-            branchId: sale.branchId,
-            userId: actor.userId,
-            activeRole: 'VO',
-            action: 'descuento_fuera_de_cuota',
-            entity: 'venta',
-            entityId: sale.id,
-            after: { monto: priced.manualDiscount, porcentaje: priced.manualPercent },
-            authorizationId: view.sale.discountAuthorizationId,
-          });
-        }
-      }
-
-      const method = await this.deps.settings.cashMethod(actor.tenantId);
-      const plan =
-        cents(priced.total) === 0n
-          ? null
-          : planPayment(cents(priced.total), [
-              {
-                id: 'efectivo',
-                cash: true,
-                adjustmentPct: method?.adjustmentPct ?? '0',
-                amount: priced.total,
-                tendered: input.tendered,
-              },
-            ]);
-      const fraction = plan?.fractions[0];
-
-      for (const item of priced.items) {
-        await this.moveStock(actor, view.sale, item, 'consumir', item.quantity);
-      }
-      const ticket = await this.deps.sales.nextTicket(actor.tenantId);
-      const billing = await this.deps.settings.billing(actor.tenantId);
-      const billed = billingDecision(billing.module, billing.policy, input.invoice);
-      const confirmed: Sale = {
-        ...view.sale,
-        ticket,
-        state: 'confirmada',
-        paymentState: 'pagada',
-        fiscalState: billed ? 'pendiente' : 'no_se_factura',
-        billed,
-        confirmedAt: actor.at,
-      };
-      const payment: Payment = {
-        id: this.deps.ids.next(),
-        saleId: sale.id,
-        methodId: method?.id ?? null,
-        type: 'efectivo',
-        fraction: priced.total,
-        adjustment: money(fraction?.adjustment ?? 0n),
-        tendered: money(fraction?.tendered ?? 0n),
-        change: money(fraction?.change ?? 0n),
-        at: actor.at,
-      };
-      await this.deps.sales.addPayment(actor.tenantId, payment);
-      const charged = money(fraction?.charged ?? 0n);
-      if (cents(charged) > 0n) {
-        await this.deps.cash.recordSale(actor, {
-          shiftId: sale.shiftId,
-          amount: charged,
-          methodId: payment.methodId,
-        });
-      }
-      await this.deps.sales.save(confirmed);
-      if (billed) {
-        await this.deps.outbox.add({
-          type: 'comprobante.solicitado',
-          tenantId: actor.tenantId,
-          payload: { ventaId: sale.id },
-        });
-      }
-      await this.deps.audit.record({
-        tenantId: actor.tenantId,
-        branchId: sale.branchId,
-        userId: actor.userId,
-        activeRole: 'VO',
-        action: 'venta_confirmada',
-        entity: 'venta',
-        entityId: sale.id,
-        after: {
-          ticket,
-          total: priced.total,
-          cobrado: charged,
-          descuentoManual: priced.manualDiscount,
-          seFactura: billed,
-        },
-      });
-      return {
-        sale: confirmed,
-        priced,
-        charged,
-        adjustment: payment.adjustment,
-        tendered: payment.tendered,
-        change: payment.change,
-      };
-    });
-  }
-}
-
-// A quién se puede traspasar una venta: los otros VO con turno abierto en su sucursal (RF-077).
 export class ListTransferTargets extends SalesUseCase {
   async execute(context: SecurityContext, saleId: string): Promise<{ id: string; name: string }[]> {
     return this.inTenant(context, async (actor) => {
@@ -815,15 +728,19 @@ export class SalesMaintenance extends SalesUseCase {
       async () => {
         const sales = await this.deps.sales.inProgressOfTenant(tenantId);
         const now = this.deps.clock.now();
+        let discarded = 0;
         for (const sale of sales) {
+          // Una venta con pagos no se descarta sin revertirlos (RF-125): se conserva.
+          if (await this.deps.sales.hasLivePayments(tenantId, sale.id)) continue;
           await this.discard(
             { tenantId, userId: sale.sellerId, at: now },
             sale,
             'suspension',
             'VO',
           );
+          discarded += 1;
         }
-        return sales.length;
+        return discarded;
       },
       { tenantId },
     );
@@ -841,7 +758,14 @@ export class SalesMaintenance extends SalesUseCase {
   async discardForShift(actor: Actor & { role: 'AS' }, shiftId: string): Promise<void> {
     for (const sale of await this.deps.sales.inProgressOfShift(actor.tenantId, shiftId)) {
       const locked = await this.deps.sales.find(actor.tenantId, sale.id, true);
-      if (locked) await this.discard(actor, locked, 'cierre_forzado', 'AS');
+      if (!locked) continue;
+      if (await this.deps.sales.hasLivePayments(actor.tenantId, locked.id)) {
+        throw new DomainError(
+          'PAGOS_POR_REVERTIR',
+          'El turno tiene una venta con pagos electrónicos: resolvelos antes de cerrarlo.',
+        );
+      }
+      await this.discard(actor, locked, 'cierre_forzado', 'AS');
     }
   }
 

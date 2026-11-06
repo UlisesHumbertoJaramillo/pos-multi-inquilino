@@ -118,6 +118,11 @@ export const PERMISSIONS = {
     rf: ['RF-104'],
     roles: { AC: 'tenant', AS: 'branch' },
   },
+  'simulador.operar': {
+    description: 'Controlar el simulador de la pasarela de pagos (solo fuera de producción)',
+    rf: ['RF-075'],
+    roles: { AC: 'tenant', AS: 'branch', VO: 'branch' },
+  },
   'ventas.operar': {
     description: 'Abrir turno, vender, cobrar, aplicar descuentos de su cuota, traspasar ventas',
     rf: ['RF-053', 'RF-080'],

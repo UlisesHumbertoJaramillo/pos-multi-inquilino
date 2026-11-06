@@ -639,18 +639,35 @@ export class ShiftSales {
   // Ingreso de una venta en el turno (RF-076). El turno tiene que seguir abierto.
   async recordSale(
     actor: { tenantId: string; userId: string; at: Date },
-    input: { shiftId: string; amount: string; methodId: string | null },
+    input: { shiftId: string; amount: string; methodId: string | null; inCash: boolean },
   ): Promise<void> {
+    await this.record(actor, 'venta', input);
+  }
+
+  // Cobro de cuenta corriente: entra en la caja del turno y forma parte del arqueo (RF-128).
+  async recordCollection(
+    actor: { tenantId: string; userId: string; at: Date },
+    input: { shiftId: string; amount: string; methodId: string; inCash: boolean },
+  ): Promise<void> {
+    await this.record(actor, 'cobro', input);
+  }
+
+  private async record(
+    actor: { tenantId: string; userId: string; at: Date },
+    type: 'venta' | 'cobro',
+    input: { shiftId: string; amount: string; methodId: string | null; inCash: boolean },
+  ) {
     const shift = await this.deps.cash.findShift(actor.tenantId, input.shiftId, true);
     if (shift?.status !== 'abierto') {
-      throw new DomainError('SIN_TURNO', 'El turno de la venta ya está cerrado.');
+      throw new DomainError('SIN_TURNO', 'El turno ya está cerrado.');
     }
     await this.deps.cash.addMovement(actor.tenantId, {
       id: this.deps.ids.next(),
       shiftId: shift.id,
-      type: 'venta',
-      inCash: true,
+      type,
+      inCash: input.inCash,
       amount: input.amount,
+      methodId: input.methodId,
       reason: null,
       authorizationId: null,
       userId: actor.userId,

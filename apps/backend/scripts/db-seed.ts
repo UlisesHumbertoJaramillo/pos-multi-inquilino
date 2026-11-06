@@ -36,6 +36,23 @@ const BRANCHES = [
   },
 ];
 
+const CUSTOMERS = [
+  {
+    id: 'de000000-0000-4000-8000-0000000000f1',
+    name: 'Kiosco Don Pedro',
+    document: '20-12345678-9',
+    condition: 'monotributista',
+    limit: '50000',
+  },
+  {
+    id: 'de000000-0000-4000-8000-0000000000f2',
+    name: 'Laura Gómez',
+    document: '27-23456789-0',
+    condition: 'consumidor_final',
+    limit: '10000',
+  },
+];
+
 const PAYMENT_METHODS = [
   { id: 'de000000-0000-4000-8000-0000000000e1', name: 'Efectivo', type: 'efectivo', pct: '0' },
   { id: 'de000000-0000-4000-8000-0000000000e2', name: 'Débito', type: 'electronico', pct: '0' },
@@ -172,6 +189,23 @@ async function main(): Promise<void> {
          ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, recargo_pct = EXCLUDED.recargo_pct,
            is_active = true, desactivado_en = NULL, desactivado_por = NULL`,
         [method.id, DEMO.tenantId, method.name, method.type, method.pct, NOW],
+      );
+    }
+    for (const customer of CUSTOMERS) {
+      await client.query(
+        `INSERT INTO cliente (id, tenant_id, razon_social, documento, condicion_fiscal,
+           tiene_cuenta_corriente, limite_credito, creado_en)
+         VALUES ($1, $2, $3, $4, $5, true, $6, $7)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          customer.id,
+          DEMO.tenantId,
+          customer.name,
+          customer.document,
+          customer.condition,
+          customer.limit,
+          NOW,
+        ],
       );
     }
     // Los valores por defecto, guardados para que el AC los vea y los modifique.

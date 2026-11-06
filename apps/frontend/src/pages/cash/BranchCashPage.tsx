@@ -25,6 +25,7 @@ import { BranchSelect, useOwnBranches } from '../inventory/BranchSelect';
 import { AmountDialog, CountResultDialog } from './CashDialogs';
 
 const CASH_ALERTS = new Set([
+  'reintegro_pendiente',
   'diferencia_apertura',
   'retiro_rechazado',
   'arqueo_fuera_de_tolerancia',

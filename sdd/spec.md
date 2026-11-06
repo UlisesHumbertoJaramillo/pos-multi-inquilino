@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 10. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) y el 2026-11-04 (D-80 a D-84).
+Surgieron al construir las fases 3 a 11. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) el 2026-11-04 (D-80 a D-84), el 2026-11-05 (D-85) y el 2026-11-06 (D-86).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -127,6 +127,8 @@ Surgieron al construir las fases 3 a 10. El responsable del producto las validó
 | D-82 | Varias ventas en curso | Un VO puede tener varias ventas en curso a la vez y pasar de una a otra. | Permite atender a otro cliente sin perder el carrito anterior; coincide con RF-080 (validado el 2026-11-04). |
 | D-83 | Consumo de la cuota | Aplicar un descuento manual solo lo controla contra la cuota; el saldo se descuenta al confirmar la venta. Si para entonces ya no alcanza, la confirmación pide la autorización. | Un carrito descartado no gasta cuota (validado el 2026-11-04). |
 | D-84 | Detalles del carrito | La promoción de cada ítem se elige entre las vigentes en la sucursal y las ya fijadas en el carrito, aunque hayan vencido (RF-143). Agregar un producto que ya está en el carrito suma a su ítem, que conserva el precio fijado. Una autorización de descuento vale por el monto autorizado: si el descuento cambia, se pierde. La suspensión del comercio descarta los carritos con el motivo "suspensión". El cierre de sesión voluntario se bloquea con un turno abierto o ventas en curso, sea cual sea el rol activo. | Hace deterministas los casos que el spec no detalla. (validado el 2026-11-04). |
+| D-85 | Pagos electrónicos y cobros de cuenta corriente | Con un pago electrónico aprobado o sin resultado, el carrito queda bloqueado: para modificarlo hay que revertir el pago. El VO revierte sin PIN los pagos de su venta en curso; el dinero vuelve por la pasarela y queda en la auditoría. En un cobro de cuenta corriente se aplica el recargo o descuento del medio, pero la deuda baja solo por lo imputado. Si la pasarela no responde, el cobro queda por verificar y el saldo y el recibo esperan el resultado. | Mantiene fijo el total ya cobrado y evita recibos de cobros inciertos (validado el 2026-11-05). |
+| D-86 | Detalles de cobros | El documento del cliente es opcional y único entre los activos. Un cliente con deuda no se da de baja ni pierde la cuenta corriente. Un AS puede resolver a mano un pago por verificar después de 3 consultas sin respuesta (unos 3 minutos); el sistema sigue consultando durante 24 horas y una aprobación tardía de un pago resuelto como no cobrado genera el reintegro pendiente, haya sido descartada la venta o cobrada con otro medio. Un turno no se cierra, ni por cierre forzado, con ventas con pagos vivos o cobros sin resultado; la suspensión del comercio conserva esas ventas. Si la pasarela no confirma una reversión, el pago sigue aprobado. | Hace deterministas los casos que el spec no detalla. (validado el 2026-11-06). |
 
 ## 4. Supuestos validados
 
@@ -323,17 +325,17 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-123 | El sistema deberá redondear los importes a 2 decimales por ítem y por fracción de pago y ajustar la diferencia de redondeo en la última línea. | D-17 |
 | RF-070 | Si la suma de las fracciones asignadas no iguala el total de la venta, o lo abonado con algún medio no cubre su fracción con su recargo o descuento, entonces el sistema deberá impedir que se confirme la venta. | Integridad, D-17 |
 | RF-071 | Cuando el pago en efectivo excede la fracción asignada al efectivo, el sistema deberá calcular y mostrar el vuelto. Con otros medios no se admite pagar de más. | UC-VO-03 |
-| RF-132 | El sistema deberá permitir al AS dar de alta, modificar y dar de baja clientes, que se comparten en todo el comercio. | D-24 |
+| RF-132 | El sistema deberá permitir al AS dar de alta, modificar y dar de baja clientes, que se comparten en todo el comercio. | D-24, D-86 |
 | RF-072 | El sistema deberá permitir al AS fijar el límite de crédito de cada cliente con cuenta corriente. | RF-10, UC-AS-05 |
 | RF-144 | Si se intenta una venta a crédito a un cliente dado de baja o sin cuenta corriente, entonces el sistema deberá rechazarla. | D-35 |
-| RF-128 | Cuando un VO con turno abierto registra un cobro de cuenta corriente, el sistema deberá reducir el saldo del cliente, registrar el ingreso en la caja del turno según el medio de pago y emitir un recibo. | D-23 |
+| RF-128 | Cuando un VO con turno abierto registra un cobro de cuenta corriente, el sistema deberá reducir el saldo del cliente, registrar el ingreso en la caja del turno según el medio de pago y emitir un recibo. | D-23, D-85 |
 | RF-129 | Si un cobro de cuenta corriente supera el saldo adeudado por el cliente, entonces el sistema deberá rechazarlo. | D-23 |
 | RF-073 | Cuando se confirma una venta a crédito dentro del límite disponible del cliente, el sistema deberá registrarla como pendiente de pago y aumentar el saldo de su cuenta corriente. | UC-VO-04 |
 | RF-074 | Si una venta a crédito supera el límite disponible del cliente, entonces el sistema deberá informar el disponible y exigir el PIN o la credencial de un AS de la sucursal para confirmarla. Sin esa autorización, deberá rechazarla. | RF-10, S-2 |
-| RF-075 | Si un medio de pago electrónico informa un rechazo, entonces el sistema deberá dejar la venta sin confirmar, conservar el carrito, sus reservas y los pagos ya aprobados, y permitir cobrar el saldo con otro medio. | Const. 11, D-19 |
-| RF-125 | Si se intenta descartar una venta con pagos electrónicos aprobados, entonces el sistema deberá exigir que esos pagos se reviertan antes de descartarla. | D-19 |
-| RF-126 | Si un medio de pago electrónico no responde o se pierde la conexión durante el cobro, entonces el sistema deberá dejar la venta en "Pago por verificar" con sus reservas, impedir reintentar el cobro con ese medio hasta conocer el resultado y consultarlo a la pasarela. Si no lo obtiene, deberá permitir que un AS de la sucursal lo resuelva manualmente. | D-20, Const. 11 |
-| RF-127 | Si la pasarela informa la aprobación de un pago cuya venta ya fue descartada, entonces el sistema deberá alertar al AS y al AC con un reintegro pendiente. | D-20 |
+| RF-075 | Si un medio de pago electrónico informa un rechazo, entonces el sistema deberá dejar la venta sin confirmar, conservar el carrito, sus reservas y los pagos ya aprobados, y permitir cobrar el saldo con otro medio. | Const. 11, D-19, D-85 |
+| RF-125 | Si se intenta descartar una venta con pagos electrónicos aprobados, entonces el sistema deberá exigir que esos pagos se reviertan antes de descartarla. | D-19, D-85 |
+| RF-126 | Si un medio de pago electrónico no responde o se pierde la conexión durante el cobro, entonces el sistema deberá dejar la venta en "Pago por verificar" con sus reservas, impedir reintentar el cobro con ese medio hasta conocer el resultado y consultarlo a la pasarela. Si no lo obtiene, deberá permitir que un AS de la sucursal lo resuelva manualmente. | D-20, Const. 11, D-86 |
+| RF-127 | Si la pasarela informa la aprobación de un pago cuya venta ya fue descartada, entonces el sistema deberá alertar al AS y al AC con un reintegro pendiente. | D-20, D-86 |
 | RF-076 | Cuando se confirma una venta, el sistema deberá descontar las unidades reservadas del stock de forma definitiva y registrar la venta, los pagos, el impacto en caja y, si la venta se factura, el pedido de comprobante fiscal pendiente en una única operación, que se completa entera o no se aplica. | Const. 6, D-21, D-58 |
 
 ### 5.12 Traspaso de ventas y alertas de sesión

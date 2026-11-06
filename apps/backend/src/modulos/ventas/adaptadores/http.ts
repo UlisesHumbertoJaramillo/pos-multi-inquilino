@@ -4,11 +4,22 @@ import { z } from 'zod';
 import { securityContextOf } from '../../../compartido/adaptadores/http/authentication.js';
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import { parseInput } from '../../../compartido/adaptadores/http/validation.js';
+import { availableCredit, MANUAL_AFTER_CHECKS } from '../../cobros/aplicacion/gateway.js';
+import {
+  type ChargeElectronic,
+  type ConfirmSale,
+  type ListPaymentMethods,
+  type PaymentAttempt,
+  type ResolvePayment,
+  type ReversePayment,
+  type SearchCustomers,
+  type SetSaleCustomer,
+  unpaidBalance,
+} from '../aplicacion/payments.js';
 import type {
   AcceptTransfer,
   AddItem,
   CartView,
-  ConfirmCashSale,
   DiscardSale,
   GetSale,
   ListOwnSales,
@@ -22,7 +33,7 @@ import type {
   StartSale,
   UpdateItemQuantity,
 } from '../aplicacion/sales.js';
-import type { SearchResult, Transfer } from '../aplicacion/ports.js';
+import type { Payment, SaleCustomer, SearchResult, Transfer } from '../aplicacion/ports.js';
 
 export interface SalesUseCases {
   startSale: StartSale;
@@ -34,7 +45,13 @@ export interface SalesUseCases {
   removeItem: RemoveItem;
   setManualDiscount: SetManualDiscount;
   discardSale: DiscardSale;
-  confirmCashSale: ConfirmCashSale;
+  confirmSale: ConfirmSale;
+  chargeElectronic: ChargeElectronic;
+  reversePayment: ReversePayment;
+  resolvePayment: ResolvePayment;
+  setSaleCustomer: SetSaleCustomer;
+  searchCustomers: SearchCustomers;
+  listPaymentMethods: ListPaymentMethods;
   listTransferTargets: ListTransferTargets;
   sendTransfer: SendTransfer;
   acceptTransfer: AcceptTransfer;
@@ -56,12 +73,34 @@ const discountBody = z
     autorizacionId: z.uuid().nullable().optional(),
   })
   .strict();
+const money = z.string().max(20);
 const payBody = z
   .object({
-    entregado: z.string().max(20).nullable().optional(),
+    entregado: money.nullable().optional(),
     facturar: z.boolean().nullable().optional(),
+    pagos: z
+      .array(
+        z
+          .object({
+            metodoPagoId: z.uuid(),
+            fraccion: money,
+            entregado: money.nullable().optional(),
+          })
+          .strict(),
+      )
+      .max(10)
+      .optional(),
+    autorizacionId: z.uuid().nullable().optional(),
   })
   .strict();
+const chargeBody = z
+  .object({ metodoPagoId: z.uuid(), fraccion: money, claveIdempotencia: z.uuid() })
+  .strict();
+const paymentParams = z.object({ id: z.uuid(), pagoId: z.uuid() });
+const resolveBody = z
+  .object({ resultado: z.enum(['aprobado', 'rechazado']), autorizacionId: z.uuid() })
+  .strict();
+const customerBody = z.object({ clienteId: z.uuid().nullable() }).strict();
 const transferBody = z.object({ receptorId: z.uuid() }).strict();
 
 const transferDto = (t: Transfer) => ({
@@ -76,7 +115,29 @@ const transferDto = (t: Transfer) => ({
   venceEn: t.expiresAt.toISOString(),
 });
 
-const cartDto = ({ sale, priced, transfer }: CartView) => ({
+const paymentDto = (p: Payment) => ({
+  id: p.id,
+  metodoPagoId: p.methodId,
+  metodo: p.methodName,
+  tipo: p.type,
+  fraccion: p.fraction,
+  recargo: p.adjustment,
+  entregado: p.tendered,
+  vuelto: p.change,
+  estado: p.state,
+  resolucionManual: p.state === 'por_verificar' && p.checks >= MANUAL_AFTER_CHECKS,
+});
+
+const customerDto = (c: SaleCustomer) => ({
+  id: c.id,
+  razonSocial: c.name,
+  documento: c.document,
+  cuentaCorriente: c.hasAccount,
+  saldo: c.balance,
+  disponible: availableCredit(c.creditLimit, c.balance),
+});
+
+const cartDto = ({ sale, priced, transfer, payments, customer }: CartView) => ({
   id: sale.id,
   estado: sale.state,
   numeroTicket: sale.ticket,
@@ -111,10 +172,19 @@ const cartDto = ({ sale, priced, transfer }: CartView) => ({
   iva: priced.vat.map((v) => ({ tasa: v.rate, base: v.taxed, neto: v.net, iva: v.vat })),
   traspaso: transfer && transferDto(transfer),
   ultimaActividad: sale.lastActivity.toISOString(),
+  cliente: customer && customerDto(customer),
+  pagos: payments.map(paymentDto),
+  porCobrar: unpaidBalance(priced.total, payments),
 });
 
 const receiptDto = (r: Receipt) => ({
-  venta: cartDto({ sale: r.sale, priced: r.priced, transfer: null }),
+  venta: cartDto({
+    sale: r.sale,
+    priced: r.priced,
+    transfer: null,
+    payments: r.payments,
+    customer: r.customer,
+  }),
   numeroTicket: r.sale.ticket,
   cobrado: r.charged,
   ajuste: r.adjustment,
@@ -122,7 +192,11 @@ const receiptDto = (r: Receipt) => ({
   vuelto: r.change,
   seFactura: r.sale.billed,
   estadoFiscal: r.sale.fiscalState,
+  estadoCobro: r.sale.paymentState,
+  pagos: r.payments.map(paymentDto),
 });
+
+const attemptDto = (a: PaymentAttempt) => ({ venta: cartDto(a.cart), pago: paymentDto(a.payment) });
 
 const searchDto = (p: SearchResult) => ({
   id: p.id,
@@ -166,6 +240,32 @@ export function salesRoutes(useCases: SalesUseCases): HttpRoute[] {
         const { q } = parseInput(searchQuery, req.query);
         const found = await useCases.searchProducts.execute(securityContextOf(res), q);
         res.json(found.map(searchDto));
+      },
+    },
+    {
+      method: 'get',
+      path: '/ventas/clientes',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { q } = parseInput(searchQuery, req.query);
+        const found = await useCases.searchCustomers.execute(securityContextOf(res), q);
+        res.json(found.map(customerDto));
+      },
+    },
+    {
+      method: 'get',
+      path: '/ventas/metodos-pago',
+      action: OPERATE,
+      handler: async (_req, res) => {
+        const methods = await useCases.listPaymentMethods.execute(securityContextOf(res));
+        res.json(
+          methods.map((m) => ({
+            id: m.id,
+            nombre: m.name,
+            tipo: m.type,
+            recargoPct: m.adjustmentPct,
+          })),
+        );
       },
     },
     {
@@ -266,11 +366,73 @@ export function salesRoutes(useCases: SalesUseCases): HttpRoute[] {
       handler: async (req, res) => {
         const { id } = parseInput(idParams, req.params);
         const body = parseInput(payBody, req.body);
-        const receipt = await useCases.confirmCashSale.execute(securityContextOf(res), id, {
+        const receipt = await useCases.confirmSale.execute(securityContextOf(res), id, {
+          lines:
+            body.pagos?.map((p) => ({
+              methodId: p.metodoPagoId,
+              fraction: p.fraccion,
+              tendered: p.entregado ?? null,
+            })) ?? null,
           tendered: body.entregado ?? null,
           invoice: body.facturar ?? null,
+          authorizationId: body.autorizacionId ?? null,
         });
         res.json(receiptDto(receipt));
+      },
+    },
+    {
+      method: 'put',
+      path: '/ventas/:id/cliente',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { id } = parseInput(idParams, req.params);
+        const body = parseInput(customerBody, req.body);
+        const cart = await useCases.setSaleCustomer.execute(
+          securityContextOf(res),
+          id,
+          body.clienteId,
+        );
+        res.json(cartDto(cart));
+      },
+    },
+    {
+      method: 'post',
+      path: '/ventas/:id/pagos',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { id } = parseInput(idParams, req.params);
+        const body = parseInput(chargeBody, req.body);
+        const attempt = await useCases.chargeElectronic.execute(securityContextOf(res), id, {
+          methodId: body.metodoPagoId,
+          fraction: body.fraccion,
+          key: body.claveIdempotencia,
+        });
+        res.status(201).json(attemptDto(attempt));
+      },
+    },
+    {
+      method: 'post',
+      path: '/ventas/:id/pagos/:pagoId/reversion',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { id, pagoId } = parseInput(paymentParams, req.params);
+        res.json(
+          cartDto(await useCases.reversePayment.execute(securityContextOf(res), id, pagoId)),
+        );
+      },
+    },
+    {
+      method: 'post',
+      path: '/ventas/:id/pagos/:pagoId/resolucion',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { id, pagoId } = parseInput(paymentParams, req.params);
+        const body = parseInput(resolveBody, req.body);
+        const cart = await useCases.resolvePayment.execute(securityContextOf(res), id, pagoId, {
+          result: body.resultado,
+          authorizationId: body.autorizacionId,
+        });
+        res.json(cartDto(cart));
       },
     },
     {

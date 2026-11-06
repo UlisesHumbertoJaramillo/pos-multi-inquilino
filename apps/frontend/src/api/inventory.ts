@@ -109,6 +109,8 @@ export function describeAlert(alert: Alert): string {
   };
   const money = (value?: string) => formatMoney(value ?? null);
   switch (alert.tipo) {
+    case 'reintegro_pendiente':
+      return `Reintegro pendiente: la pasarela aprobó tarde un pago de ${money(cash.monto)} que ya no corresponde cobrar.`;
     case 'diferencia_apertura':
       return `${cash.vendedor ?? 'Un vendedor'} abrió ${cash.caja ?? 'una caja'} con ${money(cash.declarado)}, pero el turno anterior declaró ${money(cash.anterior)} (diferencia ${money(cash.diferencia)}).`;
     case 'retiro_rechazado':

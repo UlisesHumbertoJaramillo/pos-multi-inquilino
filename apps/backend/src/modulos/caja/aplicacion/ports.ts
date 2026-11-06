@@ -42,6 +42,7 @@ export interface Shift {
 export interface StoredMovement extends CashMovement {
   id: string;
   shiftId: string;
+  methodId?: string | null;
   reason: string | null;
   authorizationId: string | null;
   userId: string;
