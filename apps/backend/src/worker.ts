@@ -42,6 +42,8 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
   'comercio.reactivado': logPlatformEvent,
   // Suspensión (RF-146): ventas descarta los carritos del comercio y libera sus reservas.
   ...api.sales.eventHandlers,
+  // Pedido de comprobante de una venta confirmada (D-21).
+  ...api.fiscal.eventHandlers,
 };
 
 const jobs = new PgJobWorker(db, systemClock, logger, {
@@ -49,6 +51,10 @@ const jobs = new PgJobWorker(db, systemClock, logger, {
   handlers: JOB_HANDLERS,
 });
 const outbox = new PgOutboxDispatcher(db, systemClock, logger, { handlers: EVENT_HANDLERS });
+
+// Pasada periódica de la cola fiscal: CAEA, certificados, reintentos y plazos (RF-102, RF-105).
+const FISCAL_SWEEP_MS = Number(process.env.FISCAL_SWEEP_MS ?? '30000');
+let lastSweep = 0;
 
 let running = true;
 
@@ -58,6 +64,10 @@ async function loop(): Promise<void> {
     try {
       const dispatched = await outbox.dispatchOnce();
       const claimed = await jobs.runOnce();
+      if (Date.now() - lastSweep >= FISCAL_SWEEP_MS) {
+        lastSweep = Date.now();
+        await api.fiscal.queue.sweep();
+      }
       // Si había trabajo, se sigue sin esperar; si no, se espera al próximo ciclo.
       if (dispatched + claimed === 0) await sleep(POLL_INTERVAL_MS);
     } catch (error: unknown) {

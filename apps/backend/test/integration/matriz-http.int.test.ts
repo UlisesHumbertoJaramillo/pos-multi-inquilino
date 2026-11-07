@@ -116,6 +116,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const SALE_TRANSFER_A = 'af000000-0000-4000-8000-000000000001';
   const CUSTOMER_A = 'b0000000-0000-4000-8000-000000000001';
   const COLLECTION_A = 'b1000000-0000-4000-8000-000000000001';
+  const VOUCHER_A = 'b2000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
@@ -134,6 +135,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     ventas: { resourceType: 'venta', id: SALE_A },
     traspasos: { resourceType: 'traspaso', id: SALE_TRANSFER_A },
     clientes: { resourceType: 'cliente', id: CUSTOMER_A },
+    comprobantes: { resourceType: 'comprobante', id: VOUCHER_A },
     cobros: { resourceType: 'cobro_cuenta_corriente', id: COLLECTION_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
@@ -182,6 +184,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
         'ventas',
         'clientes',
         'cuenta-corriente',
+        'fiscal',
       ].includes(route.path.split('/')[1] ?? ''),
   );
 
@@ -266,6 +269,12 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
          vendedor_id, monto, estado, creado_en)
        VALUES ($1, $2, $3, $4, $5, $6, 1, 'por_verificar', now())`,
       [COLLECTION_A, TENANT_A, CUSTOMER_A, BRANCH_CENTRO, SHIFT_A, USERS.vo.id],
+    );
+    await ownerQuery(
+      `INSERT INTO comprobante (id, tenant_id, tipo, venta_id, sucursal_id, caja_id, total, estado,
+         proximo_intento, plazo_vence, emitido_en)
+       VALUES ($1, $2, 'factura', $3, $4, $5, 1, 'rechazado', now(), now(), now())`,
+      [VOUCHER_A, TENANT_A, SALE_A, BRANCH_CENTRO, REGISTER_A],
     );
   });
 

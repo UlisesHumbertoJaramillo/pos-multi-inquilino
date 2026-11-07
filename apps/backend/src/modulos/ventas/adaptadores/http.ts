@@ -8,6 +8,7 @@ import { availableCredit, MANUAL_AFTER_CHECKS } from '../../cobros/aplicacion/ga
 import {
   type ChargeElectronic,
   type ConfirmSale,
+  type GetBillingOption,
   type ListPaymentMethods,
   type PaymentAttempt,
   type ResolvePayment,
@@ -52,6 +53,7 @@ export interface SalesUseCases {
   setSaleCustomer: SetSaleCustomer;
   searchCustomers: SearchCustomers;
   listPaymentMethods: ListPaymentMethods;
+  getBillingOption: GetBillingOption;
   listTransferTargets: ListTransferTargets;
   sendTransfer: SendTransfer;
   acceptTransfer: AcceptTransfer;
@@ -132,6 +134,7 @@ const customerDto = (c: SaleCustomer) => ({
   id: c.id,
   razonSocial: c.name,
   documento: c.document,
+  condicionFiscal: c.fiscalCondition,
   cuentaCorriente: c.hasAccount,
   saldo: c.balance,
   disponible: availableCredit(c.creditLimit, c.balance),
@@ -378,6 +381,20 @@ export function salesRoutes(useCases: SalesUseCases): HttpRoute[] {
           authorizationId: body.autorizacionId ?? null,
         });
         res.json(receiptDto(receipt));
+      },
+    },
+    {
+      method: 'get',
+      path: '/ventas/:id/facturacion',
+      action: OPERATE,
+      handler: async (req, res) => {
+        const { id } = parseInput(idParams, req.params);
+        const option = await useCases.getBillingOption.execute(securityContextOf(res), id);
+        res.json({
+          visible: option.visible,
+          propuesta: option.proposal,
+          obligatoria: option.required,
+        });
       },
     },
     {

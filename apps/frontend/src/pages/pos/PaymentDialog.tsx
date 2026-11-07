@@ -1,14 +1,16 @@
 // Cobro de la venta (T-185; RF-068 a RF-075): los medios electrónicos se cobran de a uno con la
 // terminal y el resto se confirma al final. Importes, recargos, vuelto y control de que las
 // fracciones cuadren los calcula el backend: esta pantalla solo los captura y los muestra.
-import type { Cart, SalePaymentMethod } from '@pos/contracts';
+import type { Cart, SaleBillingOption, SalePaymentMethod } from '@pos/contracts';
 import {
   Alert,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Stack,
   TextField,
   Typography,
@@ -25,6 +27,7 @@ export interface PaymentLine {
 export function PaymentDialog({
   cart,
   methods,
+  billing,
   error,
   onCharge,
   onConfirm,
@@ -32,14 +35,16 @@ export function PaymentDialog({
 }: {
   cart: Cart;
   methods: SalePaymentMethod[];
+  billing: SaleBillingOption;
   error: string | null;
   onCharge: (methodId: string, fraction: string) => Promise<void>;
-  onConfirm: (lines: PaymentLine[]) => void;
+  onConfirm: (lines: PaymentLine[], invoice: boolean | null) => void;
   onCancel: () => void;
 }) {
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [tendered, setTendered] = useState('');
   const [busy, setBusy] = useState(false);
+  const [invoice, setInvoice] = useState(billing.propuesta);
   const pending = Number(cart.porCobrar) > 0;
   const electronic = methods.filter((m) => m.tipo === 'electronico');
   const cash = methods.find((m) => m.tipo === 'efectivo');
@@ -84,7 +89,7 @@ export function PaymentDialog({
         entregado: m.id === cash?.id && tendered.trim() !== '' ? tendered.trim() : null,
       });
     }
-    onConfirm(lines);
+    onConfirm(lines, billing.visible ? invoice : null);
   }
 
   return (
@@ -130,6 +135,20 @@ export function PaymentDialog({
                 {cart.cliente.razonSocial}: disponible {formatMoney(cart.cliente.disponible)}
               </Typography>
             </Stack>
+          )}
+          {billing.visible && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={billing.obligatoria || invoice}
+                  disabled={billing.obligatoria}
+                  onChange={(e) => {
+                    setInvoice(e.target.checked);
+                  }}
+                />
+              }
+              label="Facturar esta venta"
+            />
           )}
         </Stack>
       </DialogContent>

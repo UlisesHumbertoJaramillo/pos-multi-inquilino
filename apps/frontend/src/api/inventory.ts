@@ -109,6 +109,8 @@ export function describeAlert(alert: Alert): string {
   };
   const money = (value?: string) => formatMoney(value ?? null);
   switch (alert.tipo) {
+    case 'pin_bloqueado':
+      return 'Se bloqueó el PIN de un autorizante por intentos fallidos.';
     case 'reintegro_pendiente':
       return `Reintegro pendiente: la pasarela aprobó tarde un pago de ${money(cash.monto)} que ya no corresponde cobrar.`;
     case 'diferencia_apertura':

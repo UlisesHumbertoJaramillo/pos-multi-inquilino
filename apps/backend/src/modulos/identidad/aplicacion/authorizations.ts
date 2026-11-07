@@ -22,6 +22,7 @@ import type {
 } from './ports.js';
 
 export interface AuthorizationDependencies {
+  pinLockAlert?: { raise(tenantId: string, authorizerId: string, at: Date): Promise<unknown> };
   uow: UnitOfWork;
   users: UserRepository;
   credentials: AuthorizationCredentialRepository;
@@ -125,8 +126,15 @@ export class AuthorizeOperation {
     const pinOk = pinHash !== undefined && (await this.deps.hasher.verify(pinHash, input.pin));
     if (!pinOk) {
       // Si con este fallo se bloquea el PIN, queda auditado y el próximo intento responde bloqueado.
-      // La alerta al AC por el bloqueo se conecta en T-209.
-      await this.deps.guard.recordFailure('pin', authorizer.id, origin);
+      const locked = await this.deps.guard.recordFailure('pin', authorizer.id, origin);
+      if (locked !== null) {
+        await this.deps.uow.run(
+          async () => {
+            await this.deps.pinLockAlert?.raise(tenantId, authorizer.id, this.deps.clock.now());
+          },
+          { tenantId },
+        );
+      }
       throw new ApplicationError('forbidden', 'PIN_INCORRECTO', 'El PIN no es correcto.');
     }
     await this.deps.guard.recordSuccess('pin', authorizer.id, origin);

@@ -5,6 +5,7 @@
 import type {
   AccountCollection,
   Cart,
+  SaleBillingOption,
   SalePayment,
   SalePaymentMethod,
   SaleReceipt,
@@ -64,7 +65,7 @@ const isLive = (p: SalePayment) => p.estado !== 'rechazado' && p.estado !== 'rev
 
 type Dialogs =
   | { kind: 'descuento' }
-  | { kind: 'cobro'; methods: SalePaymentMethod[] }
+  | { kind: 'cobro'; methods: SalePaymentMethod[]; billing: SaleBillingOption }
   | { kind: 'cuenta'; methods: SalePaymentMethod[] }
   | { kind: 'traspaso'; targets: TransferTarget[] }
   | null;
@@ -224,12 +225,17 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  async function pay(lines: PaymentLine[], authorizationId: string | null) {
+  async function pay(
+    lines: PaymentLine[],
+    invoice: boolean | null,
+    authorizationId: string | null,
+  ) {
     if (!cart) return;
     setDialogError(null);
     try {
       const result = await api.pay(cart.id, {
         pagos: lines,
+        ...(invoice === null ? {} : { facturar: invoice }),
         ...(authorizationId === null ? {} : { autorizacionId: authorizationId }),
       });
       setDialog(null);
@@ -245,7 +251,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           branchId: cart.sucursalId,
           summary: e.message,
           onAuthorized: (id) => {
-            void pay(lines, id);
+            void pay(lines, invoice, id);
           },
         });
         return;
@@ -701,10 +707,13 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
               }
               onClick={() =>
                 void run(
-                  () => api.methods(),
-                  (methods) => {
+                  async () => ({
+                    methods: await api.methods(),
+                    billing: await api.billing(cart.id),
+                  }),
+                  ({ methods, billing }) => {
                     setDialogError(null);
-                    setDialog({ kind: 'cobro', methods });
+                    setDialog({ kind: 'cobro', methods, billing });
                   },
                 )
               }
@@ -734,9 +743,10 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         <PaymentDialog
           cart={cart}
           methods={dialog.methods}
+          billing={dialog.billing}
           error={dialogError}
           onCharge={chargeElectronic}
-          onConfirm={(lines) => void pay(lines, null)}
+          onConfirm={(lines, invoice) => void pay(lines, invoice, null)}
           onCancel={() => {
             setDialog(null);
             setDialogError(null);
@@ -837,6 +847,13 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
               <Typography>Cobrado: {formatMoney(receipt.cobrado)}</Typography>
               {Number(receipt.entregado) > 0 && (
                 <Typography>Entregado: {formatMoney(receipt.entregado)}</Typography>
+              )}
+              {receipt.seFactura ? (
+                <Typography variant="caption">
+                  Factura en trámite con ARCA: el resultado lo ven el AS y el AC en Comprobantes.
+                </Typography>
+              ) : (
+                <Typography variant="caption">Ticket no válido como factura.</Typography>
               )}
               {receipt.estadoCobro === 'saldo_cuenta_corriente' && (
                 <Typography>Con saldo en cuenta corriente.</Typography>

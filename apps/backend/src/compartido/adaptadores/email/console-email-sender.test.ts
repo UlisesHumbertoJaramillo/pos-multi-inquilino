@@ -40,6 +40,7 @@ describe('correo por consola', () => {
   it('el backend no arranca en modo producción con el adaptador de consola', () => {
     const config = apiConfigFromEnv({
       NODE_ENV: 'production',
+      FISCAL_MASTER_KEY: 'clave-de-prueba',
       AUTH_TOKEN_SECRET: 'x'.repeat(48),
       EMAIL_ADAPTER: 'console',
     });

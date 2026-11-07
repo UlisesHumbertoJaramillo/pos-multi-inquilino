@@ -769,6 +769,18 @@ export class SalesMaintenance extends SalesUseCase {
     }
   }
 
+  // El estado fiscal lo informa la cola de comprobantes (RF-153).
+  async setFiscalState(tenantId: string, saleId: string, state: Sale['fiscalState']) {
+    const sale = await this.deps.sales.find(tenantId, saleId, true);
+    if (sale) await this.deps.sales.save({ ...sale, fiscalState: state });
+  }
+
+  // Facturación posterior: la venta confirmada pasa a facturarse (RF-168).
+  async markBilled(tenantId: string, saleId: string) {
+    const sale = await this.deps.sales.find(tenantId, saleId, true);
+    if (sale) await this.deps.sales.save({ ...sale, billed: true, fiscalState: 'pendiente' });
+  }
+
   async inProgressOfSeller(tenantId: string, sellerId: string) {
     return labels(await this.deps.sales.inProgressOfSeller(tenantId, sellerId));
   }

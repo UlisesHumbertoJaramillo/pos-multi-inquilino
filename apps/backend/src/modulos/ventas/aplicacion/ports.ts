@@ -1,5 +1,6 @@
 // Puertos del módulo de ventas (plan §2.10).
 import type { PaymentMethod, PaymentType } from '../../cobros/aplicacion/gateway.js';
+import type { IssuerCondition } from '../../fiscal/aplicacion/fiscal.js';
 import type { Promotion } from '../../promociones/aplicacion/promotions.js';
 import type {
   BillingPolicy,
@@ -203,6 +204,7 @@ export interface SaleCustomer {
   id: string;
   name: string;
   document: string | null;
+  fiscalCondition: string;
   isActive: boolean;
   hasAccount: boolean;
   creditLimit: string;
@@ -249,7 +251,11 @@ export interface SaleAuthorizations {
 
 export interface SaleSettings {
   cartIdleMinutes(tenantId: string): Promise<number>;
-  billing(tenantId: string): Promise<{ module: boolean; policy: BillingPolicy }>;
+  billing(tenantId: string): Promise<{
+    module: boolean;
+    policy: BillingPolicy;
+    issuer: IssuerCondition | null;
+  }>;
   // Medios de pago activos del comercio, con su recargo o descuento.
   methods(tenantId: string): Promise<PaymentMethod[]>;
 }

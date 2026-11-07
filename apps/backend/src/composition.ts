@@ -1,5 +1,6 @@
 // Raíz de composición de la API: arma adaptadores, módulos y rutas desde la configuración.
 // Falla al arrancar si la configuración no es segura para el entorno (Const. 17).
+import { createHash } from 'node:crypto';
 import type { Express } from 'express';
 import { createApp } from './app.js';
 import { AccessControl } from './compartido/aplicacion/access-control.js';
@@ -36,6 +37,7 @@ import {
   createCollectionsModule,
 } from './modulos/cobros/adaptadores/module.js';
 import { DomainError } from './compartido/dominio/errors.js';
+import { createFiscalModule, type FiscalModule } from './modulos/fiscal/adaptadores/module.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -57,7 +59,6 @@ import {
   noDependenciesYet,
   tenantSessionIdlePolicy,
 } from './modulos/organizacion/adaptadores/policies.js';
-import { noFiscalPendingYet } from './modulos/plataforma/adaptadores/fiscal-pending.js';
 import {
   createPlatformModule,
   type PlatformModule,
@@ -70,6 +71,16 @@ export interface ApiConfig {
   emailAdapter: string;
   appPublicUrl: string;
   sessionIdleMinutes: number;
+  // Clave maestra de la credencial fiscal (AD-25).
+  fiscalMasterKey: Buffer;
+}
+
+// En producción es obligatoria; en desarrollo se deriva del secreto local.
+function fiscalKeyFromEnv(env: NodeJS.ProcessEnv, authTokenSecret: string): Buffer {
+  const value = env.FISCAL_MASTER_KEY;
+  if (value) return Buffer.from(value, 'base64url');
+  if (env.NODE_ENV === 'production') throw new Error('Falta FISCAL_MASTER_KEY.');
+  return createHash('sha256').update(`fiscal:${authTokenSecret}`).digest();
 }
 
 export function apiConfigFromEnv(env: NodeJS.ProcessEnv): ApiConfig {
@@ -85,6 +96,7 @@ export function apiConfigFromEnv(env: NodeJS.ProcessEnv): ApiConfig {
     emailAdapter: env.EMAIL_ADAPTER ?? 'console',
     appPublicUrl: env.APP_PUBLIC_URL ?? 'https://localhost:5173',
     sessionIdleMinutes: Number(env.SESSION_IDLE_MINUTES ?? '30'),
+    fiscalMasterKey: fiscalKeyFromEnv(env, authTokenSecret),
   };
 }
 
@@ -120,6 +132,7 @@ export interface Api {
   cash: CashModule;
   collections: CollectionsModule;
   sales: SalesModule;
+  fiscal: FiscalModule;
   routes: HttpRoute[];
 }
 
@@ -145,6 +158,16 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     sessionPolicy: tenantSessionIdlePolicy(deps.db),
     // No se cierra sesión con un turno abierto o ventas en curso (RF-080). Caja y ventas se arman
     // más abajo: se usan recién al cerrar sesión.
+    // El bloqueo de un PIN alerta al AC (RF-145, T-209).
+    pinLockAlert: {
+      raise: (tenantId, authorizerId, at) =>
+        deps.db.query(
+          `INSERT INTO alerta (id, tenant_id, destinatario_rol, tipo, severidad, referencia,
+             detalle, creada_en)
+           VALUES (gen_random_uuid(), $1, 'AC', 'pin_bloqueado', 'advertencia', $2, '{}', $3)`,
+          [tenantId, authorizerId, at],
+        ),
+    },
     logoutGuard: {
       pending: async (tenantId, userId) => ({
         openShift: await cash.hasOpenShift(tenantId, userId),
@@ -168,7 +191,8 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ids: uuidGenerator,
     access,
     technicalAudit,
-    fiscalPending: deps.fiscalPending ?? noFiscalPendingYet,
+    // Comprobantes sin regularizar (T-205); el módulo fiscal se arma más abajo.
+    fiscalPending: deps.fiscalPending ?? { pendingFor: (id) => fiscal.queue.pendingFor(id) },
     accounts: identity.useCases.registerAccount,
     tenantSessions: identity.tenantSessions,
     tenantRoles: identity.tenantRoles,
@@ -354,6 +378,24 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     alerts: collections.alerts,
   });
 
+  const fiscal = createFiscalModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    production: config.production,
+    masterKey: config.fiscalMasterKey,
+    defaults: {
+      regularizationHours: DEFAULT_PARAMETERS.fiscalRegularizationHours,
+      laterInvoicingDays: DEFAULT_PARAMETERS.laterInvoicingDays,
+    },
+    states: {
+      set: (tenantId, saleId, state) => sales.maintenance.setFiscalState(tenantId, saleId, state),
+      markBilled: (tenantId, saleId) => sales.maintenance.markBilled(tenantId, saleId),
+    },
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -366,6 +408,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...cash.routes,
     ...collections.routes,
     ...sales.routes,
+    ...fiscal.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -392,6 +435,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     cash,
     collections,
     sales,
+    fiscal,
     routes,
   };
 }

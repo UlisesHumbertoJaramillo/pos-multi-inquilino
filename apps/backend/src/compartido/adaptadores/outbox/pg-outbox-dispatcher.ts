@@ -1,6 +1,9 @@
 // Despachador del outbox (T-022, AD-07).
-// Cada evento se toma con FOR UPDATE SKIP LOCKED, se entrega a su manejador y se marca procesado
-// en la misma transacción: dos despachadores nunca entregan el mismo evento a la vez.
+// Cada evento se toma con FOR UPDATE SKIP LOCKED y queda bloqueado mientras su manejador corre, así
+// dos despachadores nunca lo entregan a la vez. El manejador corre fuera de esa transacción: abre
+// las suyas, con el comercio que le corresponda, y puede llamar a servicios externos sin retener
+// una transacción abierta. Si se cae antes de marcarlo procesado, el evento se vuelve a entregar:
+// los manejadores son idempotentes.
 // Si el manejador falla, o el tipo no tiene manejador, el evento se reintenta más tarde: nunca se descarta.
 import type { Clock } from '../../aplicacion/clock.js';
 import type { DispatchedEvent, EventHandler } from '../../aplicacion/event-outbox.js';
@@ -92,7 +95,7 @@ export class PgOutboxDispatcher {
       payload: row.payload,
       occurredAt: row.creado_en,
     };
-    await handler(event);
+    await this.db.outsideTransaction(() => handler(event));
   }
 
   private async reschedule(row: OutboxRow, error: unknown): Promise<void> {

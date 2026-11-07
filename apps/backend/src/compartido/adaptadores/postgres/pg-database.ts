@@ -38,6 +38,11 @@ export class PgDatabase implements UnitOfWork {
     return this.pool.query<R>(text, values);
   }
 
+  // Ejecuta fuera de la transacción en curso, sin abrir otra: lo que haga abre las suyas.
+  outsideTransaction<T>(work: () => Promise<T>): Promise<T> {
+    return this.transactions.exit(work);
+  }
+
   // Una unidad de trabajo propia, independiente de la que esté en curso (otra conexión).
   runIndependent<T>(work: () => Promise<T>, options: TransactionOptions = {}): Promise<T> {
     return this.transactions.exit(() => this.run(work, options));

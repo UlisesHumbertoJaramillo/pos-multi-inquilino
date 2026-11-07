@@ -4,7 +4,9 @@
 import type { Cart, SaleReceipt, SaleSearchResult, SaleTransfer } from '@pos/contracts';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { PgOutboxDispatcher } from '../../src/compartido/adaptadores/outbox/pg-outbox-dispatcher.js';
 import { createTestApi } from '../support/app.js';
+import { createMemoryLogger } from '../support/logger.js';
 import { expectToMatchContract } from '../support/contract.js';
 import { ownerQuery, ownerSelect } from '../support/database.js';
 import {
@@ -504,15 +506,17 @@ describe('[RF-059] [RF-146] [RF-117] [RF-115] vencimiento, suspensión y caja', 
   it('al suspender el comercio sus carritos pasan a descartados y el stock vuelve', async () => {
     await cartWith([[AGUA, '3']]);
 
-    const handler = api.sales.eventHandlers['comercio.suspendido'];
-    if (!handler) throw new Error('Falta el manejador');
-    await handler({
-      id: 'e1',
-      type: 'comercio.suspendido',
-      tenantId: null,
-      payload: { tenantId: TENANT_A },
-      occurredAt: new Date(),
+    // A través del despachador real del worker, como en producción.
+    await ownerQuery(
+      `INSERT INTO outbox (id, tenant_id, tipo_evento, payload, creado_en, proximo_intento)
+       VALUES (gen_random_uuid(), NULL, 'comercio.suspendido', $1, $2, $2)`,
+      [{ tenantId: TENANT_A }, api.clock.now()],
+    );
+    const dispatcher = new PgOutboxDispatcher(api.db, api.clock, createMemoryLogger(), {
+      handlers: api.sales.eventHandlers,
     });
+    expect(await dispatcher.dispatchOnce()).toBe(1);
+    expect(await ownerSelect('SELECT ultimo_error FROM outbox')).toEqual([{ ultimo_error: null }]);
 
     expect(await ownerSelect('SELECT motivo_descarte FROM venta')).toEqual([
       { motivo_descarte: 'suspension' },

@@ -443,39 +443,39 @@
 
 ## Fase 12 — Facturación fiscal (módulo opcional)
 
-- [ ] **T-189** · Crear las migraciones `comprobante`, `intento_envio_fiscal`, `credencial_fiscal` y `caea`, más la política de facturación en `parametro_comercio` y `se_factura` en `venta`. · RF: RF-155 · Dep: T-145, T-060
+- [x] **T-189** · Crear las migraciones `comprobante`, `intento_envio_fiscal`, `credencial_fiscal` y `caea`, más la política de facturación en `parametro_comercio` y `se_factura` en `venta`. · RF: RF-155 · Dep: T-145, T-060
   - Hecho cuando: las migraciones aplican y el número de comprobante es único por punto de venta.
-- [ ] **T-190** · Sin el módulo activo: las ventas se confirman sin pedido fiscal y los endpoints fiscales se rechazan. · RF: RF-165 · Dep: T-189, T-158, T-054
+- [x] **T-190** · Sin el módulo activo: las ventas se confirman sin pedido fiscal y los endpoints fiscales se rechazan. · RF: RF-165 · Dep: T-189, T-158, T-054
   - Hecho cuando: con el módulo inactivo, una venta queda en "no se factura" y el outbox no tiene pedidos fiscales.
-- [ ] **T-191** · Política de facturación del AC (tres modos). · RF: RF-166 · Dep: T-189, T-054
+- [x] **T-191** · Política de facturación del AC (tres modos). · RF: RF-166 · Dep: T-189, T-054
   - Hecho cuando: en /docs, el AC cambia la política y, con el módulo inactivo, no puede hacerlo.
-- [ ] **T-192** · Decisión de facturar en cada venta según la política, con factura A obligatoria y registro de quién decidió. · RF: RF-167 · Dep: T-191, T-169
+- [x] **T-192** · Decisión de facturar en cada venta según la política, con factura A obligatoria y registro de quién decidió. · RF: RF-167 · Dep: T-191, T-169
   - Hecho cuando: hay pruebas de los tres modos y de un cliente responsable inscripto que fuerza la factura.
-- [ ] **T-193** · Credencial fiscal cifrada con la clave maestra del entorno, nunca devuelta, con alerta antes del vencimiento. · RF: RF-162 · Dep: T-189
+- [x] **T-193** · Credencial fiscal cifrada con la clave maestra del entorno, nunca devuelta, con alerta antes del vencimiento. · RF: RF-162 · Dep: T-189
   - Hecho cuando: ningún endpoint devuelve el certificado, el valor guardado en la base está cifrado y un certificado que vence en 15 días genera la alerta.
 - [ ] **T-194** · Puerto `ServicioFiscal` y simulador de ARCA controlable desde /dev/simuladores. · RF: RF-100 · Dep: T-189, T-174
   - Hecho cuando: el simulador se puede poner en "acepta", "rechaza" o "caído".
-- [ ] **T-195** · Tipo de comprobante (A, B o C) según emisor y comprador, y numeración por punto de venta. · RF: RF-155 · Dep: T-194
+- [x] **T-195** · Tipo de comprobante (A, B o C) según emisor y comprador, y numeración por punto de venta. · RF: RF-155 · Dep: T-194
   - Hecho cuando: pasa una tabla de casos de tipos, y la numeración de dos cajas es independiente.
-- [ ] **T-196** · Worker de envío: toma el pedido del outbox, obtiene el CAE y reintenta. La venta solo figura emitida tras la aceptación. · RF: RF-100, RF-106 · Dep: T-195, T-022
+- [x] **T-196** · Worker de envío: toma el pedido del outbox, obtiene el CAE y reintenta. La venta solo figura emitida tras la aceptación. · RF: RF-100, RF-106 · Dep: T-195, T-022
   - Hecho cuando: con el simulador en "acepta", la venta pasa a "emitida" con su CAE, y antes de eso nunca figura emitida.
-- [ ] **T-197** · Solicitar por adelantado el CAEA de cada quincena para los comercios con el módulo activo, con alerta si falla. · RF: RF-160 · Dep: T-194, T-021
+- [x] **T-197** · Solicitar por adelantado el CAEA de cada quincena para los comercios con el módulo activo, con alerta si falla. · RF: RF-160 · Dep: T-194, T-021
   - Hecho cuando: el worker guarda el CAEA del período, y con el simulador caído antes del período alerta al AC.
-- [ ] **T-198** · Emitir con CAEA cuando el servicio está caído. · RF: RF-101 · Dep: T-197, T-196
+- [x] **T-198** · Emitir con CAEA cuando el servicio está caído. · RF: RF-101 · Dep: T-197, T-196
   - Hecho cuando: con el simulador "caído", la venta se emite con CAEA y queda en cola para informar.
-- [ ] **T-199** · Informar la cola en orden por punto de venta, sin que un rechazo detenga el resto. · RF: RF-102 · Dep: T-198
+- [x] **T-199** · Informar la cola en orden por punto de venta, sin que un rechazo detenga el resto. · RF: RF-102 · Dep: T-198
   - Hecho cuando: al volver el simulador, la cola se informa en orden, y un comprobante rechazado no frena a los siguientes.
-- [ ] **T-200** · Sin un CAEA vigente: ticket no fiscal, pedido de CAE posterior y alerta. · RF: RF-161 · Dep: T-198
+- [x] **T-200** · Sin un CAEA vigente: ticket no fiscal, pedido de CAE posterior y alerta. · RF: RF-161 · Dep: T-198
   - Hecho cuando: sin CAEA y con el simulador caído, la venta sale con ticket no fiscal y el AC recibe la alerta.
-- [ ] **T-201** · Rechazo, en línea o de un comprobante con CAEA: se marca, se alerta al AS y al AC, y un rechazo en línea emite el ticket como no fiscal. · RF: RF-103 · Dep: T-196, T-199
+- [x] **T-201** · Rechazo, en línea o de un comprobante con CAEA: se marca, se alerta al AS y al AC, y un rechazo en línea emite el ticket como no fiscal. · RF: RF-103 · Dep: T-196, T-199
   - Hecho cuando: con el simulador en "rechaza", la venta queda "Rechazada fiscalmente" y válida, con las dos alertas.
-- [ ] **T-202** · Corrección y reenvío de un comprobante rechazado por un AC o un AS. · RF: RF-104 · Dep: T-201
+- [x] **T-202** · Corrección y reenvío de un comprobante rechazado por un AC o un AS. · RF: RF-104 · Dep: T-201
   - Hecho cuando: se corrige un dato, el reenvío es aceptado y queda en la auditoría.
-- [ ] **T-203** · Vencimiento del plazo: alerta crítica persistente, recordatorios periódicos y reintentos. · RF: RF-105 · Dep: T-201, T-021
+- [x] **T-203** · Vencimiento del plazo: alerta crítica persistente, recordatorios periódicos y reintentos. · RF: RF-105 · Dep: T-201, T-021
   - Hecho cuando: con reloj simulado vencido, la alerta no se puede descartar y se repite el recordatorio.
-- [ ] **T-204** · Facturación posterior dentro del plazo. · RF: RF-168 · Dep: T-196, T-192
+- [x] **T-204** · Facturación posterior dentro del plazo. · RF: RF-168 · Dep: T-196, T-192
   - Hecho cuando: una venta sin factura se factura dentro del plazo, y fuera de plazo se rechaza.
-- [ ] **T-205** · Implementar el puerto `ConsultaPendientesFiscales` real (reemplaza el simulado de T-053) para la desactivación del módulo y la baja de comercio. · RF: RF-164, RF-147 · Dep: T-199, T-053
+- [x] **T-205** · Implementar el puerto `ConsultaPendientesFiscales` real (reemplaza el simulado de T-053) para la desactivación del módulo y la baja de comercio. · RF: RF-164, RF-147 · Dep: T-199, T-053
   - Hecho cuando: con un comprobante en cola, la desactivación y la baja se rechazan indicando el comprobante.
 - [ ] **T-206** · Adaptador de ARCA: autenticación con el certificado del comercio (homologación). · RF: RF-162 · Dep: T-193, T-194
   - Hecho cuando: se obtiene el ticket de acceso de homologación con un certificado de prueba.
@@ -483,7 +483,7 @@
   - Hecho cuando: una venta de prueba obtiene un CAE de homologación.
 - [ ] **T-208** · Adaptador de ARCA: solicitud y aviso de comprobantes con CAEA (homologación). · RF: RF-101, RF-160 · Dep: T-207
   - Hecho cuando: se obtiene un CAEA de homologación y se informa un comprobante emitido con él.
-- [ ] **T-209** · Conectar la alerta al AC por bloqueo de PIN (pendiente de T-045). · RF: RF-145 · Dep: T-045, T-092
+- [x] **T-209** · Conectar la alerta al AC por bloqueo de PIN (pendiente de T-045). · RF: RF-145 · Dep: T-045, T-092
   - Hecho cuando: el sexto PIN erróneo genera la alerta al AC.
 - [ ] **T-210** · Frontend del AC: configuración fiscal (certificado, puntos de venta, política). · RF: RF-162, RF-166 · Dep: T-193, T-191, T-070
   - Hecho cuando: desde /admin se carga un certificado de prueba y la pantalla muestra solo su fecha de vencimiento.

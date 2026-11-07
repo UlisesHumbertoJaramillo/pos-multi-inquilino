@@ -1,6 +1,7 @@
 // Llamadas del POS (VO), tipadas con el contrato. Los totales los calcula el backend en cada cambio.
 import type {
   Cart,
+  SaleBillingOption,
   SaleCustomer,
   SaleDiscountRequest,
   SalePaymentAttempt,
@@ -36,6 +37,7 @@ export const salesApi = (request: Request) => ({
   pay: (saleId: string, body: SalePaymentRequest) =>
     request<SaleReceipt>(`/ventas/${saleId}/cobro`, send('POST', body)),
   methods: () => request<SalePaymentMethod[]>('/ventas/metodos-pago'),
+  billing: (saleId: string) => request<SaleBillingOption>(`/ventas/${saleId}/facturacion`),
   customers: (q: string) => request<SaleCustomer[]>(`/ventas/clientes?q=${encodeURIComponent(q)}`),
   setCustomer: (saleId: string, clienteId: string | null) =>
     request<Cart>(`/ventas/${saleId}/cliente`, send('PUT', { clienteId })),

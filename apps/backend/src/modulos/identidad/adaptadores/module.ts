@@ -64,6 +64,7 @@ export interface IdentityModuleDependencies {
   sessionPolicy?: SessionPolicy;
   // Turno abierto y ventas en curso que impiden cerrar sesión (RF-080). Sin él, no hay nada.
   logoutGuard?: LogoutGuard;
+  pinLockAlert?: { raise(tenantId: string, authorizerId: string, at: Date): Promise<unknown> };
 }
 
 export interface IdentityModule {
@@ -131,6 +132,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     config: deps.config,
   };
   const authorizationDeps = {
+    ...(deps.pinLockAlert ? { pinLockAlert: deps.pinLockAlert } : {}),
     uow: deps.db,
     users,
     credentials: new PgAuthorizationCredentialRepository(deps.db, newId),

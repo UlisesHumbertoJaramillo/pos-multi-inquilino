@@ -91,6 +91,7 @@ export function createTestApi(options: TestApiOptions = {}): TestApi {
       emailAdapter: 'console',
       appPublicUrl: TEST_FRONTEND_ORIGIN,
       sessionIdleMinutes: 30,
+      fiscalMasterKey: Buffer.alloc(32, 7),
     },
     {
       db,

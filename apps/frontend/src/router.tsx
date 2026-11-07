@@ -26,6 +26,8 @@ import { SellerQuotasPage } from './pages/quotas/SellerQuotasPage';
 import { BranchCashPage } from './pages/cash/BranchCashPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { SimulatorPage } from './pages/dev/SimulatorPage';
+import { FiscalConfigPage } from './pages/fiscal/FiscalConfigPage';
+import { VouchersPage } from './pages/fiscal/VouchersPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -78,6 +80,15 @@ export const routes: RouteObject[] = [
   { path: '/admin/cuotas', element: asOnly(<SellerQuotasPage />) },
   { path: '/admin/caja', element: asOnly(<BranchCashPage />) },
   { path: '/admin/clientes', element: asOnly(<CustomersPage />) },
+  { path: '/admin/fiscal', element: acOnly(<FiscalConfigPage />) },
+  {
+    path: '/admin/comprobantes',
+    element: (
+      <RequireAuth roles={['AC', 'AS']}>
+        <VouchersPage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/dev/simuladores',
     element: (

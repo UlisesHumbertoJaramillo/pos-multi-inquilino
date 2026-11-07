@@ -15,6 +15,7 @@ import type { BillingPolicy } from '../dominio/sales.js';
 import {
   ChargeElectronic,
   ConfirmSale,
+  GetBillingOption,
   ListPaymentMethods,
   PAYMENT_VERIFICATION_JOB,
   PaymentVerification,
@@ -126,6 +127,7 @@ export function createSalesModule(deps: SalesModuleDependencies): SalesModule {
     setSaleCustomer: new SetSaleCustomer(dependencies),
     searchCustomers: new SearchCustomers(dependencies),
     listPaymentMethods: new ListPaymentMethods(dependencies),
+    getBillingOption: new GetBillingOption(dependencies),
     listTransferTargets: new ListTransferTargets(dependencies),
     sendTransfer: new SendTransfer(dependencies),
     acceptTransfer: new AcceptTransfer(dependencies),

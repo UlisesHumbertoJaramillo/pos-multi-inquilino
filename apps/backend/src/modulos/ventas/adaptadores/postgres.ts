@@ -3,6 +3,7 @@
 // stock, los parámetros y los métodos de pago se leen sin modificarlos.
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
 import type { PaymentMethod } from '../../cobros/aplicacion/gateway.js';
+import type { IssuerCondition } from '../../fiscal/aplicacion/fiscal.js';
 import type {
   BillingPolicy,
   CommercialState,
@@ -677,13 +678,16 @@ export class PgSaleSettings implements SaleSettings {
     return result.rows[0]?.inactividad_carrito_min ?? this.defaults.cartIdleMinutes;
   }
 
-  async billing(tenantId: string): Promise<{ module: boolean; policy: BillingPolicy }> {
+  async billing(tenantId: string) {
     const result = await this.db.query<{
       modulo_facturacion: boolean;
       politica_facturacion: BillingPolicy | null;
+      condicion_fiscal: IssuerCondition | null;
     }>(
-      `SELECT c.modulo_facturacion, p.politica_facturacion
-         FROM comercio c LEFT JOIN parametro_comercio p ON p.tenant_id = c.id
+      `SELECT c.modulo_facturacion, p.politica_facturacion, f.condicion_fiscal
+         FROM comercio c
+         LEFT JOIN parametro_comercio p ON p.tenant_id = c.id
+         LEFT JOIN credencial_fiscal f ON f.tenant_id = c.id
         WHERE c.id = $1`,
       [tenantId],
     );
@@ -691,6 +695,7 @@ export class PgSaleSettings implements SaleSettings {
     return {
       module: row?.modulo_facturacion ?? false,
       policy: row?.politica_facturacion ?? this.defaults.billingPolicy,
+      issuer: row?.condicion_fiscal ?? null,
     };
   }
 

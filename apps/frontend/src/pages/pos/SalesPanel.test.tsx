@@ -72,6 +72,8 @@ const emptyCart = (): Cart => ({
   porCobrar: '0.00',
 });
 
+const NO_BILLING = { visible: false, propuesta: false, obligatoria: false };
+
 const EFECTIVO: SalePaymentMethod = {
   id: 'efectivo',
   nombre: 'Efectivo',
@@ -151,6 +153,7 @@ function posApi(sale: Cart, extra: Parameters<typeof mockApi>[0]) {
     }),
     'GET /cuenta-corriente/cobros': () => ({ status: 200, body: [] }),
     'GET /ventas/metodos-pago': () => ({ status: 200, body: [EFECTIVO, TARJETA, CUENTA] }),
+    'GET /ventas/venta1/facturacion': () => ({ status: 200, body: NO_BILLING }),
     ...extra,
   });
 }
@@ -192,6 +195,7 @@ describe('[RF-068] [RF-073] [RF-074] [RF-126] cobro mixto, crédito y pago por v
       id: 'c1',
       razonSocial: 'Kiosco',
       documento: null,
+      condicionFiscal: 'consumidor_final',
       cuentaCorriente: true,
       saldo: '0.00',
       disponible: '800.00',
@@ -227,6 +231,32 @@ describe('[RF-068] [RF-073] [RF-074] [RF-126] cobro mixto, crédito y pago por v
     await user.click(within(pin).getByRole('button', { name: 'Autorizar' }));
     await vi.waitFor(() => {
       expect(calls[1]).toMatchObject({ autorizacionId: 'autorizacion1' });
+    });
+  });
+
+  it('[RF-167] con una política opcional propone facturar; sin módulo no lo muestra', async () => {
+    let confirmed: unknown;
+    posApi(saleOf({}), {
+      'GET /ventas/venta1/facturacion': () => ({
+        status: 200,
+        body: { visible: true, propuesta: false, obligatoria: false },
+      }),
+      'POST /ventas/venta1/cobro': (body) => {
+        confirmed = body;
+        return { status: 400, body: { codigo: 'X', mensaje: 'Fin de la prueba.' } };
+      },
+    });
+    renderApp('/pos');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Cobrar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar la venta' });
+    const option = within(dialog).getByRole('checkbox', { name: 'Facturar esta venta' });
+    expect(option).not.toBeChecked();
+    await user.click(option);
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar venta' }));
+    await vi.waitFor(() => {
+      expect(confirmed).toMatchObject({ facturar: true });
     });
   });
 
@@ -281,6 +311,7 @@ describe('[RF-054] [RF-060] [RF-050] carrito del POS', () => {
       'GET /ventas/productos': () => ({ status: 200, body: [AGUA] }),
       'GET /cuenta-corriente/cobros': () => ({ status: 200, body: [] }),
       'GET /ventas/metodos-pago': () => ({ status: 200, body: [EFECTIVO] }),
+      'GET /ventas/venta1/facturacion': () => ({ status: 200, body: NO_BILLING }),
       'POST /ventas': () => {
         overview.ventas = [emptyCart()];
         return { status: 201, body: emptyCart() };

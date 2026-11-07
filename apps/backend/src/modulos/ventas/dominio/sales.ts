@@ -137,9 +137,11 @@ export function billingDecision(
   billingModule: boolean,
   policy: BillingPolicy,
   choice: boolean | null,
+  // El comprador requiere factura A: se factura siempre (RF-167).
+  required = false,
 ): boolean {
   if (!billingModule) return false;
-  if (policy === 'siempre') return true;
+  if (policy === 'siempre' || required) return true;
   return choice ?? policy === 'opcional_con_factura';
 }
 

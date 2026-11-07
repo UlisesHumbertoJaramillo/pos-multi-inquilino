@@ -85,6 +85,7 @@ const OWNED_TABLES: Readonly<Record<string, string>> = {
   venta_item: 'venta_item',
   traspaso: 'traspaso',
   cliente: 'cliente',
+  comprobante: 'comprobante',
   cobro_cuenta_corriente: 'cobro_cuenta_corriente',
   metodo_pago: 'metodo_pago',
   categoria: 'categoria',

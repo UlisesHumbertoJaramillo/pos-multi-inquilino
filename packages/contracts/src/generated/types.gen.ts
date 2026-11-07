@@ -1418,6 +1418,7 @@ export type SaleCustomer = {
   cuentaCorriente: boolean;
   saldo: string;
   disponible: string;
+  condicionFiscal: string;
 };
 
 export type SalePaymentMethod = {
@@ -1499,6 +1500,69 @@ export type AccountCollection = {
 
 export type GatewaySimulator = {
   modo: 'aprobar' | 'rechazar' | 'no_responder' | 'aprobar_tarde';
+};
+
+export type FiscalConfiguration = {
+  cuit: string | null;
+  condicionFiscal: 'responsable_inscripto' | 'monotributista' | 'exento' | null;
+  certificadoVenceEn: string | null;
+};
+
+export type FiscalCredentialRequest = {
+  cuit: string;
+  condicionFiscal: 'responsable_inscripto' | 'monotributista' | 'exento';
+  certificado: string;
+  clave: string;
+};
+
+export type Voucher = {
+  id: string;
+  tipo: 'factura' | 'nota_credito';
+  clase: 'A' | 'B' | 'C' | null;
+  ventaId: string;
+  numeroTicket: number | null;
+  puntoVenta: number | null;
+  numero: number | null;
+  total: string;
+  comprador: string | null;
+  estado: 'pendiente' | 'aceptado' | 'rechazado' | 'bloqueado';
+  contingencia: boolean;
+  noFiscal: boolean;
+  cae: string | null;
+  caea: string | null;
+  motivoRechazo: string | null;
+  intentos: number;
+  emitidoEn: string;
+  plazoVence: string;
+};
+
+export type FiscalAlert = {
+  id: string;
+  tipo: string;
+  severidad: string;
+  detalle: {
+    [key: string]: unknown;
+  };
+  creadaEn: string;
+};
+
+export type VoucherOverview = {
+  comprobantes: Array<Voucher>;
+  alertas: Array<FiscalAlert>;
+};
+
+export type LaterInvoiceRequest = {
+  numeroTicket: number;
+};
+
+export type SaleBillingOption = {
+  visible: boolean;
+  propuesta: boolean;
+  obligatoria: boolean;
+};
+
+export type FiscalSimulator = {
+  modo: 'acepta' | 'rechaza' | 'caido';
 };
 
 export type GetHealthData = {
@@ -7178,3 +7242,289 @@ export type SetGatewaySimulatorResponses = {
 
 export type SetGatewaySimulatorResponse =
   SetGatewaySimulatorResponses[keyof SetGatewaySimulatorResponses];
+
+export type GetFiscalConfigurationData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/fiscal/configuracion';
+};
+
+export type GetFiscalConfigurationErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type GetFiscalConfigurationError =
+  GetFiscalConfigurationErrors[keyof GetFiscalConfigurationErrors];
+
+export type GetFiscalConfigurationResponses = {
+  /**
+   * Configuración.
+   */
+  200: FiscalConfiguration;
+};
+
+export type GetFiscalConfigurationResponse =
+  GetFiscalConfigurationResponses[keyof GetFiscalConfigurationResponses];
+
+export type SaveFiscalCredentialData = {
+  body: FiscalCredentialRequest;
+  path?: never;
+  query?: never;
+  url: '/fiscal/credencial';
+};
+
+export type SaveFiscalCredentialErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type SaveFiscalCredentialError =
+  SaveFiscalCredentialErrors[keyof SaveFiscalCredentialErrors];
+
+export type SaveFiscalCredentialResponses = {
+  /**
+   * Configuración.
+   */
+  200: FiscalConfiguration;
+};
+
+export type SaveFiscalCredentialResponse =
+  SaveFiscalCredentialResponses[keyof SaveFiscalCredentialResponses];
+
+export type ListVouchersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/fiscal/comprobantes';
+};
+
+export type ListVouchersErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ListVouchersError = ListVouchersErrors[keyof ListVouchersErrors];
+
+export type ListVouchersResponses = {
+  /**
+   * Comprobantes.
+   */
+  200: VoucherOverview;
+};
+
+export type ListVouchersResponse = ListVouchersResponses[keyof ListVouchersResponses];
+
+export type ResendVoucherData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/fiscal/comprobantes/{id}/reenvio';
+};
+
+export type ResendVoucherErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ResendVoucherError = ResendVoucherErrors[keyof ResendVoucherErrors];
+
+export type ResendVoucherResponses = {
+  /**
+   * Comprobante.
+   */
+  200: Voucher;
+};
+
+export type ResendVoucherResponse = ResendVoucherResponses[keyof ResendVoucherResponses];
+
+export type InvoiceLaterData = {
+  body: LaterInvoiceRequest;
+  path?: never;
+  query?: never;
+  url: '/fiscal/facturacion-posterior';
+};
+
+export type InvoiceLaterErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type InvoiceLaterError = InvoiceLaterErrors[keyof InvoiceLaterErrors];
+
+export type InvoiceLaterResponses = {
+  /**
+   * Pedido registrado.
+   */
+  202: unknown;
+};
+
+export type GetSaleBillingOptionData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/facturacion';
+};
+
+export type GetSaleBillingOptionErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type GetSaleBillingOptionError =
+  GetSaleBillingOptionErrors[keyof GetSaleBillingOptionErrors];
+
+export type GetSaleBillingOptionResponses = {
+  /**
+   * Opción.
+   */
+  200: SaleBillingOption;
+};
+
+export type GetSaleBillingOptionResponse =
+  GetSaleBillingOptionResponses[keyof GetSaleBillingOptionResponses];
+
+export type GetFiscalSimulatorData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/simulador/fiscal';
+};
+
+export type GetFiscalSimulatorErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetFiscalSimulatorError = GetFiscalSimulatorErrors[keyof GetFiscalSimulatorErrors];
+
+export type GetFiscalSimulatorResponses = {
+  /**
+   * Modo.
+   */
+  200: FiscalSimulator;
+};
+
+export type GetFiscalSimulatorResponse =
+  GetFiscalSimulatorResponses[keyof GetFiscalSimulatorResponses];
+
+export type SetFiscalSimulatorData = {
+  body: FiscalSimulator;
+  path?: never;
+  query?: never;
+  url: '/simulador/fiscal';
+};
+
+export type SetFiscalSimulatorErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type SetFiscalSimulatorError = SetFiscalSimulatorErrors[keyof SetFiscalSimulatorErrors];
+
+export type SetFiscalSimulatorResponses = {
+  /**
+   * Modo.
+   */
+  200: FiscalSimulator;
+};
+
+export type SetFiscalSimulatorResponse =
+  SetFiscalSimulatorResponses[keyof SetFiscalSimulatorResponses];

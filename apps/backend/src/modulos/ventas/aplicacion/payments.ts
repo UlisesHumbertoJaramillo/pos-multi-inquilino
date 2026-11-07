@@ -16,6 +16,7 @@ import {
   paymentReference,
   type PaymentMethod,
 } from '../../cobros/aplicacion/gateway.js';
+import { requiresInvoiceA } from '../../fiscal/aplicacion/fiscal.js';
 import { billingDecision, idleUntil } from '../dominio/sales.js';
 import type { Actor, Payment, Sale } from './ports.js';
 import { type CartView, LIVE_STATES, type Receipt, SalesUseCase } from './sales.js';
@@ -438,7 +439,12 @@ export class ConfirmSale extends SalePaymentUseCase {
       }
       const ticket = await this.deps.sales.nextTicket(actor.tenantId);
       const billing = await this.deps.settings.billing(actor.tenantId);
-      const billed = billingDecision(billing.module, billing.policy, input.invoice);
+      const billed = billingDecision(
+        billing.module,
+        billing.policy,
+        input.invoice,
+        requiresInvoiceA(billing.issuer, view.customer?.fiscalCondition ?? null),
+      );
 
       const created: Payment[] = plan.map(({ method, fraction }) => ({
         id: this.deps.ids.next(),
@@ -663,6 +669,29 @@ export class SetSaleCustomer extends SalePaymentUseCase {
       const next: Sale = { ...sale, customerId, lastActivity: actor.at };
       await this.deps.sales.save(next);
       return this.view(actor, next);
+    });
+  }
+}
+
+export interface BillingOption {
+  // Sin el módulo no se muestra nada fiscal (RF-165).
+  visible: boolean;
+  proposal: boolean;
+  required: boolean;
+}
+
+// Qué proponer al cobrar según la política y el comprador (RF-167).
+export class GetBillingOption extends SalePaymentUseCase {
+  async execute(context: SecurityContext, saleId: string): Promise<BillingOption> {
+    return this.inTenant(context, async (actor) => {
+      const view = await this.view(actor, await this.ownSale(context, actor, saleId));
+      const billing = await this.deps.settings.billing(actor.tenantId);
+      const forced = requiresInvoiceA(billing.issuer, view.customer?.fiscalCondition ?? null);
+      return {
+        visible: billing.module,
+        proposal: billingDecision(billing.module, billing.policy, null, forced),
+        required: billing.module && (billing.policy === 'siempre' || forced),
+      };
     });
   }
 }

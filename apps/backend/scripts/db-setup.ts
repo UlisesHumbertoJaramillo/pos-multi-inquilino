@@ -37,7 +37,12 @@ function loadOrCreateEnv(): DbConfig {
   }
 
   // AUTH_TOKEN_SECRET firma los tokens de acceso (AD-11).
-  for (const key of ['DB_APP_PASSWORD', 'DB_OWNER_PASSWORD', 'AUTH_TOKEN_SECRET']) {
+  for (const key of [
+    'DB_APP_PASSWORD',
+    'DB_OWNER_PASSWORD',
+    'AUTH_TOKEN_SECRET',
+    'FISCAL_MASTER_KEY',
+  ]) {
     if (!values.get(key)) {
       const generated = randomBytes(32).toString('base64url');
       values.set(key, generated);
