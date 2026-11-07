@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.13.0
+  version: 0.14.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -43,6 +43,8 @@ tags:
     description: Control del simulador de la pasarela. Solo existe fuera de producción.
   - name: Fiscal
     description: Facturación fiscal, módulo opcional por comercio (AD-26).
+  - name: Devoluciones
+    description: Anulaciones dentro del turno y devoluciones en cualquier sucursal (VO).
 paths:
   /salud:
     get:
@@ -3712,7 +3714,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: &a105
+          schema: &a111
             type: string
             format: uuid
       responses:
@@ -3810,6 +3812,124 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401': *a58
         '403': *a59
+  /devoluciones/tickets/{numero}:
+    get:
+      operationId: findReturnTicket
+      tags:
+        - Devoluciones
+      summary: Buscar un ticket
+      description: Desde cualquier sucursal del comercio, con lo que todavía se puede devolver (RF-083). Solo un VO con turno abierto.
+      parameters:
+        - name: numero
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': &a61
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a62
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /devoluciones/ventas/{id}/cotizacion:
+    post:
+      operationId: quoteReturn
+      tags:
+        - Devoluciones
+      summary: Calcular el reintegro
+      description: Proporcional a cada medio de pago original (RF-085, RF-086). Indica si hace falta el PIN de un AS y con qué operacionRef pedirlo. Solo un VO con turno abierto.
+      parameters: &a63
+        - name: id
+          in: path
+          required: true
+          schema: &a114
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnQuoteRequest'
+      responses:
+        '200':
+          description: Reintegro.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnQuote'
+        '400': &a64
+          $ref: '#/components/responses/BadRequest'
+        '401': *a61
+        '403': *a62
+        '404': &a65
+          $ref: '#/components/responses/NotFound'
+        '409': &a66
+          $ref: '#/components/responses/Conflict'
+  /devoluciones/ventas/{id}:
+    post:
+      operationId: confirmReturn
+      tags:
+        - Devoluciones
+      summary: Confirmar la devolución
+      description: 'El reintegro sale de la caja del turno actual; si no alcanza el efectivo responde REINTEGRO_RECHAZADO y el motivo lo recibe solo el AS (RF-137). Los ítems quedan en revisión en la sucursal que los recibe (RF-087). La parte electrónica vuelve por la pasarela: si no la confirma, no se registra nada (D-89). Solo un VO con turno abierto.'
+      parameters: *a63
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnRequest'
+      responses:
+        '201':
+          description: Devolución registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReturnResult'
+        '400': *a64
+        '401': *a61
+        '403': *a62
+        '404': *a65
+        '409': *a66
+  /devoluciones/ventas/{id}/anulacion:
+    post:
+      operationId: voidSale
+      tags:
+        - Devoluciones
+      summary: Anular la venta
+      description: Total, en su mismo turno y sin devoluciones previas; si no, responde CORRESPONDE_DEVOLUCION (RF-136). Exige una autorización de tipo anulacion con operacionRef "anulacion:{ventaId}" (RF-081). Solo un VO con turno abierto.
+      parameters: *a63
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidRequest'
+      responses:
+        '201':
+          description: Venta anulada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidResult'
+        '400': *a64
+        '401': *a61
+        '403': *a62
+        '404': *a65
+        '409': *a66
 components:
   securitySchemes:
     tokenAcceso:
@@ -4139,7 +4259,7 @@ components:
         - moduloFacturacion
         - creadoEn
       properties:
-        id: &a61
+        id: &a67
           type: string
           format: uuid
         nombre:
@@ -4159,7 +4279,7 @@ components:
           type: boolean
         moduloFacturacion:
           type: boolean
-        creadoEn: &a62
+        creadoEn: &a68
           type: string
           format: date-time
     TenantCreateRequest:
@@ -4233,7 +4353,7 @@ components:
         - usuarioId
         - email
       properties:
-        usuarioId: *a61
+        usuarioId: *a67
         email:
           type: string
     TicketStatus:
@@ -4254,16 +4374,16 @@ components:
         - creadoEn
         - actualizadoEn
       properties:
-        id: *a61
-        comercioId: *a61
+        id: *a67
+        comercioId: *a67
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a62
-        actualizadoEn: *a62
+        creadoEn: *a68
+        actualizadoEn: *a68
     TicketMessage:
       type: object
       additionalProperties: false
@@ -4273,13 +4393,13 @@ components:
         - texto
         - creadoEn
       properties:
-        id: *a61
+        id: *a67
         deSoporte:
           type: boolean
           description: true si lo escribió el soporte de la plataforma.
         texto:
           type: string
-        creadoEn: *a62
+        creadoEn: *a68
     TicketDetail:
       type: object
       additionalProperties: false
@@ -4293,16 +4413,16 @@ components:
         - actualizadoEn
         - mensajes
       properties:
-        id: *a61
-        comercioId: *a61
+        id: *a67
+        comercioId: *a67
         comercioNombre:
           type: string
         asunto:
           type: string
         estado:
           $ref: '#/components/schemas/TicketStatus'
-        creadoEn: *a62
-        actualizadoEn: *a62
+        creadoEn: *a68
+        actualizadoEn: *a68
         mensajes:
           type: array
           items:
@@ -4344,17 +4464,17 @@ components:
         - ip
         - detalle
       properties:
-        id: *a61
-        momento: *a62
+        id: *a67
+        momento: *a68
         tipoEvento:
           type: string
         actorId:
-          type: &a63
+          type: &a69
             - string
             - 'null'
           format: uuid
         comercioId:
-          type: *a63
+          type: *a69
           format: uuid
           description: 'Solo como referencia: nunca acompaña datos comerciales.'
         ip:
@@ -4389,7 +4509,7 @@ components:
               - ruta
               - error
             properties:
-              momento: *a62
+              momento: *a68
               metodo:
                 type: string
               ruta:
@@ -4436,7 +4556,7 @@ components:
         - direccion
         - activa
       properties:
-        id: &a64
+        id: &a70
           type: string
           format: uuid
         nombre:
@@ -4457,8 +4577,8 @@ components:
         - puntoVentaFiscal
         - activa
       properties:
-        id: *a64
-        sucursalId: *a64
+        id: *a70
+        sucursalId: *a70
         nombre:
           type: string
         puntoVentaFiscal:
@@ -4483,7 +4603,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a64
+            id: *a70
             nombre:
               type: string
         sucursales:
@@ -4498,7 +4618,7 @@ components:
               - activa
               - cajas
             properties:
-              id: *a64
+              id: *a70
               nombre:
                 type: string
               direccion:
@@ -4597,7 +4717,7 @@ components:
         - correoValidado
         - roles
       properties:
-        id: *a64
+        id: *a70
         email:
           type: string
         nombre:
@@ -4721,7 +4841,7 @@ components:
         - recargoPct
         - activo
       properties:
-        id: *a64
+        id: *a70
         nombre:
           type: string
         tipo:
@@ -4769,7 +4889,7 @@ components:
         - tasaIva
         - activa
       properties:
-        id: &a66
+        id: &a72
           type: string
           format: uuid
         nombre:
@@ -4791,7 +4911,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: &a65
+        tasaIva: &a71
           type: string
           description: Número decimal, por ejemplo "21" o "10.5".
     CategoryUpdateRequest:
@@ -4803,7 +4923,7 @@ components:
           type: string
           minLength: 1
           maxLength: 80
-        tasaIva: *a65
+        tasaIva: *a71
     Product:
       type: object
       additionalProperties: false
@@ -4819,38 +4939,38 @@ components:
         - tieneImagen
         - disponible
       properties:
-        id: *a66
-        tipo: &a69
+        id: *a72
+        tipo: &a75
           type: string
           enum:
             - simple
             - combo
-        nombre: &a70
+        nombre: &a76
           type: string
-        codigoBarras: &a71
+        codigoBarras: &a77
           type:
             - string
             - 'null'
-        categoriaId: &a72
+        categoriaId: &a78
           type:
             - string
             - 'null'
           format: uuid
-        costo: &a73
-          type: &a67
+        costo: &a79
+          type: &a73
             - string
             - 'null'
           pattern: ^\d+\.\d{2}$
           description: Costo sin IVA; null en un combo.
-        precioCombo: &a74
-          type: *a67
+        precioCombo: &a80
+          type: *a73
           pattern: ^\d+\.\d{2}$
           description: Precio único del combo; null en un producto simple.
-        activo: &a75
+        activo: &a81
           type: boolean
-        tieneImagen: &a76
+        tieneImagen: &a82
           type: boolean
-        disponible: &a77
+        disponible: &a83
           type: boolean
           description: 'Se puede vender: activo y, si es combo, con todos sus componentes activos.'
     ProductCreateRequest:
@@ -4865,14 +4985,14 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: &a68
+        codigoBarras: &a74
           type:
             - string
             - 'null'
           maxLength: 48
           description: 'Letras, números y guiones. Vacío o null: sin código.'
-        categoriaId: *a66
-        costo: *a65
+        categoriaId: *a72
+        costo: *a71
     ProductUpdateRequest:
       type: object
       additionalProperties: false
@@ -4882,9 +5002,9 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a68
-        categoriaId: *a66
-        costo: *a65
+        codigoBarras: *a74
+        categoriaId: *a72
+        costo: *a71
     ComboComponent:
       type: object
       additionalProperties: false
@@ -4894,7 +5014,7 @@ components:
         - cantidad
         - activo
       properties:
-        productoId: *a66
+        productoId: *a72
         nombre:
           type: string
         cantidad:
@@ -4919,16 +5039,16 @@ components:
         - disponible
         - componentes
       properties:
-        id: *a66
-        tipo: *a69
-        nombre: *a70
-        codigoBarras: *a71
-        categoriaId: *a72
-        costo: *a73
-        precioCombo: *a74
-        activo: *a75
-        tieneImagen: *a76
-        disponible: *a77
+        id: *a72
+        tipo: *a75
+        nombre: *a76
+        codigoBarras: *a77
+        categoriaId: *a78
+        costo: *a79
+        precioCombo: *a80
+        activo: *a81
+        tieneImagen: *a82
+        disponible: *a83
         componentes:
           type: array
           items:
@@ -4945,21 +5065,21 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a68
-        precio: *a65
+        codigoBarras: *a74
+        precio: *a71
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: &a78
+          items: &a84
             type: object
             additionalProperties: false
             required:
               - productoId
               - cantidad
             properties:
-              productoId: *a66
-              cantidad: *a65
+              productoId: *a72
+              cantidad: *a71
     ComboUpdateRequest:
       type: object
       additionalProperties: false
@@ -4969,13 +5089,13 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-        codigoBarras: *a68
-        precio: *a65
+        codigoBarras: *a74
+        precio: *a71
         componentes:
           type: array
           minItems: 1
           maxItems: 20
-          items: *a78
+          items: *a84
     PriceRuleType:
       type: string
       enum:
@@ -5010,7 +5130,7 @@ components:
         - regla
         - activa
       properties:
-        id: *a66
+        id: *a72
         nombre:
           type: string
         regla:
@@ -5063,7 +5183,7 @@ components:
               - categoria
               - precioFinal
             properties:
-              productoId: *a66
+              productoId: *a72
               nombre:
                 type: string
               codigoBarras:
@@ -5080,7 +5200,7 @@ components:
                   - string
                   - 'null'
               precioFinal:
-                type: *a67
+                type: *a73
                 pattern: ^\d+\.\d{2}$
                 description: Precio final con IVA; null si no tiene precio en esta lista.
     ManualPriceRequest:
@@ -5102,17 +5222,17 @@ components:
         - nombre
         - listaId
       properties:
-        sucursalId: *a66
+        sucursalId: *a72
         nombre:
           type: string
-        listaId: *a72
+        listaId: *a78
     BranchPriceListRequest:
       type: object
       additionalProperties: false
       required:
         - listaId
       properties:
-        listaId: *a66
+        listaId: *a72
     StockBalance:
       type: object
       additionalProperties: false
@@ -5125,23 +5245,23 @@ components:
         - umbralMinimo
         - alertaActiva
       properties:
-        productoId: &a80
+        productoId: &a86
           type: string
           format: uuid
-        disponible: &a79
+        disponible: &a85
           type: string
           pattern: ^\d+\.\d{3}$
           description: Cantidad con tres decimales.
-        reservado: *a79
-        enRevision: *a79
-        enTransito: *a79
-        umbralMinimo: &a81
-          type: &a85
+        reservado: *a85
+        enRevision: *a85
+        enTransito: *a85
+        umbralMinimo: &a87
+          type: &a91
             - string
             - 'null'
           pattern: ^\d+\.\d{3}$
           description: 'null: sin umbral.'
-        alertaActiva: &a82
+        alertaActiva: &a88
           type: boolean
           description: El disponible está por debajo del umbral y ya se alertó.
     StockRow:
@@ -5159,13 +5279,13 @@ components:
         - codigoBarras
         - activo
       properties:
-        productoId: *a80
-        disponible: *a79
-        reservado: *a79
-        enRevision: *a79
-        enTransito: *a79
-        umbralMinimo: *a81
-        alertaActiva: *a82
+        productoId: *a86
+        disponible: *a85
+        reservado: *a85
+        enRevision: *a85
+        enTransito: *a85
+        umbralMinimo: *a87
+        alertaActiva: *a88
         nombre:
           type: string
         codigoBarras:
@@ -5182,7 +5302,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a80
+        productoId: *a86
         cantidad:
           type: string
           maxLength: 20
@@ -5216,7 +5336,7 @@ components:
         - cantidad
         - motivo
       properties:
-        productoId: *a80
+        productoId: *a86
         cantidad:
           type: string
           maxLength: 20
@@ -5266,8 +5386,8 @@ components:
         - usuarioId
         - momento
       properties:
-        id: *a80
-        productoId: *a80
+        id: *a86
+        productoId: *a86
         nombre:
           type: string
         tipo:
@@ -5285,7 +5405,7 @@ components:
             - cancelacion
             - devolucion
             - reingreso
-        estadoOrigen: &a83
+        estadoOrigen: &a89
           type:
             - string
             - 'null'
@@ -5295,9 +5415,9 @@ components:
             - en_revision
             - en_transito
             - null
-        estadoDestino: *a83
-        cantidad: *a79
-        referencia: &a84
+        estadoDestino: *a89
+        cantidad: *a85
+        referencia: &a90
           type:
             - string
             - 'null'
@@ -5306,7 +5426,7 @@ components:
           type:
             - string
             - 'null'
-        usuarioId: *a80
+        usuarioId: *a86
         momento:
           type: string
           format: date-time
@@ -5321,7 +5441,7 @@ components:
         - detalle
         - creadaEn
       properties:
-        id: *a80
+        id: *a86
         tipo:
           type: string
           description: stock_minimo o transferencia_faltante.
@@ -5331,7 +5451,7 @@ components:
             - info
             - advertencia
             - critica
-        referencia: *a84
+        referencia: *a90
         detalle:
           type: object
         creadaEn:
@@ -5346,7 +5466,7 @@ components:
         - unidades
         - vendible
       properties:
-        comboId: *a80
+        comboId: *a86
         nombre:
           type: string
         unidades:
@@ -5363,7 +5483,7 @@ components:
         - nombre
         - propia
       properties:
-        id: *a80
+        id: *a86
         nombre:
           type: string
         propia:
@@ -5388,7 +5508,7 @@ components:
         - cerradaEn
         - items
       properties:
-        id: *a80
+        id: *a86
         origen:
           type: object
           additionalProperties: false
@@ -5396,7 +5516,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a80
+            id: *a86
             nombre:
               type: string
         destino:
@@ -5406,7 +5526,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a80
+            id: *a86
             nombre:
               type: string
         estado:
@@ -5432,15 +5552,15 @@ components:
               - rechazada
               - faltante
             properties:
-              productoId: *a80
+              productoId: *a86
               nombre:
                 type: string
-              enviada: *a79
-              recibida: &a86
-                type: *a85
+              enviada: *a85
+              recibida: &a92
+                type: *a91
                 pattern: ^\d+\.\d{3}$
-              rechazada: *a86
-              faltante: *a86
+              rechazada: *a92
+              faltante: *a92
     TransferCreateRequest:
       type: object
       additionalProperties: false
@@ -5449,8 +5569,8 @@ components:
         - destinoId
         - items
       properties:
-        origenId: *a80
-        destinoId: *a80
+        origenId: *a86
+        destinoId: *a86
         items:
           type: array
           minItems: 1
@@ -5462,7 +5582,7 @@ components:
               - productoId
               - cantidad
             properties:
-              productoId: *a80
+              productoId: *a86
               cantidad:
                 type: string
                 maxLength: 20
@@ -5485,7 +5605,7 @@ components:
               - recibida
               - rechazada
             properties:
-              productoId: *a80
+              productoId: *a86
               recibida:
                 type: string
                 maxLength: 20
@@ -5505,7 +5625,7 @@ components:
         - saldoAdeudado
         - activo
       properties:
-        id: &a88
+        id: &a94
           type: string
           format: uuid
         razonSocial:
@@ -5529,7 +5649,7 @@ components:
       additionalProperties: false
       required:
         - razonSocial
-      properties: &a87
+      properties: &a93
         razonSocial:
           type: string
           minLength: 1
@@ -5549,7 +5669,7 @@ components:
       type: object
       additionalProperties: false
       required: []
-      properties: *a87
+      properties: *a93
     SupplierStatement:
       type: object
       additionalProperties: false
@@ -5576,11 +5696,11 @@ components:
                 enum:
                   - compra
                   - pago
-              id: *a88
+              id: *a94
               momento:
                 type: string
                 format: date-time
-              importe: &a89
+              importe: &a95
                 type: string
                 pattern: ^-?\d+\.\d{2}$
                 description: Monto con dos decimales.
@@ -5599,7 +5719,7 @@ components:
         - preciosRecalculados
         - errores
       properties:
-        id: *a88
+        id: *a94
         filasOk:
           type: integer
           minimum: 0
@@ -5676,8 +5796,8 @@ components:
             - confirmadoExceso
             - momento
           properties:
-            id: *a88
-            monto: *a89
+            id: *a94
+            monto: *a95
             metodo:
               $ref: '#/components/schemas/SupplierPaymentMethod'
             comprobante:
@@ -5687,7 +5807,7 @@ components:
             momento:
               type: string
               format: date-time
-        saldoAdeudado: *a89
+        saldoAdeudado: *a95
     Purchase:
       type: object
       additionalProperties: false
@@ -5702,7 +5822,7 @@ components:
         - recibidaEn
         - items
       properties:
-        id: *a88
+        id: *a94
         proveedor:
           type: object
           additionalProperties: false
@@ -5710,7 +5830,7 @@ components:
             - id
             - razonSocial
           properties:
-            id: *a88
+            id: *a94
             razonSocial:
               type: string
         sucursal:
@@ -5720,7 +5840,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a88
+            id: *a94
             nombre:
               type: string
         estado:
@@ -5733,7 +5853,7 @@ components:
             - string
             - 'null'
           description: Factura o remito del proveedor.
-        total: *a89
+        total: *a95
         registradaEn:
           type: string
           format: date-time
@@ -5756,22 +5876,22 @@ components:
               - recibida
               - diferencia
             properties:
-              productoId: *a88
+              productoId: *a94
               nombre:
                 type: string
               cantidad:
                 type: string
                 pattern: ^\d+\.\d{3}$
                 description: Cantidad con tres decimales.
-              costoUnitario: *a89
-              subtotal: *a89
+              costoUnitario: *a95
+              subtotal: *a95
               recibida:
-                type: &a90
+                type: &a96
                   - string
                   - 'null'
                 pattern: ^\d+\.\d{3}$
               diferencia:
-                type: *a90
+                type: *a96
                 pattern: ^\d+\.\d{3}$
                 description: Lo comprado que no llegó.
     PurchaseCreateRequest:
@@ -5782,8 +5902,8 @@ components:
         - sucursalId
         - items
       properties:
-        proveedorId: *a88
-        sucursalId: *a88
+        proveedorId: *a94
+        sucursalId: *a94
         comprobante:
           type:
             - string
@@ -5801,7 +5921,7 @@ components:
               - cantidad
               - costoUnitario
             properties:
-              productoId: *a88
+              productoId: *a94
               cantidad:
                 type: string
                 maxLength: 20
@@ -5827,7 +5947,7 @@ components:
               - productoId
               - recibida
             properties:
-              productoId: *a88
+              productoId: *a94
               recibida:
                 type: string
                 maxLength: 20
@@ -5897,7 +6017,7 @@ components:
         - activa
         - vigente
       properties:
-        id: &a91
+        id: &a97
           type: string
           format: uuid
         nombre:
@@ -5916,7 +6036,7 @@ components:
             - id
             - nombre
           properties:
-            id: *a91
+            id: *a97
             nombre:
               type: string
         vigenteDesde:
@@ -5929,7 +6049,7 @@ components:
           type:
             - array
             - 'null'
-          items: *a91
+          items: *a97
         activa:
           type: boolean
         vigente:
@@ -5946,7 +6066,7 @@ components:
         - vigenteDesde
         - vigenteHasta
         - sucursales
-      properties: &a92
+      properties: &a98
         nombre:
           type: string
           minLength: 1
@@ -5972,13 +6092,13 @@ components:
           type:
             - array
             - 'null'
-          items: *a91
+          items: *a97
           description: 'null: todas las sucursales.'
     PromotionUpdateRequest:
       type: object
       additionalProperties: false
       required: []
-      properties: *a92
+      properties: *a98
     DiscountCap:
       type: object
       additionalProperties: false
@@ -5986,7 +6106,7 @@ components:
         - porcentajeMaximo
         - montoMaximo
       properties:
-        porcentajeMaximo: &a93
+        porcentajeMaximo: &a99
           type: string
           maxLength: 20
           description: Porcentaje máximo de descuento por venta, entre 0 y 100, con hasta 4 decimales.
@@ -6014,7 +6134,7 @@ components:
         - porcentajeMaximo
         - monto
       properties:
-        porcentajeMaximo: *a93
+        porcentajeMaximo: *a99
         monto:
           type: string
           maxLength: 20
@@ -6083,10 +6203,10 @@ components:
         - turnoAbierto
         - requiereCorteZ
       properties:
-        id: &a94
+        id: &a100
           type: string
           format: uuid
-        nombre: &a95
+        nombre: &a101
           type: string
         jornada:
           oneOf:
@@ -6097,11 +6217,11 @@ components:
                 - fecha
                 - abiertaEn
               properties:
-                id: *a94
+                id: *a100
                 fecha:
                   type: string
                   format: date
-                abiertaEn: &a96
+                abiertaEn: &a102
                   type: string
                   format: date-time
             - type: 'null'
@@ -6115,10 +6235,10 @@ components:
                 - vendedor
                 - abiertoEn
               properties:
-                id: *a94
-                vendedorId: *a94
-                vendedor: *a95
-                abiertoEn: *a96
+                id: *a100
+                vendedorId: *a100
+                vendedor: *a101
+                abiertoEn: *a102
             - type: 'null'
         requiereCorteZ:
           type: boolean
@@ -6140,23 +6260,23 @@ components:
         - estado
         - forzado
       properties:
-        id: *a94
-        cajaId: *a94
-        caja: *a95
-        sucursalId: *a94
-        jornadaId: *a94
+        id: *a100
+        cajaId: *a100
+        caja: *a101
+        sucursalId: *a100
+        jornadaId: *a100
         fechaJornada:
           type: string
           format: date
-        vendedorId: *a94
-        vendedor: *a95
-        saldoInicial: *a95
+        vendedorId: *a100
+        vendedor: *a101
+        saldoInicial: *a101
         diferenciaInicial:
           type:
             - string
             - 'null'
           description: Diferencia con lo declarado en el Corte X anterior de la jornada; null si no hubo.
-        abiertoEn: *a96
+        abiertoEn: *a102
         estado:
           type: string
           enum:
@@ -6175,7 +6295,7 @@ components:
         - motivo
         - registradoEn
       properties:
-        id: *a94
+        id: *a100
         tipo:
           type: string
           enum:
@@ -6187,12 +6307,12 @@ components:
             - anulacion
         enEfectivo:
           type: boolean
-        monto: *a95
+        monto: *a101
         motivo:
           type:
             - string
             - 'null'
-        registradoEn: *a96
+        registradoEn: *a102
     OwnShift:
       type: object
       additionalProperties: false
@@ -6214,7 +6334,7 @@ components:
       required:
         - declarado
       properties:
-        declarado: *a95
+        declarado: *a101
         diferencia:
           type: string
           description: 'Declarado menos teórico: negativa es faltante. Solo para un AS o un AC.'
@@ -6251,9 +6371,9 @@ components:
         - turnos
         - arqueo
       properties:
-        jornadaId: *a94
-        cajaId: *a94
-        caja: *a95
+        jornadaId: *a100
+        cajaId: *a100
+        caja: *a101
         fechaJornada:
           type: string
           format: date
@@ -6269,7 +6389,7 @@ components:
         - cajaId
         - saldoInicial
       properties:
-        cajaId: *a94
+        cajaId: *a100
         saldoInicial:
           type: string
           maxLength: 20
@@ -6305,7 +6425,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-        autorizacionId: *a94
+        autorizacionId: *a100
     CashDeclarationRequest:
       type: object
       additionalProperties: false
@@ -6324,8 +6444,8 @@ components:
         - nombre
         - rol
       properties:
-        id: *a94
-        nombre: *a95
+        id: *a100
+        nombre: *a101
         rol:
           type: string
           enum:
@@ -6345,15 +6465,15 @@ components:
         - creadoEn
         - venceEn
       properties:
-        id: &a97
+        id: &a103
           type: string
           format: uuid
-        ventaId: *a97
-        emisorId: *a97
-        emisor: &a98
+        ventaId: *a103
+        emisorId: *a103
+        emisor: &a104
           type: string
-        receptorId: *a97
-        receptor: *a98
+        receptorId: *a103
+        receptor: *a104
         estado:
           type: string
           enum:
@@ -6361,10 +6481,10 @@ components:
             - aceptado
             - rechazado
             - vencido
-        creadoEn: &a99
+        creadoEn: &a105
           type: string
           format: date-time
-        venceEn: *a99
+        venceEn: *a105
     CartItem:
       type: object
       additionalProperties: false
@@ -6380,15 +6500,15 @@ components:
         - descuentoManual
         - importeFinal
       properties:
-        id: *a97
-        productoId: *a97
+        id: *a103
+        productoId: *a103
         tipo:
           type: string
           enum:
             - simple
             - combo
-        nombre: *a98
-        cantidad: *a98
+        nombre: *a104
+        cantidad: *a104
         precioUnitario:
           type: string
           description: Fijado al agregar el ítem (RF-030, RF-031).
@@ -6400,13 +6520,13 @@ components:
                 - id
                 - nombre
               properties:
-                id: *a97
-                nombre: *a98
+                id: *a103
+                nombre: *a104
             - type: 'null'
           description: Promoción aplicada, para resaltarla (RF-050).
-        descuentoPromocion: *a98
-        descuentoManual: *a98
-        importeFinal: *a98
+        descuentoPromocion: *a104
+        descuentoManual: *a104
+        importeFinal: *a104
     Cart:
       type: object
       additionalProperties: false
@@ -6431,7 +6551,7 @@ components:
         - pagos
         - porCobrar
       properties:
-        id: *a97
+        id: *a103
         estado:
           type: string
           enum:
@@ -6445,10 +6565,10 @@ components:
             - integer
             - 'null'
           description: Correlativo por comercio, al confirmar (D-81).
-        sucursalId: *a97
-        cajaId: *a97
-        turnoId: *a97
-        vendedorId: *a97
+        sucursalId: *a103
+        cajaId: *a103
+        turnoId: *a103
+        vendedorId: *a103
         items:
           type: array
           items:
@@ -6456,8 +6576,8 @@ components:
         subtotal:
           type: string
           description: Después de promociones.
-        descuentoPromociones: *a98
-        descuentoManual: *a98
+        descuentoPromociones: *a104
+        descuentoManual: *a104
         descuento:
           oneOf:
             - type: object
@@ -6472,12 +6592,12 @@ components:
                   enum:
                     - porcentaje
                     - monto
-                valor: *a98
+                valor: *a104
                 autorizado:
                   type: boolean
                   description: Autorizado por PIN por superar la cuota.
             - type: 'null'
-        total: *a98
+        total: *a104
         iva:
           type: array
           items:
@@ -6489,15 +6609,15 @@ components:
               - neto
               - iva
             properties:
-              tasa: *a98
-              base: *a98
-              neto: *a98
-              iva: *a98
+              tasa: *a104
+              base: *a104
+              neto: *a104
+              iva: *a104
         traspaso:
           oneOf:
             - $ref: '#/components/schemas/SaleTransfer'
             - type: 'null'
-        ultimaActividad: *a99
+        ultimaActividad: *a105
         cliente:
           oneOf:
             - $ref: '#/components/schemas/SaleCustomer'
@@ -6535,8 +6655,8 @@ components:
         - precio
         - disponible
       properties:
-        id: *a97
-        nombre: *a98
+        id: *a103
+        nombre: *a104
         tipo:
           type: string
           enum:
@@ -6576,9 +6696,9 @@ components:
         cobrado:
           type: string
           description: Total más los recargos o descuentos de cada medio.
-        ajuste: *a98
-        entregado: *a98
-        vuelto: *a98
+        ajuste: *a104
+        entregado: *a104
+        vuelto: *a104
         seFactura:
           type: boolean
         estadoFiscal:
@@ -6605,8 +6725,8 @@ components:
         - id
         - nombre
       properties:
-        id: *a97
-        nombre: *a98
+        id: *a103
+        nombre: *a104
     SaleItemRequest:
       type: object
       additionalProperties: false
@@ -6614,7 +6734,7 @@ components:
         - productoId
         - cantidad
       properties:
-        productoId: *a97
+        productoId: *a103
         cantidad:
           type: string
           maxLength: 20
@@ -6682,13 +6802,13 @@ components:
               - metodoPagoId
               - fraccion
             properties:
-              metodoPagoId: &a100
+              metodoPagoId: &a106
                 type: string
                 format: uuid
-              fraccion: &a102
+              fraccion: &a108
                 type: string
                 maxLength: 20
-              entregado: &a104
+              entregado: &a110
                 type:
                   - string
                   - 'null'
@@ -6705,7 +6825,7 @@ components:
       required:
         - receptorId
       properties:
-        receptorId: *a97
+        receptorId: *a103
     SalePayment:
       type: object
       additionalProperties: false
@@ -6721,13 +6841,13 @@ components:
         - estado
         - resolucionManual
       properties:
-        id: *a100
+        id: *a106
         metodoPagoId:
           type:
             - string
             - 'null'
           format: uuid
-        metodo: &a101
+        metodo: &a107
           type: string
         tipo:
           type: string
@@ -6735,10 +6855,10 @@ components:
             - efectivo
             - electronico
             - cuenta_corriente
-        fraccion: *a101
-        recargo: *a101
-        entregado: *a101
-        vuelto: *a101
+        fraccion: *a107
+        recargo: *a107
+        entregado: *a107
+        vuelto: *a107
         estado:
           type: string
           enum:
@@ -6763,17 +6883,17 @@ components:
         - disponible
         - condicionFiscal
       properties:
-        id: *a100
-        razonSocial: *a101
-        documento: &a103
+        id: *a106
+        razonSocial: *a107
+        documento: &a109
           type:
             - string
             - 'null'
         cuentaCorriente:
           type: boolean
-        saldo: *a101
-        disponible: *a101
-        condicionFiscal: &a106
+        saldo: *a107
+        disponible: *a107
+        condicionFiscal: &a112
           type: string
     SalePaymentMethod:
       type: object
@@ -6784,15 +6904,15 @@ components:
         - tipo
         - recargoPct
       properties:
-        id: *a100
-        nombre: *a101
+        id: *a106
+        nombre: *a107
         tipo:
           type: string
           enum:
             - efectivo
             - electronico
             - cuenta_corriente
-        recargoPct: *a101
+        recargoPct: *a107
     SaleCustomerRequest:
       type: object
       additionalProperties: false
@@ -6812,9 +6932,9 @@ components:
         - fraccion
         - claveIdempotencia
       properties:
-        metodoPagoId: *a100
-        fraccion: *a102
-        claveIdempotencia: *a100
+        metodoPagoId: *a106
+        fraccion: *a108
+        claveIdempotencia: *a106
     SalePaymentAttempt:
       type: object
       additionalProperties: false
@@ -6838,7 +6958,7 @@ components:
           enum:
             - aprobado
             - rechazado
-        autorizacionId: *a100
+        autorizacionId: *a106
     Customer:
       type: object
       additionalProperties: false
@@ -6853,9 +6973,9 @@ components:
         - disponible
         - activo
       properties:
-        id: *a100
-        razonSocial: *a101
-        documento: *a103
+        id: *a106
+        razonSocial: *a107
+        documento: *a109
         condicionFiscal:
           type: string
           enum:
@@ -6865,9 +6985,9 @@ components:
             - exento
         cuentaCorriente:
           type: boolean
-        limiteCredito: *a101
-        saldo: *a101
-        disponible: *a101
+        limiteCredito: *a107
+        saldo: *a107
+        disponible: *a107
         activo:
           type: boolean
     CustomerRequest:
@@ -6901,7 +7021,7 @@ components:
       properties:
         cuentaCorriente:
           type: boolean
-        limite: *a102
+        limite: *a108
     AccountCollectionRequest:
       type: object
       additionalProperties: false
@@ -6910,10 +7030,10 @@ components:
         - monto
         - claveIdempotencia
       properties:
-        metodoPagoId: *a100
-        monto: *a102
-        entregado: *a104
-        claveIdempotencia: *a100
+        metodoPagoId: *a106
+        monto: *a108
+        entregado: *a110
+        claveIdempotencia: *a106
     AccountCollection:
       type: object
       additionalProperties: false
@@ -6932,10 +7052,10 @@ components:
         - resolucionManual
         - recibo
       properties:
-        id: *a100
-        clienteId: *a100
-        cliente: *a101
-        monto: *a101
+        id: *a106
+        clienteId: *a106
+        cliente: *a107
+        monto: *a107
         estado:
           type: string
           enum:
@@ -6943,12 +7063,12 @@ components:
             - por_verificar
             - aplicado
             - rechazado
-        pagoId: *a100
-        metodo: *a101
-        recargo: *a101
-        entregado: *a101
-        vuelto: *a101
-        saldoCliente: *a101
+        pagoId: *a106
+        metodo: *a107
+        recargo: *a107
+        entregado: *a107
+        vuelto: *a107
+        saldoCliente: *a107
         resolucionManual:
           type: boolean
         recibo:
@@ -6962,7 +7082,7 @@ components:
               properties:
                 numero:
                   type: integer
-                monto: *a101
+                monto: *a107
                 emitidoEn:
                   type: string
                   format: date-time
@@ -6988,7 +7108,7 @@ components:
         - condicionFiscal
         - certificadoVenceEn
       properties:
-        cuit: &a107
+        cuit: &a113
           type:
             - string
             - 'null'
@@ -7053,7 +7173,7 @@ components:
         - emitidoEn
         - plazoVence
       properties:
-        id: *a105
+        id: *a111
         tipo:
           type: string
           enum:
@@ -7068,7 +7188,7 @@ components:
             - B
             - C
             - null
-        ventaId: *a105
+        ventaId: *a111
         numeroTicket:
           type:
             - integer
@@ -7081,8 +7201,8 @@ components:
           type:
             - integer
             - 'null'
-        total: *a106
-        comprador: *a107
+        total: *a112
+        comprador: *a113
         estado:
           type: string
           enum:
@@ -7094,9 +7214,9 @@ components:
           type: boolean
         noFiscal:
           type: boolean
-        cae: *a107
-        caea: *a107
-        motivoRechazo: *a107
+        cae: *a113
+        caea: *a113
+        motivoRechazo: *a113
         intentos:
           type: integer
         emitidoEn:
@@ -7115,9 +7235,9 @@ components:
         - detalle
         - creadaEn
       properties:
-        id: *a105
-        tipo: *a106
-        severidad: *a106
+        id: *a111
+        tipo: *a112
+        severidad: *a112
         detalle:
           type: object
         creadaEn:
@@ -7173,3 +7293,157 @@ components:
             - acepta
             - rechaza
             - caido
+    ReturnTicket:
+      type: object
+      additionalProperties: false
+      required:
+        - ventaId
+        - numeroTicket
+        - sucursal
+        - estado
+        - total
+        - facturada
+        - anulable
+        - items
+      properties:
+        ventaId: *a114
+        numeroTicket:
+          type:
+            - integer
+            - 'null'
+        sucursal: &a115
+          type: string
+        estado: *a115
+        total: *a115
+        facturada:
+          type: boolean
+        anulable:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - nombre
+              - cantidad
+              - devuelta
+              - devolvible
+              - importe
+            properties:
+              id: *a114
+              nombre: *a115
+              cantidad: *a115
+              devuelta: *a115
+              devolvible: *a115
+              importe: *a115
+    ReturnQuoteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items: &a116
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - itemId
+              - cantidad
+            properties:
+              itemId: *a114
+              cantidad:
+                type: string
+                maxLength: 20
+    ReturnRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items: *a116
+        autorizacionId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+    VoidRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        autorizacionId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        items: *a116
+    ReturnQuote:
+      type: object
+      additionalProperties: false
+      required:
+        - valor
+        - reintegro
+        - efectivo
+        - cuentaCorriente
+        - porMedio
+        - requiereAutorizacion
+        - operacionRef
+      properties:
+        valor: *a115
+        reintegro: *a115
+        efectivo: &a117
+          type: string
+          description: A pagar en efectivo, incluido el excedente de la cuenta corriente.
+        cuentaCorriente: &a118
+          type: string
+          description: Lo que baja el saldo del cliente.
+        porMedio: &a119
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - metodo
+              - tipo
+              - monto
+            properties:
+              metodo: *a115
+              tipo: *a115
+              monto: *a115
+        requiereAutorizacion: &a120
+          type: boolean
+        operacionRef: *a115
+    VoidResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - reintegro
+      properties:
+        id: *a114
+        reintegro: *a115
+    ReturnResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - valor
+        - reintegro
+        - efectivo
+        - cuentaCorriente
+        - porMedio
+        - requiereAutorizacion
+        - operacionRef
+      properties:
+        id: *a114
+        valor: *a115
+        reintegro: *a115
+        efectivo: *a117
+        cuentaCorriente: *a118
+        porMedio: *a119
+        requiereAutorizacion: *a120
+        operacionRef: *a115

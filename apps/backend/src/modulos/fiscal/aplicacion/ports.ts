@@ -32,6 +32,9 @@ export interface Voucher {
   deadline: Date;
   issuedAt: Date;
   resolvedAt: Date | null;
+  // Nota de Crédito: su factura original y la devolución o anulación que la originó.
+  originalId: string | null;
+  originId: string | null;
 }
 
 export interface VoucherRow extends Voucher {
@@ -50,13 +53,16 @@ export interface FiscalRepository {
   insert(voucher: Voucher): Promise<void>;
   find(tenantId: string, id: string, lock: boolean): Promise<Voucher | undefined>;
   forSale(tenantId: string, saleId: string): Promise<Voucher | undefined>;
+  forOrigin(tenantId: string, originId: string): Promise<Voucher | undefined>;
+  unblockCreditNotes(tenantId: string, originalId: string, now: Date): Promise<void>;
   list(tenantId: string, branchIds: readonly string[] | null): Promise<VoucherRow[]>;
   // Cola vencida, en el orden en que se emitió dentro de cada punto de venta (RF-102).
   due(tenantId: string, now: Date): Promise<Voucher[]>;
   // Toma un comprobante para enviarlo: otro worker no lo repite mientras dure el envío.
   claim(tenantId: string, id: string, now: Date, until: Date): Promise<boolean>;
   save(voucher: Voucher): Promise<void>;
-  nextNumber(tenantId: string, pointOfSale: number, voucherClass: VoucherClass): Promise<number>;
+  // La serie es por punto de venta y por tipo: A, B, C o NCA, NCB, NCC.
+  nextNumber(tenantId: string, pointOfSale: number, series: string): Promise<number>;
   addAttempt(
     tenantId: string,
     attempt: {

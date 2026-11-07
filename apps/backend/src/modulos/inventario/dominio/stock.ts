@@ -24,7 +24,8 @@ export type MovementType =
   | 'rechazo'
   | 'cancelacion'
   | 'devolucion'
-  | 'reingreso';
+  | 'reingreso'
+  | 'anulacion';
 
 // Una operación: de qué estado sale la cantidad y a cuál entra. Nulo: fuera del inventario.
 export interface StockOperation {
@@ -46,6 +47,8 @@ export const OPERATIONS = {
   // Mermas (RF-042) y resolución de ítems en revisión (RF-088).
   mermar: { type: 'merma', from: 'disponible', to: null },
   pasarARevision: { type: 'devolucion', from: null, to: 'en_revision' },
+  // Anulación de una venta: lo vendido vuelve al disponible (RF-082).
+  reponer: { type: 'anulacion', from: null, to: 'disponible' },
   reingresar: { type: 'reingreso', from: 'en_revision', to: 'disponible' },
   mermarRevision: { type: 'merma', from: 'en_revision', to: null },
   // Transferencias (RF-044 a RF-046, RF-151). El tránsito se lleva en la sucursal de origen.

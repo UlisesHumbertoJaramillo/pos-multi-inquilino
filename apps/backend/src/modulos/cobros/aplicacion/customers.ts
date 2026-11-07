@@ -7,6 +7,7 @@ import type { IdGenerator } from '../../../compartido/aplicacion/id-generator.js
 import type { SecurityContext } from '../../../compartido/aplicacion/security-context.js';
 import type { UnitOfWork } from '../../../compartido/aplicacion/unit-of-work.js';
 import { DomainError } from '../../../compartido/dominio/errors.js';
+import { cents, creditRefund, money } from '../../calculo/aplicacion/engine.js';
 import {
   assertNoDebt,
   availableCredit,
@@ -159,6 +160,13 @@ export class DeactivateCustomer extends CustomerUseCase {
   }
 }
 
+// Devolución o anulación de una venta a crédito (RF-086, D-29): el saldo baja hasta cero, sin tocar
+// lo apartado por cobros sin resultado; el excedente se reintegra en efectivo.
+export interface CreditReturn {
+  reduced: string;
+  excess: string;
+}
+
 export type CreditCharge = { ok: true; balance: string } | { ok: false; available: string };
 
 // Crédito para las ventas (RF-073, RF-074, RF-144). Corre dentro de la transacción de la venta.
@@ -171,6 +179,38 @@ export class CustomerCredit {
 
   find(tenantId: string, id: string) {
     return this.deps.customers.find(tenantId, id, false);
+  }
+
+  // Saldo que se puede bajar: lo adeudado menos lo apartado por cobros sin resultado.
+  async freeBalance(tenantId: string, id: string): Promise<string> {
+    const customer = await this.deps.customers.find(tenantId, id, false);
+    if (!customer) return '0.00';
+    const free = cents(customer.balance) - cents(customer.committed);
+    return money(free > 0n ? free : 0n);
+  }
+
+  async refund(
+    actor: Actor,
+    input: { customerId: string; amount: string; saleId: string; type: 'devolucion' | 'anulacion' },
+  ): Promise<CreditReturn> {
+    const customer = await this.deps.customers.find(actor.tenantId, input.customerId, true);
+    const free = customer ? cents(customer.balance) - cents(customer.committed) : 0n;
+    const split = creditRefund(cents(input.amount), free > 0n ? free : 0n);
+    if (customer && split.balanceReduction > 0n) {
+      const reduced = money(split.balanceReduction);
+      const balance = await this.deps.customers.reduceBalance(actor.tenantId, customer.id, reduced);
+      if (balance === null) throw new Error('No se pudo bajar el saldo del cliente.');
+      await this.deps.customers.addMovement(actor, {
+        id: this.deps.ids.next(),
+        customerId: customer.id,
+        type: input.type,
+        amount: reduced,
+        balance,
+        saleId: input.saleId,
+        collectionId: null,
+      });
+    }
+    return { reduced: money(split.balanceReduction), excess: money(split.cashExcess) };
   }
 
   async charge(

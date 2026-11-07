@@ -123,6 +123,9 @@ export interface SalesRepository {
   paymentByKey(tenantId: string, key: string): Promise<Payment | undefined>;
   // Pagos que retienen la venta: aprobados o sin un resultado definitivo.
   hasLivePayments(tenantId: string, saleId: string): Promise<boolean>;
+  // Suma lo devuelto de un ítem sin pasar lo vendido, en una sola sentencia (RF-084, RF-152).
+  addReturned(tenantId: string, itemId: string, quantity: string): Promise<boolean>;
+  subtractReturned(tenantId: string, itemId: string, quantity: string): Promise<void>;
   insertTransfer(tenantId: string, transfer: Transfer): Promise<void>;
   pendingTransfer(tenantId: string, saleId: string): Promise<Transfer | undefined>;
   findTransfer(tenantId: string, id: string, lock: boolean): Promise<Transfer | undefined>;

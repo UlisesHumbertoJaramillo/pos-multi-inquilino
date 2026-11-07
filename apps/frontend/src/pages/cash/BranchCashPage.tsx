@@ -26,6 +26,8 @@ import { AmountDialog, CountResultDialog } from './CashDialogs';
 
 const CASH_ALERTS = new Set([
   'reintegro_pendiente',
+  'reintegro_rechazado',
+  'reintegro_incierto',
   'diferencia_apertura',
   'retiro_rechazado',
   'arqueo_fuera_de_tolerancia',

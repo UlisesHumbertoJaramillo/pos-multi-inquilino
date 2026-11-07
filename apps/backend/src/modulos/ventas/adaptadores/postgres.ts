@@ -464,6 +464,23 @@ export class PgSalesRepository implements SalesRepository {
     return row ? toPayment(row) : undefined;
   }
 
+  async addReturned(tenantId: string, itemId: string, quantity: string): Promise<boolean> {
+    const result = await this.db.query(
+      `UPDATE venta_item SET cantidad_devuelta = cantidad_devuelta + $3
+        WHERE tenant_id = $1 AND id = $2 AND cantidad_devuelta + $3 <= cantidad`,
+      [tenantId, itemId, quantity],
+    );
+    return result.rowCount === 1;
+  }
+
+  async subtractReturned(tenantId: string, itemId: string, quantity: string): Promise<void> {
+    await this.db.query(
+      `UPDATE venta_item SET cantidad_devuelta = cantidad_devuelta - $3
+        WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, itemId, quantity],
+    );
+  }
+
   async hasLivePayments(tenantId: string, saleId: string): Promise<boolean> {
     const result = await this.db.query(
       `SELECT 1 FROM pago WHERE tenant_id = $1 AND venta_id = $2

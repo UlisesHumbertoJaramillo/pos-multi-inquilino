@@ -496,31 +496,31 @@
 
 ## Fase 13 — Devoluciones y anulaciones
 
-- [ ] **T-214** · Crear las migraciones `devolucion`, `devolucion_item`, `reintegro` y `anulacion`. · RF: RF-084 · Dep: T-166, T-189
+- [x] **T-214** · Crear las migraciones `devolucion`, `devolucion_item`, `reintegro` y `anulacion`. · RF: RF-084 · Dep: T-166, T-189
   - Hecho cuando: las migraciones aplican y la cantidad devuelta nunca supera la vendida.
-- [ ] **T-215** · Anulación total dentro del turno con PIN: revierte stock, caja y cuenta corriente, y emite la Nota de Crédito si la venta se facturó. · RF: RF-081, RF-082 · Dep: T-214, T-044, T-196
+- [x] **T-215** · Anulación total dentro del turno con PIN: revierte stock, caja y cuenta corriente, y emite la Nota de Crédito si la venta se facturó. · RF: RF-081, RF-082 · Dep: T-214, T-044, T-196
   - Hecho cuando: una venta anulada devuelve el stock al disponible y el teórico del turno vuelve al valor anterior.
-- [ ] **T-216** · Rechazar la anulación fuera del turno, parcial o con devoluciones previas. · RF: RF-136 · Dep: T-215
+- [x] **T-216** · Rechazar la anulación fuera del turno, parcial o con devoluciones previas. · RF: RF-136 · Dep: T-215
   - Hecho cuando: hay pruebas de los tres casos y el mensaje indica que corresponde una devolución.
-- [ ] **T-217** · Buscar un ticket desde cualquier sucursal del comercio y obtener las cantidades devolvibles. · RF: RF-083 · Dep: T-214
+- [x] **T-217** · Buscar un ticket desde cualquier sucursal del comercio y obtener las cantidades devolvibles. · RF: RF-083 · Dep: T-214
   - Hecho cuando: un VO de la sucursal 2 ve un ticket de la sucursal 1, y un VO de otro comercio recibe 404.
-- [ ] **T-218** · Validar el plazo de devolución y la cantidad. · RF: RF-138, RF-084 · Dep: T-217
+- [x] **T-218** · Validar el plazo de devolución y la cantidad. · RF: RF-138, RF-084 · Dep: T-217
   - Hecho cuando: hay pruebas fuera de plazo y con cantidad excesiva.
-- [ ] **T-219** · Confirmar la devolución: reintegro proporcional desde la caja actual, rechazo por efectivo insuficiente informado solo al AS e ítems "En Revisión" en la sucursal que los recibe. · RF: RF-085, RF-087, RF-137 · Dep: T-218, T-118, T-089
+- [x] **T-219** · Confirmar la devolución: reintegro proporcional desde la caja actual, rechazo por efectivo insuficiente informado solo al AS e ítems "En Revisión" en la sucursal que los recibe. · RF: RF-085, RF-087, RF-137 · Dep: T-218, T-118, T-089
   - Hecho cuando: el reintegro coincide con la tabla de casos de T-118, y el stock queda en revisión en la sucursal receptora.
-- [ ] **T-220** · Devolución de una venta a crédito: descuento hasta cero y excedente en efectivo con PIN. · RF: RF-086 · Dep: T-219
+- [x] **T-220** · Devolución de una venta a crédito: descuento hasta cero y excedente en efectivo con PIN. · RF: RF-086 · Dep: T-219
   - Hecho cuando: con un cliente que ya pagó, el saldo queda en cero y el excedente exige PIN.
-- [ ] **T-221** · Nota de Crédito que espera a su comprobante original, y bloqueo si el original está rechazado. · RF: RF-139 · Dep: T-219, T-201
+- [x] **T-221** · Nota de Crédito que espera a su comprobante original, y bloqueo si el original está rechazado. · RF: RF-139 · Dep: T-219, T-201
   - Hecho cuando: con el original en cola, la Nota de Crédito no se envía, y con el original rechazado se suma a la alerta.
-- [ ] **T-222** · Mantener consumida la cuota al devolver o anular. · RF: RF-140 · Dep: T-219, T-155
+- [x] **T-222** · Mantener consumida la cuota al devolver o anular. · RF: RF-140 · Dep: T-219, T-155
   - Hecho cuando: el saldo de la cuota no cambia tras devolver una venta con descuento manual.
-- [ ] **T-223** · Rechazar la devolución de una venta facturada con el módulo inactivo. · RF: RF-169 · Dep: T-219, T-054
+- [x] **T-223** · Rechazar la devolución de una venta facturada con el módulo inactivo. · RF: RF-169 · Dep: T-219, T-054
   - Hecho cuando: tras desactivar el módulo, la devolución de una venta facturada se rechaza y la de una no facturada funciona.
-- [ ] **T-224** · Prueba de concurrencia de la cantidad devolvible con dos devoluciones simultáneas del mismo ticket. · RF: RF-152 · Dep: T-219
+- [x] **T-224** · Prueba de concurrencia de la cantidad devolvible con dos devoluciones simultáneas del mismo ticket. · RF: RF-152 · Dep: T-219
   - Hecho cuando: nunca se devuelve más de lo vendido en 20 repeticiones.
 - [ ] **T-225** · Frontend POS: anulación y devolución. · RF: RF-081, RF-083 · Dep: T-219, T-185
   - Hecho cuando: en /pos se anula una venta del turno con el PIN del AS demo, y se devuelve un ítem de un ticket de la otra sucursal.
-- [ ] **T-226** · Sumar las acciones de devoluciones al generador de la matriz. · RF: RF-004 · Dep: T-225
+- [x] **T-226** · Sumar las acciones de devoluciones al generador de la matriz. · RF: RF-004 · Dep: T-225
   - Hecho cuando: las pruebas generadas pasan.
 
 ## Fase 14 — Alertas, tiempo real y reportes

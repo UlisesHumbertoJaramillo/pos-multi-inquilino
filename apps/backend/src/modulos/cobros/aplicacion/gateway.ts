@@ -25,6 +25,13 @@ export interface PaymentGateway {
   // Consulta el resultado real de un cobro (nunca se confía en lo que llega de afuera, AD-24).
   check(input: { tenantId: string; key: string }): Promise<GatewayResult>;
   refund(input: { tenantId: string; key: string }): Promise<{ outcome: RefundAnswer }>;
+  // Reintegro parcial de un cobro aprobado; la clave del reintegro evita repetirlo.
+  refundPart(input: {
+    tenantId: string;
+    key: string;
+    refundKey: string;
+    amount: string;
+  }): Promise<{ outcome: RefundAnswer }>;
 }
 
 // Una falla de la integración es un resultado incierto, nunca un cobro exitoso (Const. 11).

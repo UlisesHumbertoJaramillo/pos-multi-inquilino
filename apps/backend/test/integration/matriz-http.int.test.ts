@@ -163,6 +163,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
       return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
     if (path.endsWith('/resolucion')) return { resultado: 'aprobado', autorizacionId: TRANSFER_A };
     if (path === '/ventas/:id/cliente') return { clienteId: null };
+    if (path.startsWith('/devoluciones/ventas/:id'))
+      return { items: [{ itemId: SALE_A, cantidad: '1' }] };
     if (path === '/clientes/:id') return { razonSocial: 'X', condicionFiscal: 'exento' };
     if (path.endsWith('/credito')) return { cuentaCorriente: true, limite: '1' };
     if (path.endsWith('/cobros'))
@@ -185,6 +187,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
         'clientes',
         'cuenta-corriente',
         'fiscal',
+        'devoluciones',
       ].includes(route.path.split('/')[1] ?? ''),
   );
 

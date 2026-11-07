@@ -32,6 +32,7 @@ import type {
   FiscalResult,
   FiscalSales,
   FiscalService,
+  SaleFiscalState,
   SaleFiscalStates,
   SaleForVoucher,
   SecretCipher,
@@ -69,6 +70,48 @@ export class FiscalQueue {
 
   private inTenant<T>(tenantId: string, work: () => Promise<T>) {
     return this.deps.uow.run(work, { tenantId });
+  }
+
+  // El estado fiscal de la venta lo define su factura, no sus Notas de Crédito.
+  private async saleState(tenantId: string, voucher: Voucher, state: SaleFiscalState) {
+    if (voucher.type === 'factura') await this.deps.states.set(tenantId, voucher.saleId, state);
+  }
+
+  // Nota de Crédito de una devolución o una anulación (RF-082, RF-087, RF-139). Idempotente.
+  async requestCreditNote(
+    tenantId: string,
+    input: { saleId: string; originId: string; total: string },
+  ): Promise<void> {
+    await this.inTenant(tenantId, async () => {
+      if (!(await this.deps.directory.moduleActive(tenantId))) return;
+      const original = await this.deps.vouchers.forSale(tenantId, input.saleId);
+      if (!original) return;
+      if (await this.deps.vouchers.forOrigin(tenantId, input.originId)) return;
+      const now = this.deps.clock.now();
+      const { regularizationHours } = await this.deps.directory.settings(tenantId);
+      await this.deps.vouchers.insert({
+        ...original,
+        id: this.deps.ids.next(),
+        type: 'nota_credito',
+        originalId: original.id,
+        originId: input.originId,
+        voucherClass: null,
+        number: null,
+        total: input.total,
+        contingency: false,
+        caeaCode: null,
+        nonFiscal: false,
+        cae: null,
+        state: 'pendiente',
+        rejection: null,
+        attempts: 0,
+        nextAttemptAt: now,
+        deadline: new Date(now.getTime() + regularizationHours * 3_600_000),
+        issuedAt: now,
+        resolvedAt: null,
+      });
+    });
+    await this.process(tenantId);
   }
 
   // Crea el comprobante de una venta. Idempotente: el outbox puede entregar dos veces.
@@ -109,6 +152,8 @@ export class FiscalQueue {
       deadline: new Date(now.getTime() + regularizationHours * 3_600_000),
       issuedAt: now,
       resolvedAt: null,
+      originalId: null,
+      originId: null,
     });
   }
 
@@ -168,6 +213,7 @@ export class FiscalQueue {
   private async prepare(tenantId: string, id: string, now: Date) {
     const voucher = await this.deps.vouchers.find(tenantId, id, true);
     if (voucher?.state !== 'pendiente') return null;
+    if (voucher.type === 'nota_credito') return this.prepareCreditNote(tenantId, voucher, now);
     const sale = await this.deps.sales.find(tenantId, voucher.saleId);
     const pointOfSale = voucher.pointOfSale ?? sale?.pointOfSale ?? null;
     const credential = await this.deps.vouchers.credentialInfo(tenantId);
@@ -205,6 +251,46 @@ export class FiscalQueue {
     return { voucher: ready, cuit: credential.cuit };
   }
 
+  // Una Nota de Crédito espera a que el ente acepte su original. Si el original está rechazado,
+  // queda bloqueada y se suma a su alerta (D-30). Toma el tipo y el punto de venta del original.
+  private async prepareCreditNote(tenantId: string, voucher: Voucher, now: Date) {
+    const original =
+      voucher.originalId === null
+        ? undefined
+        : await this.deps.vouchers.find(tenantId, voucher.originalId, false);
+    const credential = await this.deps.vouchers.credentialInfo(tenantId);
+    if (original?.state === 'rechazado') {
+      await this.deps.vouchers.save({ ...voucher, state: 'bloqueado' });
+      return null;
+    }
+    if (
+      original?.state !== 'aceptado' ||
+      original.voucherClass === null ||
+      original.pointOfSale === null ||
+      !credential
+    ) {
+      await this.deps.vouchers.save({
+        ...voucher,
+        nextAttemptAt: nextAttempt(voucher.attempts + 1, now),
+      });
+      return null;
+    }
+    const ready: Voucher = {
+      ...voucher,
+      voucherClass: original.voucherClass,
+      pointOfSale: original.pointOfSale,
+      number:
+        voucher.number ??
+        (await this.deps.vouchers.nextNumber(
+          tenantId,
+          original.pointOfSale,
+          `NC${original.voucherClass}`,
+        )),
+    };
+    await this.deps.vouchers.save(ready);
+    return { voucher: ready, cuit: credential.cuit };
+  }
+
   private async apply(tenantId: string, voucher: Voucher, answer: FiscalResult, at: Date) {
     const attempts = voucher.attempts + 1;
     if (answer.outcome === 'aceptado') {
@@ -216,7 +302,9 @@ export class FiscalQueue {
         rejection: null,
         resolvedAt: at,
       });
-      await this.deps.states.set(tenantId, voucher.saleId, 'emitida');
+      // Con el original aceptado, sus Notas de Crédito bloqueadas vuelven a la cola (D-30).
+      await this.deps.vouchers.unblockCreditNotes(tenantId, voucher.id, at);
+      await this.saleState(tenantId, voucher, 'emitida');
       await this.deps.alerts.resolve(tenantId, 'fiscal_plazo_vencido', voucher.id, at);
       await this.deps.alerts.resolve(tenantId, 'comprobante_rechazado', voucher.id, at);
       await this.deps.alerts.resolve(tenantId, 'fiscal_sin_caea', voucher.id, at);
@@ -231,7 +319,7 @@ export class FiscalQueue {
         // Un rechazo en línea deja el ticket como no fiscal (RF-103).
         nonFiscal: voucher.nonFiscal || !voucher.contingency,
       });
-      await this.deps.states.set(tenantId, voucher.saleId, 'rechazada');
+      await this.saleState(tenantId, voucher, 'rechazada');
       for (const role of ['AS', 'AC'] as const) {
         await this.deps.alerts.raise({
           tenantId,
@@ -256,7 +344,7 @@ export class FiscalQueue {
     const caea = await this.deps.vouchers.caeaFor(tenantId, dateIn(voucher.issuedAt, timeZone));
     if (caea !== undefined) {
       await this.deps.vouchers.save({ ...retry, contingency: true, caeaCode: caea });
-      await this.deps.states.set(tenantId, voucher.saleId, 'en_contingencia');
+      await this.saleState(tenantId, voucher, 'en_contingencia');
       return;
     }
     // Sin CAEA vigente: ticket no fiscal, el pedido sigue en cola (RF-161).
@@ -535,7 +623,9 @@ export class ResendVoucher extends FiscalUseCase {
           rejection: null,
           nextAttemptAt: now,
         });
-        await this.deps.states.set(tenantId, voucher.saleId, 'pendiente');
+        if (voucher.type === 'factura') {
+          await this.deps.states.set(tenantId, voucher.saleId, 'pendiente');
+        }
         await this.deps.audit.record({
           tenantId,
           branchId: voucher.branchId,

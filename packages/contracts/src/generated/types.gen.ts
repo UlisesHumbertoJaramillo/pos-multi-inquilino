@@ -1565,6 +1565,93 @@ export type FiscalSimulator = {
   modo: 'acepta' | 'rechaza' | 'caido';
 };
 
+export type ReturnTicket = {
+  ventaId: string;
+  numeroTicket: number | null;
+  sucursal: string;
+  estado: string;
+  total: string;
+  facturada: boolean;
+  anulable: boolean;
+  items: Array<{
+    id: string;
+    nombre: string;
+    cantidad: string;
+    devuelta: string;
+    devolvible: string;
+    importe: string;
+  }>;
+};
+
+export type ReturnQuoteRequest = {
+  items: Array<{
+    itemId: string;
+    cantidad: string;
+  }>;
+};
+
+export type ReturnRequest = {
+  items: Array<{
+    itemId: string;
+    cantidad: string;
+  }>;
+  autorizacionId?: string | null;
+};
+
+export type VoidRequest = {
+  autorizacionId?: string | null;
+  items?: Array<{
+    itemId: string;
+    cantidad: string;
+  }>;
+};
+
+export type ReturnQuote = {
+  valor: string;
+  reintegro: string;
+  /**
+   * A pagar en efectivo, incluido el excedente de la cuenta corriente.
+   */
+  efectivo: string;
+  /**
+   * Lo que baja el saldo del cliente.
+   */
+  cuentaCorriente: string;
+  porMedio: Array<{
+    metodo: string;
+    tipo: string;
+    monto: string;
+  }>;
+  requiereAutorizacion: boolean;
+  operacionRef: string;
+};
+
+export type VoidResult = {
+  id: string;
+  reintegro: string;
+};
+
+export type ReturnResult = {
+  id: string;
+  valor: string;
+  reintegro: string;
+  /**
+   * A pagar en efectivo, incluido el excedente de la cuenta corriente.
+   */
+  efectivo: string;
+  /**
+   * Lo que baja el saldo del cliente.
+   */
+  cuentaCorriente: string;
+  porMedio: Array<{
+    metodo: string;
+    tipo: string;
+    monto: string;
+  }>;
+  requiereAutorizacion: boolean;
+  operacionRef: string;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -7528,3 +7615,175 @@ export type SetFiscalSimulatorResponses = {
 
 export type SetFiscalSimulatorResponse =
   SetFiscalSimulatorResponses[keyof SetFiscalSimulatorResponses];
+
+export type FindReturnTicketData = {
+  body?: never;
+  path: {
+    numero: number;
+  };
+  query?: never;
+  url: '/devoluciones/tickets/{numero}';
+};
+
+export type FindReturnTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type FindReturnTicketError = FindReturnTicketErrors[keyof FindReturnTicketErrors];
+
+export type FindReturnTicketResponses = {
+  /**
+   * Ticket.
+   */
+  200: ReturnTicket;
+};
+
+export type FindReturnTicketResponse = FindReturnTicketResponses[keyof FindReturnTicketResponses];
+
+export type QuoteReturnData = {
+  body: ReturnQuoteRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/devoluciones/ventas/{id}/cotizacion';
+};
+
+export type QuoteReturnErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type QuoteReturnError = QuoteReturnErrors[keyof QuoteReturnErrors];
+
+export type QuoteReturnResponses = {
+  /**
+   * Reintegro.
+   */
+  200: ReturnQuote;
+};
+
+export type QuoteReturnResponse = QuoteReturnResponses[keyof QuoteReturnResponses];
+
+export type ConfirmReturnData = {
+  body: ReturnRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/devoluciones/ventas/{id}';
+};
+
+export type ConfirmReturnErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ConfirmReturnError = ConfirmReturnErrors[keyof ConfirmReturnErrors];
+
+export type ConfirmReturnResponses = {
+  /**
+   * Devolución registrada.
+   */
+  201: ReturnResult;
+};
+
+export type ConfirmReturnResponse = ConfirmReturnResponses[keyof ConfirmReturnResponses];
+
+export type VoidSaleData = {
+  body: VoidRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/devoluciones/ventas/{id}/anulacion';
+};
+
+export type VoidSaleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type VoidSaleError = VoidSaleErrors[keyof VoidSaleErrors];
+
+export type VoidSaleResponses = {
+  /**
+   * Venta anulada.
+   */
+  201: VoidResult;
+};
+
+export type VoidSaleResponse = VoidSaleResponses[keyof VoidSaleResponses];

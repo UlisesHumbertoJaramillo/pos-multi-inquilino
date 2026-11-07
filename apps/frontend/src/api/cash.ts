@@ -14,7 +14,13 @@ import type { Request } from './platform';
 const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 
 export type AuthorizationType =
-  'retiro' | 'descuento' | 'cierre_forzado' | 'credito' | 'pago_por_verificar';
+  | 'retiro'
+  | 'descuento'
+  | 'cierre_forzado'
+  | 'credito'
+  | 'pago_por_verificar'
+  | 'anulacion'
+  | 'reembolso';
 
 export const cashApi = (request: Request) => ({
   listRegisters: (branchId: string) =>

@@ -109,6 +109,10 @@ export function describeAlert(alert: Alert): string {
   };
   const money = (value?: string) => formatMoney(value ?? null);
   switch (alert.tipo) {
+    case 'reintegro_rechazado':
+      return `Se rechazó un reintegro de ${money(cash.monto)} de ${cash.vendedor ?? 'un vendedor'}: la caja tenía ${money(cash.efectivoTeorico)} en efectivo.`;
+    case 'reintegro_incierto':
+      return 'La pasarela no confirmó un reintegro electrónico: revisá con la pasarela si se devolvió.';
     case 'pin_bloqueado':
       return 'Se bloqueó el PIN de un autorizante por intentos fallidos.';
     case 'reintegro_pendiente':

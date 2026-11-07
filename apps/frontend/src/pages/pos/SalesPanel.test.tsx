@@ -2,6 +2,8 @@ import type {
   Cart,
   CashShift,
   OwnShift,
+  ReturnQuote,
+  ReturnTicket,
   SalePayment,
   SalePaymentAttempt,
   SalePaymentMethod,
@@ -274,6 +276,74 @@ describe('[RF-068] [RF-073] [RF-074] [RF-126] cobro mixto, crédito y pago por v
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Descartar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Se cobró' })).toBeInTheDocument();
+  });
+});
+
+describe('[RF-083] [RF-085] [RF-081] devolución en el POS', () => {
+  it('busca el ticket, calcula el reintegro y lo confirma con el PIN del AS', async () => {
+    let confirmed: unknown;
+    const quote: ReturnQuote = {
+      valor: '1000.00',
+      reintegro: '1000.00',
+      efectivo: '1000.00',
+      cuentaCorriente: '0.00',
+      porMedio: [{ metodo: 'Efectivo', tipo: 'efectivo', monto: '1000.00' }],
+      requiereAutorizacion: true,
+      operacionRef: 'reembolso:venta9:1000.00',
+    };
+    const ticket: ReturnTicket = {
+      ventaId: 'venta9',
+      numeroTicket: 7,
+      sucursal: 'Centro',
+      estado: 'confirmada',
+      total: '2000.00',
+      facturada: false,
+      anulable: false,
+      items: [
+        {
+          id: 'item9',
+          nombre: 'Agua',
+          cantidad: '2.000',
+          devuelta: '0.000',
+          devolvible: '2.000',
+          importe: '2000.00',
+        },
+      ],
+    };
+    posApi(saleOf({}), {
+      'GET /devoluciones/tickets/7': () => ({ status: 200, body: ticket }),
+      'POST /devoluciones/ventas/venta9/cotizacion': () => ({ status: 200, body: quote }),
+      'GET /autorizaciones/autorizantes': () => ({
+        status: 200,
+        body: [{ id: 'as', nombre: 'Ana', rol: 'AS' }],
+      }),
+      'POST /autorizaciones': () => ({ status: 201, body: { id: 'autorizacion1' } }),
+      'POST /devoluciones/ventas/venta9': (body) => {
+        confirmed = body;
+        return { status: 201, body: { id: 'd1', ...quote } };
+      },
+    });
+    renderApp('/pos');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Devolución o anulación' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Devolución o anulación' });
+    expect(within(dialog).queryByRole('button', { name: 'Anular venta' })).toBeNull();
+    await user.type(within(dialog).getByLabelText('Número de ticket'), '7');
+    await user.click(within(dialog).getByRole('button', { name: 'Buscar' }));
+    await user.type(await within(dialog).findByLabelText('Devolver Agua'), '1');
+    await user.click(within(dialog).getByRole('button', { name: 'Calcular reintegro' }));
+    expect(await within(dialog).findByText('Reintegro: $ 1.000,00')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar devolución' }));
+    const pin = await screen.findByRole('dialog', { name: 'Autorización con PIN' });
+    await user.type(within(pin).getByLabelText('PIN'), '2222');
+    await user.click(within(pin).getByRole('button', { name: 'Autorizar' }));
+    expect(await screen.findByText(/Devolución registrada/)).toBeInTheDocument();
+    expect(confirmed).toEqual({
+      items: [{ itemId: 'item9', cantidad: '1' }],
+      autorizacionId: 'autorizacion1',
+    });
   });
 });
 

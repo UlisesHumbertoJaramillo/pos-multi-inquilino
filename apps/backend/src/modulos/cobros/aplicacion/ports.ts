@@ -92,7 +92,7 @@ export interface CustomerRepository {
     movement: {
       id: string;
       customerId: string;
-      type: 'venta' | 'cobro';
+      type: 'venta' | 'cobro' | 'devolucion' | 'anulacion';
       amount: string;
       balance: string;
       saleId: string | null;

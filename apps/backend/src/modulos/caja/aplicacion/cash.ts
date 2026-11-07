@@ -614,7 +614,7 @@ export class CloseJourney extends CashUseCase {
 // Lo que la caja ofrece a ventas, dentro de la transacción de la venta (plan §2.10): el turno
 // abierto de un VO, los VO con turno en una sucursal y el ingreso del cobro en efectivo.
 export class ShiftSales {
-  constructor(private readonly deps: Pick<CashDependencies, 'cash' | 'ids'>) {}
+  constructor(private readonly deps: Pick<CashDependencies, 'cash' | 'ids' | 'alerts'>) {}
 
   async openShiftOf(tenantId: string, sellerId: string) {
     const shift = await this.deps.cash.openShiftOfSeller(tenantId, sellerId);
@@ -652,10 +652,59 @@ export class ShiftSales {
     await this.record(actor, 'cobro', input);
   }
 
+  // Efectivo teórico del turno, para decidir si alcanza un reintegro. Nunca llega a un VO (AD-20).
+  async cashOnHand(tenantId: string, shiftId: string): Promise<string> {
+    const shift = await this.deps.cash.findShift(tenantId, shiftId, false);
+    if (!shift) throw new DomainError('SIN_TURNO', 'No se encontró el turno.');
+    return theoreticalCash(shift.initial, await this.deps.cash.movements(tenantId, [shift.id]));
+  }
+
+  // Reintegro de una devolución o de una anulación (RF-082, RF-137).
+  async recordReturn(
+    actor: { tenantId: string; userId: string; at: Date },
+    input: {
+      shiftId: string;
+      amount: string;
+      methodId: string | null;
+      inCash: boolean;
+      type: 'reintegro' | 'anulacion';
+      authorizationId: string | null;
+    },
+  ): Promise<void> {
+    await this.record(actor, input.type, input, input.authorizationId);
+  }
+
+  // Sin efectivo para el reintegro: el motivo va solo al AS que autoriza (D-28, D-7).
+  async refundRejected(
+    actor: { tenantId: string; userId: string; at: Date },
+    input: { shiftId: string; amount: string; authorizationId: string | null },
+  ): Promise<void> {
+    const shift = await this.deps.cash.findShift(actor.tenantId, input.shiftId, false);
+    if (!shift) return;
+    const theoretical = await this.cashOnHand(actor.tenantId, shift.id);
+    await this.deps.alerts.add({
+      tenantId: actor.tenantId,
+      branchId: shift.branchId,
+      recipientRole: 'AS',
+      type: 'reintegro_rechazado',
+      severity: 'advertencia',
+      reference: shift.id,
+      detail: {
+        caja: shift.registerName,
+        vendedor: shift.sellerName,
+        monto: input.amount,
+        efectivoTeorico: theoretical,
+        autorizacionId: input.authorizationId,
+      },
+      at: actor.at,
+    });
+  }
+
   private async record(
     actor: { tenantId: string; userId: string; at: Date },
-    type: 'venta' | 'cobro',
+    type: 'venta' | 'cobro' | 'reintegro' | 'anulacion',
     input: { shiftId: string; amount: string; methodId: string | null; inCash: boolean },
+    authorizationId: string | null = null,
   ) {
     const shift = await this.deps.cash.findShift(actor.tenantId, input.shiftId, true);
     if (shift?.status !== 'abierto') {
@@ -669,7 +718,7 @@ export class ShiftSales {
       amount: input.amount,
       methodId: input.methodId,
       reason: null,
-      authorizationId: null,
+      authorizationId,
       userId: actor.userId,
       at: actor.at,
     });

@@ -90,6 +90,15 @@ export class GatewaySimulator implements PaymentGateway {
     return this.answer(row.modo, key);
   }
 
+  // El reintegro parcial responde según el modo del simulador (T-219).
+  async refundPart(input: { tenantId: string; key: string; refundKey: string; amount: string }) {
+    const mode = await this.mode(input.tenantId);
+    if (mode === 'no_responder' || mode === 'aprobar_tarde') {
+      return { outcome: 'sin_respuesta' as const };
+    }
+    return { outcome: mode === 'rechazar' ? ('rechazado' as const) : ('revertido' as const) };
+  }
+
   async refund(input: { tenantId: string; key: string }) {
     const { tenantId, key } = input;
     const mode = await this.mode(tenantId);
@@ -114,6 +123,7 @@ export const unavailableGateway: PaymentGateway = {
   charge: () => Promise.reject(notConfigured()),
   check: () => Promise.reject(notConfigured()),
   refund: () => Promise.reject(notConfigured()),
+  refundPart: () => Promise.reject(notConfigured()),
 };
 
 const notConfigured = () =>

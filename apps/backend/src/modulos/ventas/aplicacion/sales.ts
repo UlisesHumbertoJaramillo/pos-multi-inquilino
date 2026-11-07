@@ -775,6 +775,21 @@ export class SalesMaintenance extends SalesUseCase {
     if (sale) await this.deps.sales.save({ ...sale, fiscalState: state });
   }
 
+  // Devoluciones (RF-084): las cantidades devueltas son de la venta.
+  addReturned(tenantId: string, itemId: string, quantity: string) {
+    return this.deps.sales.addReturned(tenantId, itemId, quantity);
+  }
+
+  subtractReturned(tenantId: string, itemId: string, quantity: string) {
+    return this.deps.sales.subtractReturned(tenantId, itemId, quantity);
+  }
+
+  // Anulación (RF-082): la venta queda anulada y se conserva.
+  async markVoided(tenantId: string, saleId: string) {
+    const sale = await this.deps.sales.find(tenantId, saleId, true);
+    if (sale) await this.deps.sales.save({ ...sale, state: 'anulada' });
+  }
+
   // Facturación posterior: la venta confirmada pasa a facturarse (RF-168).
   async markBilled(tenantId: string, saleId: string) {
     const sale = await this.deps.sales.find(tenantId, saleId, true);

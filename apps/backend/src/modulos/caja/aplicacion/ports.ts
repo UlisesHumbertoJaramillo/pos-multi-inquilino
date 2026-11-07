@@ -90,7 +90,8 @@ export type CashAlertType =
   | 'retiro_rechazado'
   | 'arqueo_fuera_de_tolerancia'
   | 'cierre_forzado'
-  | 'jornada_sin_z';
+  | 'jornada_sin_z'
+  | 'reintegro_rechazado';
 
 export interface CashAlert {
   tenantId: string;

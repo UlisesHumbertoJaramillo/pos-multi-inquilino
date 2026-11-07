@@ -48,6 +48,7 @@ import { useLoader } from '../../hooks/useLoader';
 import { AccountCollectionDialog } from './AccountCollectionDialog';
 import { CustomerPicker } from './CustomerPicker';
 import { PaymentDialog, type PaymentLine } from './PaymentDialog';
+import { ReturnDialog } from './ReturnDialog';
 
 const SEARCH_DELAY_MS = 250;
 const REFRESH_MS = 15_000;
@@ -67,6 +68,7 @@ type Dialogs =
   | { kind: 'descuento' }
   | { kind: 'cobro'; methods: SalePaymentMethod[]; billing: SaleBillingOption }
   | { kind: 'cuenta'; methods: SalePaymentMethod[] }
+  | { kind: 'devolucion' }
   | { kind: 'traspaso'; targets: TransferTarget[] }
   | null;
 
@@ -422,6 +424,14 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         >
           Cobro de cuenta corriente
         </Button>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setDialog({ kind: 'devolucion' });
+          }}
+        >
+          Devolución o anulación
+        </Button>
       </Stack>
 
       <Autocomplete<SaleSearchResult>
@@ -750,6 +760,15 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           onCancel={() => {
             setDialog(null);
             setDialogError(null);
+          }}
+        />
+      )}
+      {dialog?.kind === 'devolucion' && (
+        <ReturnDialog
+          branchId={cart?.sucursalId ?? user?.sucursales[0] ?? ''}
+          onDone={refresh}
+          onClose={() => {
+            setDialog(null);
           }}
         />
       )}

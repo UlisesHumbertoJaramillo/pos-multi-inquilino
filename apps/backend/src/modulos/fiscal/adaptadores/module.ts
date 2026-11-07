@@ -80,6 +80,22 @@ export function createFiscalModule(deps: FiscalModuleDependencies): FiscalModule
     useCases,
     queue,
     eventHandlers: {
+      // Nota de Crédito de una devolución o anulación (RF-087, RF-139). Idempotente.
+      'nota_credito.solicitada': async (event) => {
+        const { ventaId, origenId, total } = event.payload;
+        if (
+          event.tenantId !== null &&
+          typeof ventaId === 'string' &&
+          typeof origenId === 'string' &&
+          typeof total === 'string'
+        ) {
+          await queue.requestCreditNote(event.tenantId, {
+            saleId: ventaId,
+            originId: origenId,
+            total,
+          });
+        }
+      },
       // Pedido de comprobante registrado al confirmar la venta (D-21). Idempotente.
       'comprobante.solicitado': async (event) => {
         const saleId = event.payload.ventaId;

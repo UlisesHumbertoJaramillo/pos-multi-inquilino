@@ -41,12 +41,15 @@ interface Row {
   plazo_vence: Date;
   emitido_en: Date;
   resuelto_en: Date | null;
+  original_id: string | null;
+  origen_id: string | null;
 }
 
 const COLUMNS = `c.id, c.tenant_id, c.tipo, c.clase, c.venta_id, c.sucursal_id, c.caja_id,
   c.punto_venta, c.numero, c.total, c.comprador_nombre, c.comprador_documento,
   c.comprador_condicion, c.contingencia, c.caea_codigo, c.no_fiscal, c.cae, c.estado,
-  c.motivo_rechazo, c.intentos, c.proximo_intento, c.plazo_vence, c.emitido_en, c.resuelto_en`;
+  c.motivo_rechazo, c.intentos, c.proximo_intento, c.plazo_vence, c.emitido_en, c.resuelto_en,
+  c.original_id, c.origen_id`;
 
 const toVoucher = (r: Row): Voucher => ({
   id: r.id,
@@ -75,6 +78,8 @@ const toVoucher = (r: Row): Voucher => ({
   deadline: r.plazo_vence,
   issuedAt: r.emitido_en,
   resolvedAt: r.resuelto_en,
+  originalId: r.original_id,
+  originId: r.origen_id,
 });
 
 export class PgFiscalRepository implements FiscalRepository {
@@ -84,8 +89,8 @@ export class PgFiscalRepository implements FiscalRepository {
     await this.db.query(
       `INSERT INTO comprobante (id, tenant_id, tipo, venta_id, sucursal_id, caja_id, punto_venta,
          total, comprador_nombre, comprador_documento, comprador_condicion, estado,
-         proximo_intento, plazo_vence, emitido_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+         proximo_intento, plazo_vence, emitido_en, original_id, origen_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
       [
         v.id,
         v.tenantId,
@@ -102,7 +107,27 @@ export class PgFiscalRepository implements FiscalRepository {
         v.nextAttemptAt,
         v.deadline,
         v.issuedAt,
+        v.originalId,
+        v.originId,
       ],
+    );
+  }
+
+  async forOrigin(tenantId: string, originId: string): Promise<Voucher | undefined> {
+    const result = await this.db.query<Row>(
+      `SELECT ${COLUMNS} FROM comprobante c
+        WHERE c.tenant_id = $1 AND c.origen_id = $2 AND c.tipo = 'nota_credito'`,
+      [tenantId, originId],
+    );
+    const row = result.rows[0];
+    return row ? toVoucher(row) : undefined;
+  }
+
+  async unblockCreditNotes(tenantId: string, originalId: string, now: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE comprobante SET estado = 'pendiente', proximo_intento = $3
+        WHERE tenant_id = $1 AND original_id = $2 AND estado = 'bloqueado'`,
+      [tenantId, originalId, now],
     );
   }
 
@@ -185,18 +210,14 @@ export class PgFiscalRepository implements FiscalRepository {
     );
   }
 
-  async nextNumber(
-    tenantId: string,
-    pointOfSale: number,
-    voucherClass: VoucherClass,
-  ): Promise<number> {
+  async nextNumber(tenantId: string, pointOfSale: number, series: string): Promise<number> {
     const result = await this.db.query<{ ultimo: string }>(
       `INSERT INTO numerador_comprobante (tenant_id, punto_venta, clase, ultimo)
        VALUES ($1, $2, $3, 1)
        ON CONFLICT (tenant_id, punto_venta, clase)
        DO UPDATE SET ultimo = numerador_comprobante.ultimo + 1
        RETURNING ultimo`,
-      [tenantId, pointOfSale, voucherClass],
+      [tenantId, pointOfSale, series],
     );
     return Number(result.rows[0]?.ultimo);
   }

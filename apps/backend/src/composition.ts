@@ -38,6 +38,10 @@ import {
 } from './modulos/cobros/adaptadores/module.js';
 import { DomainError } from './compartido/dominio/errors.js';
 import { createFiscalModule, type FiscalModule } from './modulos/fiscal/adaptadores/module.js';
+import {
+  createReturnsModule,
+  type ReturnsModule,
+} from './modulos/devoluciones/adaptadores/module.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -133,6 +137,7 @@ export interface Api {
   collections: CollectionsModule;
   sales: SalesModule;
   fiscal: FiscalModule;
+  returns: ReturnsModule;
   routes: HttpRoute[];
 }
 
@@ -396,6 +401,34 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     },
   });
 
+  const returns = createReturnsModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    defaultWindowDays: DEFAULT_PARAMETERS.returnWindowDays,
+    shifts: cash.sales,
+    sales: {
+      addReturned: (tenantId, itemId, quantity) =>
+        sales.maintenance.addReturned(tenantId, itemId, quantity),
+      subtractReturned: (tenantId, itemId, quantity) =>
+        sales.maintenance.subtractReturned(tenantId, itemId, quantity),
+      markVoided: (tenantId, saleId) => sales.maintenance.markVoided(tenantId, saleId),
+    },
+    stock: {
+      apply: async (actor, change) => {
+        await inventory.ledger.apply(actor, change);
+      },
+    },
+    credit: collections.credit,
+    gateway: collections.gateway,
+    // Anular y reembolsar en efectivo consumen un PIN de un AS (RF-081).
+    authorizations: {
+      consume: (input) => identity.useCases.consumeAuthorization.execute(input),
+    },
+  });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -409,6 +442,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...collections.routes,
     ...sales.routes,
     ...fiscal.routes,
+    ...returns.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -436,6 +470,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     collections,
     sales,
     fiscal,
+    returns,
     routes,
   };
 }
