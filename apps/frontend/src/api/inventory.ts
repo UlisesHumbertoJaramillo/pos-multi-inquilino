@@ -14,6 +14,7 @@ import type {
   WasteRequest,
 } from '@pos/contracts';
 import { formatMoney } from './catalog';
+import { describeFiscalAlert } from './fiscal';
 import type { Request } from './platform';
 
 const send = (method: string, body?: unknown): RequestInit => ({
@@ -80,7 +81,7 @@ export const MOVEMENT_TYPES: Record<StockMovement['tipo'], string> = {
 };
 
 // Texto de una alerta a partir de su tipo y su detalle.
-export function describeAlert(alert: Alert): string {
+export function describeAlert(alert: Pick<Alert, 'tipo' | 'detalle'>): string {
   const detail = alert.detalle as {
     producto?: string;
     disponible?: string;
@@ -128,5 +129,6 @@ export function describeAlert(alert: Alert): string {
     case 'jornada_sin_z':
       return `${cash.caja ?? 'Una caja'} tiene la jornada del ${cash.fechaJornada ?? '—'} sin Corte Z: no se pueden abrir turnos hasta hacerlo.`;
   }
-  return alert.tipo;
+  // Las fiscales y las de reintegro se describen con el texto de Comprobantes.
+  return describeFiscalAlert(alert.tipo, alert.detalle);
 }

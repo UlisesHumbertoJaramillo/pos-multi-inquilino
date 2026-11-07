@@ -33,6 +33,8 @@ export interface AuthContextValue {
   selectRole: (role: Role) => Promise<void>;
   logout: () => Promise<void>;
   request: <T>(path: string, init?: RequestInit) => Promise<T>;
+  // Token de acceso vigente (lo renueva si está por vencer), para el canal en vivo.
+  accessToken: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -137,8 +139,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [expire]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, requiresRoleSelection, notice, login, selectRole, logout, request }),
-    [status, user, requiresRoleSelection, notice, login, selectRole, logout, request],
+    () => ({
+      status,
+      user,
+      requiresRoleSelection,
+      notice,
+      login,
+      selectRole,
+      logout,
+      request,
+      accessToken: validAccessToken,
+    }),
+    [
+      status,
+      user,
+      requiresRoleSelection,
+      notice,
+      login,
+      selectRole,
+      logout,
+      request,
+      validAccessToken,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

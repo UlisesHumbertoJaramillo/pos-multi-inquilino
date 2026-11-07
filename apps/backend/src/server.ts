@@ -6,7 +6,8 @@ import { systemClock } from './compartido/adaptadores/clock/system-clock.js';
 import { createPinoLogger } from './compartido/adaptadores/logging/pino-logger.js';
 import { PgDatabase } from './compartido/adaptadores/postgres/pg-database.js';
 import { appDatabaseConfigFromEnv, createPgPool } from './compartido/adaptadores/postgres/pool.js';
-import { apiConfigFromEnv, createApi } from './composition.js';
+import { apiConfigFromEnv, type Api, createApi } from './composition.js';
+import { PgRealtimeFeed } from './modulos/alertas/adaptadores/postgres.js';
 
 const ENV_PATH = resolve(import.meta.dirname, '../../../.env');
 if (existsSync(ENV_PATH)) {
@@ -26,17 +27,26 @@ if (!existsSync(CERT_FILE) || !existsSync(KEY_FILE)) {
   process.exit(1);
 }
 
-let app;
+let api: Api;
 try {
   const db = new PgDatabase(createPgPool(appDatabaseConfigFromEnv(process.env), logger));
-  ({ app } = createApi(apiConfigFromEnv(process.env), { db, clock: systemClock, logger }));
+  api = createApi(apiConfigFromEnv(process.env), { db, clock: systemClock, logger });
 } catch (error: unknown) {
   // Configuración insegura o incompleta: el backend no arranca (Const. 17).
   logger.error('El backend no puede arrancar con esta configuración', { err: error });
   process.exit(1);
 }
 
-const server = createServer({ cert: readFileSync(CERT_FILE), key: readFileSync(KEY_FILE) }, app);
+const server = createServer(
+  { cert: readFileSync(CERT_FILE), key: readFileSync(KEY_FILE) },
+  api.app,
+);
+
+// Avisos en vivo por WebSocket en el mismo puerto (AD-06): escuchan los avisos de PostgreSQL.
+const realtime = api.alerts.realtime(
+  new PgRealtimeFeed(appDatabaseConfigFromEnv(process.env), logger),
+);
+await realtime.attach(server);
 
 server.listen(PORT, () => {
   logger.info(`API escuchando en https://localhost:${String(PORT)}`);

@@ -42,6 +42,8 @@ import {
   createReturnsModule,
   type ReturnsModule,
 } from './modulos/devoluciones/adaptadores/module.js';
+import { type AlertsModule, createAlertsModule } from './modulos/alertas/adaptadores/module.js';
+import { createReportsModule, type ReportsModule } from './modulos/reportes/adaptadores/module.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -138,6 +140,8 @@ export interface Api {
   sales: SalesModule;
   fiscal: FiscalModule;
   returns: ReturnsModule;
+  alerts: AlertsModule;
+  reports: ReportsModule;
   routes: HttpRoute[];
 }
 
@@ -429,6 +433,21 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     },
   });
 
+  // Alertas por destinatario, recordatorios y avisos en vivo (T-227, T-228; AD-06).
+  const alerts = createAlertsModule({
+    db: deps.db,
+    clock: deps.clock,
+    access,
+    commercialAudit,
+    tokens: accessTokens,
+    sessions: identity.sessionStatus,
+    allowedOrigins: config.frontendOrigins,
+    logger: deps.logger,
+  });
+
+  // Ticket, informe diario, dashboards y auditoría comercial: solo lectura (plan §2.18).
+  const reports = createReportsModule({ db: deps.db, clock: deps.clock, access });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -443,6 +462,8 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...sales.routes,
     ...fiscal.routes,
     ...returns.routes,
+    ...alerts.routes,
+    ...reports.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -471,6 +492,8 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     sales,
     fiscal,
     returns,
+    alerts,
+    reports,
     routes,
   };
 }

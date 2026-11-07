@@ -28,6 +28,9 @@ import { CustomersPage } from './pages/customers/CustomersPage';
 import { SimulatorPage } from './pages/dev/SimulatorPage';
 import { FiscalConfigPage } from './pages/fiscal/FiscalConfigPage';
 import { VouchersPage } from './pages/fiscal/VouchersPage';
+import { AuditPage } from './pages/reports/AuditPage';
+import { DailyReportPage } from './pages/reports/DailyReportPage';
+import { DashboardPage } from './pages/reports/DashboardPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -94,6 +97,31 @@ export const routes: RouteObject[] = [
     element: (
       <RequireAuth roles={['AC', 'AS', 'VO']}>
         <SimulatorPage />
+      </RequireAuth>
+    ),
+  },
+  // Dashboards, informe diario y auditoría comercial (T-237).
+  {
+    path: '/admin/dashboard',
+    element: (
+      <RequireAuth roles={['AC', 'AS']}>
+        <DashboardPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/informe',
+    element: (
+      <RequireAuth roles={['AC', 'AS']}>
+        <DailyReportPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/auditoria',
+    element: (
+      <RequireAuth roles={['AC', 'AS']}>
+        <AuditPage />
       </RequireAuth>
     ),
   },

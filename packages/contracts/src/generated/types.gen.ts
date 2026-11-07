@@ -1652,6 +1652,211 @@ export type ReturnResult = {
   operacionRef: string;
 };
 
+export type RoleAlert = {
+  id: string;
+  tipo: string;
+  severidad: 'info' | 'advertencia' | 'critica';
+  persistente: boolean;
+  sucursalId: string | null;
+  sucursal: string | null;
+  destinatarioRol: 'AC' | 'AS' | 'VO';
+  referencia: string | null;
+  detalle: {
+    [key: string]: unknown;
+  };
+  creadaEn: string;
+  ultimoRecordatorio: string | null;
+  resolubleAMano: boolean;
+};
+
+export type ResolveAlertRequest = {
+  nota?: string | null;
+};
+
+export type SaleTicket = {
+  ventaId: string;
+  estado: 'confirmada' | 'anulada';
+  numeroTicket: number | null;
+  confirmadaEn: string | null;
+  comercio: {
+    nombre: string;
+    cuit: string | null;
+  };
+  sucursal: {
+    nombre: string;
+    direccion: string | null;
+  };
+  caja: string;
+  vendedor: string;
+  cliente: {
+    nombre: string;
+    documento: string | null;
+    condicionFiscal: string;
+  } | null;
+  items: Array<{
+    nombre: string;
+    cantidad: string;
+    precioUnitario: string;
+    bruto: string;
+    promocion: {
+      nombre: string;
+      descuento: string;
+    } | null;
+    descuentoManual: string;
+    importe: string;
+    devuelta: string;
+  }>;
+  pagos: Array<{
+    metodo: string;
+    tipo: string;
+    monto: string;
+    recargo: string;
+    abonado: string;
+    vuelto: string;
+  }>;
+  totales: {
+    subtotal: string;
+    descuentoPromociones: string;
+    descuentoManual: string;
+    total: string;
+    recargos: string;
+    cobrado: string;
+  };
+  identificacion: 'comprobante_fiscal' | 'factura_en_tramite' | 'no_valido_como_factura';
+  leyenda: string;
+  comprobante: {
+    tipo: string;
+    clase: string | null;
+    puntoVenta: number | null;
+    numero: string | null;
+    cae: string | null;
+    caea: string | null;
+    estado: string;
+  } | null;
+};
+
+export type ReportTotals = {
+  total: string;
+  tickets: number;
+  promedio: string;
+};
+
+export type ReportMethodTotal = {
+  metodo: string;
+  tipo: string;
+  monto: string;
+  recargo: string;
+};
+
+export type ReportSellerTotal = {
+  vendedorId: string;
+  vendedor: string;
+  tickets: number;
+  total: string;
+};
+
+export type ReportReturns = {
+  cantidad: number;
+  valor: string;
+  reintegro: string;
+};
+
+export type ReportVoids = {
+  cantidad: number;
+  total: string;
+  reintegro: string;
+};
+
+export type ReportCashCount = {
+  tipo: 'turno' | 'jornada';
+  caja: string;
+  vendedor: string | null;
+  fechaJornada: string;
+  resultado: 'faltante' | 'sobrante';
+  diferencia: string;
+  momento: string;
+};
+
+export type DailyReport = {
+  sucursal: {
+    id: string;
+    nombre: string;
+  };
+  fechaJornada: string;
+  ventas: ReportTotals;
+  porMedio: Array<ReportMethodTotal>;
+  porVendedor: Array<ReportSellerTotal>;
+  porTurno: Array<{
+    turnoId: string;
+    caja: string;
+    vendedor: string;
+    abiertoEn: string;
+    cerradoEn: string | null;
+    tickets: number;
+    total: string;
+    resultado: string | null;
+    diferencia: string | null;
+  }>;
+  devoluciones: ReportReturns;
+  anulaciones: ReportVoids;
+  arqueos: Array<ReportCashCount>;
+  comprobantesSinRegularizar: number | null;
+};
+
+export type Dashboard = {
+  desde: string;
+  hasta: string;
+  sucursalId: string | null;
+  ventas: ReportTotals;
+  devoluciones: ReportReturns;
+  anulaciones: ReportVoids;
+  porMedio: Array<ReportMethodTotal>;
+  porVendedor: Array<ReportSellerTotal>;
+  porProducto: Array<{
+    productoId: string;
+    nombre: string;
+    cantidad: string;
+    total: string;
+  }>;
+  porDia: Array<{
+    fecha: string;
+    total: string;
+    tickets: number;
+  }>;
+  arqueos: Array<ReportCashCount>;
+  bajoMinimo: Array<{
+    sucursal: string;
+    producto: string;
+    disponible: string;
+    umbral: string;
+  }>;
+  comprobantesSinRegularizar: number | null;
+  alertas: {
+    criticas: number;
+    advertencias: number;
+    informativas: number;
+  };
+};
+
+export type CommercialAuditPage = {
+  entradas: Array<{
+    id: string;
+    momento: string;
+    sucursalId: string | null;
+    sucursal: string | null;
+    usuarioId: string;
+    usuario: string | null;
+    rolActivo: 'AC' | 'AS' | 'VO';
+    accion: string;
+    entidad: string;
+    entidadId: string;
+    antes: unknown;
+    despues: unknown;
+    autorizacionId: string | null;
+  }>;
+  hayMas: boolean;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -7787,3 +7992,337 @@ export type VoidSaleResponses = {
 };
 
 export type VoidSaleResponse = VoidSaleResponses[keyof VoidSaleResponses];
+
+export type ListMyAlertsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Filtra por una sucursal del ámbito.
+     */
+    sucursalId?: string;
+  };
+  url: '/alertas';
+};
+
+export type ListMyAlertsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+};
+
+export type ListMyAlertsError = ListMyAlertsErrors[keyof ListMyAlertsErrors];
+
+export type ListMyAlertsResponses = {
+  /**
+   * Alertas.
+   */
+  200: Array<RoleAlert>;
+};
+
+export type ListMyAlertsResponse = ListMyAlertsResponses[keyof ListMyAlertsResponses];
+
+export type ResolveAlertData = {
+  body?: ResolveAlertRequest;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/alertas/{id}/resolucion';
+};
+
+export type ResolveAlertErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type ResolveAlertError = ResolveAlertErrors[keyof ResolveAlertErrors];
+
+export type ResolveAlertResponses = {
+  /**
+   * Resuelta.
+   */
+  204: void;
+};
+
+export type ResolveAlertResponse = ResolveAlertResponses[keyof ResolveAlertResponses];
+
+export type GetSaleTicketData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/ventas/{id}/ticket';
+};
+
+export type GetSaleTicketErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type GetSaleTicketError = GetSaleTicketErrors[keyof GetSaleTicketErrors];
+
+export type GetSaleTicketResponses = {
+  /**
+   * Ticket.
+   */
+  200: SaleTicket;
+};
+
+export type GetSaleTicketResponse = GetSaleTicketResponses[keyof GetSaleTicketResponses];
+
+export type GetDailyReportData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    /**
+     * Fecha de jornada. Por defecto, hoy.
+     */
+    fecha?: string;
+  };
+  url: '/reportes/sucursales/{id}/informe-diario';
+};
+
+export type GetDailyReportErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type GetDailyReportError = GetDailyReportErrors[keyof GetDailyReportErrors];
+
+export type GetDailyReportResponses = {
+  /**
+   * Informe.
+   */
+  200: DailyReport;
+};
+
+export type GetDailyReportResponse = GetDailyReportResponses[keyof GetDailyReportResponses];
+
+export type GetBranchDashboardData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    /**
+     * Fecha de jornada inicial. Por defecto, 29 días antes de hoy.
+     */
+    desde?: string;
+    /**
+     * Fecha de jornada final (inclusiva). Por defecto, hoy en la zona del comercio.
+     */
+    hasta?: string;
+  };
+  url: '/reportes/sucursales/{id}/dashboard';
+};
+
+export type GetBranchDashboardErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type GetBranchDashboardError = GetBranchDashboardErrors[keyof GetBranchDashboardErrors];
+
+export type GetBranchDashboardResponses = {
+  /**
+   * Dashboard.
+   */
+  200: Dashboard;
+};
+
+export type GetBranchDashboardResponse =
+  GetBranchDashboardResponses[keyof GetBranchDashboardResponses];
+
+export type GetStrategicDashboardData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Fecha de jornada inicial. Por defecto, 29 días antes de hoy.
+     */
+    desde?: string;
+    /**
+     * Fecha de jornada final (inclusiva). Por defecto, hoy en la zona del comercio.
+     */
+    hasta?: string;
+    sucursalId?: string;
+  };
+  url: '/reportes/dashboard';
+};
+
+export type GetStrategicDashboardErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type GetStrategicDashboardError =
+  GetStrategicDashboardErrors[keyof GetStrategicDashboardErrors];
+
+export type GetStrategicDashboardResponses = {
+  /**
+   * Dashboard.
+   */
+  200: Dashboard;
+};
+
+export type GetStrategicDashboardResponse =
+  GetStrategicDashboardResponses[keyof GetStrategicDashboardResponses];
+
+export type QueryCommercialAuditData = {
+  body?: never;
+  path?: never;
+  query?: {
+    desde?: string;
+    hasta?: string;
+    sucursalId?: string;
+    usuarioId?: string;
+    entidad?: string;
+    accion?: string;
+    pagina?: number;
+    tamano?: number;
+  };
+  url: '/auditoria-comercial';
+};
+
+export type QueryCommercialAuditErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * No existe, o pertenece a otro comercio.
+   */
+  404: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type QueryCommercialAuditError =
+  QueryCommercialAuditErrors[keyof QueryCommercialAuditErrors];
+
+export type QueryCommercialAuditResponses = {
+  /**
+   * Entradas.
+   */
+  200: CommercialAuditPage;
+};
+
+export type QueryCommercialAuditResponse =
+  QueryCommercialAuditResponses[keyof QueryCommercialAuditResponses];

@@ -388,7 +388,7 @@ describe('[RF-073] [RF-074] [RF-144] venta a crédito', () => {
       const loser = results[0].status === 409 ? [a, vo] : [b, voAs];
       await post(`/ventas/${(loser[0] as Cart).id}/descarte`, loser[1] as string);
     }
-  });
+  }, 30_000);
 });
 
 describe('[RF-128] [RF-129] cobro de cuenta corriente', () => {

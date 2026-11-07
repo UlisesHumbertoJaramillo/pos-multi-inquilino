@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 13. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) el 2026-11-04 (D-80 a D-84), el 2026-11-05 (D-85) y el 2026-11-06 (D-86 y D-87) el 2026-11-07 (D-88), el 2026-11-06 (D-89) y el 2026-11-07 (D-90).
+Surgieron al construir las fases 3 a 14. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) el 2026-11-04 (D-80 a D-84), el 2026-11-05 (D-85) y el 2026-11-06 (D-86 y D-87) el 2026-11-07 (D-88), el 2026-11-06 (D-89) y el 2026-11-07 (D-90 y D-91).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -133,6 +133,7 @@ Surgieron al construir las fases 3 a 13. El responsable del producto las validó
 | D-88 | Detalles fiscales | Sin certificado cargado, el comprobante espera igual que sin punto de venta. El número se asigna antes del primer envío, por punto de venta y tipo; si un reenvío cambia el tipo, toma otro número. Sin el módulo activo, los endpoints fiscales responden MODULO_FISCAL_INACTIVO (409). El plazo de regularización cuenta desde la emisión; el recordatorio se repite cada 24 horas. El CAEA se pide 5 días antes del período y el aviso del certificado llega 30 días antes. El plazo de facturación posterior cuenta en días desde la fecha de jornada. El AC ve las alertas fiscales y las de reintegro en Comprobantes. | Hace deterministas los casos que el spec no detalla. (validado el 2026-11-07). |
 | D-89 | Reintegros electrónicos y anulación a crédito | La parte electrónica de una devolución se reintegra por la pasarela; si la pasarela rechaza o no responde, la devolución no se confirma y el stock no se mueve. Una venta a crédito cuyo cliente ya pagó parte de la deuda se anula igual: el saldo baja hasta cero y el excedente se devuelve en efectivo. | Respeta D-4 y deja anular dentro del turno sin pasar por una devolución (validado el 2026-11-06). |
 | D-90 | Detalles de devoluciones y anulaciones | Anula el VO que tiene abierto el turno en que se vendió, con un solo PIN que cubre también el excedente en efectivo. Una devolución pide PIN siempre que haya efectivo que pagar, sea una fracción en efectivo o el excedente de la cuenta corriente. El plazo de devolución cuenta en días desde la fecha de jornada. Con el módulo de facturación inactivo tampoco se anula una venta facturada. La Nota de Crédito es por el monto reintegrado y numera en su propia serie por tipo. Si la pasarela confirma parte de los reintegros electrónicos y después falla, se alerta al AS y al AC con un reintegro incierto. El stock en revisión se lleva por producto y sucursal, sin estado por ítem. | Hace deterministas los casos que el spec no detalla (validado el 2026-11-07). |
+| D-91 | Alertas, tiempo real y reportes | Las alertas dirigidas a un rol son compartidas: todos los AC del comercio, o todos los AS de la sucursal, ven la misma, y si uno la resuelve queda resuelta para todos, con quién la resolvió. Las que se resuelven solas (stock mínimo, jornada sin Corte Z, fiscales) no se descartan; una crítica se resuelve con una nota de lo que se hizo. Las persistentes sin resolver se recuerdan cada 24 horas solo en la aplicación: vuelven al principio del centro de alertas y se avisa en vivo, sin correo. En dashboards e informe diario las ventas son brutas (incluida la venta anulada después), y las devoluciones y anulaciones se informan aparte. El informe diario trae ventas, tickets, ticket promedio, ventas por medio de pago, por vendedor y por caja y turno, devoluciones, anulaciones, arqueos con diferencia y comprobantes sin regularizar. Sin período, el dashboard muestra los últimos 30 días; el período abarca hasta 366 días. | El spec no definía estos detalles (validado el 2026-11-07). |
 
 ## 4. Supuestos validados
 
@@ -299,7 +300,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-059 | Mientras un carrito permanezca inactivo más allá del tiempo configurado por el comercio, el sistema deberá liberar sus reservas y descartar el carrito, salvo que tenga pagos aprobados o esté en "Pago por verificar". | D-2, D-19, D-20 |
 | RF-116 | Cuando se descarta un carrito, el sistema deberá conservarlo con estado "Descartado" y el motivo (manual, inactividad o cierre forzado de turno), sin eliminarlo. | Const. 5, RN-02 |
 | RF-060 | El sistema deberá mostrar en el POS el subtotal, los descuentos aplicados y el total final, y actualizarlos ante cada cambio del carrito. | RF-13 |
-| RF-061 | El sistema deberá reflejar en los POS conectados de la misma sucursal, sin que haga falta recargar y en 2 segundos como máximo, los cambios de stock disponible causados por otras sesiones, y nunca deberá enviar esa información a sesiones de otra sucursal o de otro comercio. | RNF-02, Const. 3 |
+| RF-061 | El sistema deberá reflejar en los POS conectados de la misma sucursal, sin que haga falta recargar y en 2 segundos como máximo, los cambios de stock disponible causados por otras sesiones, y nunca deberá enviar esa información a sesiones de otra sucursal o de otro comercio. | RNF-02, Const. 3, D-91 |
 | RF-062 | Si se pierde la conexión con el servidor, entonces el sistema deberá impedir agregar ítems o cobrar e indicar al VO que está sin conexión. Las reservas siguen sujetas a su vencimiento, y al reconectar el sistema muestra el carrito vigente o informa que fue descartado. | RNF-02, Const. 2, D-47 |
 
 ### 5.10 Descuentos discrecionales
@@ -339,7 +340,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-075 | Si un medio de pago electrónico informa un rechazo, entonces el sistema deberá dejar la venta sin confirmar, conservar el carrito, sus reservas y los pagos ya aprobados, y permitir cobrar el saldo con otro medio. | Const. 11, D-19, D-85 |
 | RF-125 | Si se intenta descartar una venta con pagos electrónicos aprobados, entonces el sistema deberá exigir que esos pagos se reviertan antes de descartarla. | D-19, D-85 |
 | RF-126 | Si un medio de pago electrónico no responde o se pierde la conexión durante el cobro, entonces el sistema deberá dejar la venta en "Pago por verificar" con sus reservas, impedir reintentar el cobro con ese medio hasta conocer el resultado y consultarlo a la pasarela. Si no lo obtiene, deberá permitir que un AS de la sucursal lo resuelva manualmente. | D-20, Const. 11, D-86 |
-| RF-127 | Si la pasarela informa la aprobación de un pago cuya venta ya fue descartada, entonces el sistema deberá alertar al AS y al AC con un reintegro pendiente. | D-20, D-86 |
+| RF-127 | Si la pasarela informa la aprobación de un pago cuya venta ya fue descartada, entonces el sistema deberá alertar al AS y al AC con un reintegro pendiente. | D-20, D-86, D-91 |
 | RF-076 | Cuando se confirma una venta, el sistema deberá descontar las unidades reservadas del stock de forma definitiva y registrar la venta, los pagos, el impacto en caja y, si la venta se factura, el pedido de comprobante fiscal pendiente en una única operación, que se completa entera o no se aplica. | Const. 6, D-21, D-58 |
 
 ### 5.12 Traspaso de ventas y alertas de sesión
@@ -427,9 +428,9 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | :-- | :-- | :-- |
 | RF-107 | Cuando se confirma una venta, el sistema deberá emitir un ticket con la sucursal, el vendedor, los ítems, las promociones aplicadas con su desglose, los medios de pago y los totales, identificado como comprobante fiscal o como ticket no válido como factura. | RF-20, D-57, D-58 |
 | RF-108 | Si la impresora no responde, entonces el sistema deberá mantener la venta confirmada, avisar al VO y permitir reimprimir el ticket. | Const. 11 |
-| RF-109 | El sistema deberá generar a demanda un informe diario de ventas por sucursal, agrupado por la fecha de jornada (RF-118), para el AS de esa sucursal y para el AC. | RF-20, D-13 |
-| RF-110 | El sistema deberá mostrar al AC un dashboard con las métricas de D-50 y las alertas, consolidadas para todas las sucursales de su comercio y filtrables por período y por sucursal. | RF-12, UC-AC-07, D-50 |
-| RF-111 | El sistema deberá mostrar al AS un dashboard con las métricas de D-50, las ventas diarias y las alertas de stock de su sucursal únicamente. | RF-12, UC-AS-01, D-50 |
+| RF-109 | El sistema deberá generar a demanda un informe diario de ventas por sucursal, agrupado por la fecha de jornada (RF-118), para el AS de esa sucursal y para el AC. | RF-20, D-13, D-91 |
+| RF-110 | El sistema deberá mostrar al AC un dashboard con las métricas de D-50 y las alertas, consolidadas para todas las sucursales de su comercio y filtrables por período y por sucursal. | RF-12, UC-AC-07, D-50, D-91 |
+| RF-111 | El sistema deberá mostrar al AS un dashboard con las métricas de D-50, las ventas diarias y las alertas de stock de su sucursal únicamente. | RF-12, UC-AS-01, D-50, D-91 |
 
 ### 5.17 Requisitos no funcionales
 
@@ -476,6 +477,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | Corte Z (sin turno abierto en esa caja) | | | ✔ | ✔ | RF-095 |
 | Dashboard estratégico | | ✔ | | | RF-110 |
 | Dashboard operativo e informe diario | | ✔ | ✔ (su sucursal) | | RF-109, RF-111 |
+| Ver y resolver las alertas de su rol y recibir los avisos en vivo | | ✔ | ✔ (su sucursal) | ✔ (su sucursal) | RF-041, RF-061, RF-098, RF-127 |
 
 ---
 

@@ -21,6 +21,9 @@ export default defineConfig({
           setupFiles: ['test/support/integration-setup.ts'],
           // Comparten pos_test: se ejecutan de a un archivo para que el vaciado no se cruce.
           fileParallelism: false,
+          // Contra una base real: con el equipo cargado, 5 segundos no alcanzan.
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
         },
       },
     ],

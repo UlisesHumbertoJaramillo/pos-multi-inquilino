@@ -228,6 +228,31 @@ Plataforma usa la consulta real de pendientes fiscales (`FiscalQueue.pendingFor`
 
 La Nota de Crédito se pide con el evento `nota_credito.solicitada`: la cola fiscal la retiene hasta que el original esté aceptado y la bloquea si está rechazado (D-30). El puerto `PaymentGateway` suma `refundPart` para el reintegro parcial.
 
+## Módulo de alertas y tiempo real (`modulos/alertas`)
+
+| Pieza                  | Capa                              | Qué hace                                                                                                                                           |
+| :--------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reglas                 | dominio (`alerts.ts`)             | Quién ve una alerta (compartida por rol, D-91), cuáles se resuelven solas, la nota de una crítica y el intervalo de 24 horas de los recordatorios. |
+| Casos de uso           | aplicación (`alerts.ts`)          | `ListMyAlerts`, `ResolveAlert`, `AlertReminders` (pasada del worker) y `AuthorizeRealtime` (a qué avisos se suscribe una conexión).                |
+| Puertos                | aplicación (`ports.ts`)           | `AlertInbox` (la tabla común `alerta`, que escriben todos los módulos), `BranchLookup` y `RealtimeFeed` (fuente de avisos en vivo).                |
+| Repositorio PostgreSQL | adaptador (`postgres.ts`)         | `PgAlertInbox`, `PgBranchLookup` y `PgRealtimeFeed`: una conexión dedicada con `LISTEN pos_tiempo_real` que se reconecta sola.                     |
+| Gateway WebSocket      | adaptador (`realtime-gateway.ts`) | `/tiempo-real` sobre el mismo servidor HTTPS. Reparte cada aviso solo a las conexiones de ese comercio y sucursal o rol.                           |
+| Rutas HTTP             | adaptador (`http.ts`)             | `GET /alertas` y `POST /alertas/{id}/resolucion`.                                                                                                  |
+
+**Canal en vivo (AD-06).** El cliente abre `wss://…/tiempo-real` y, dentro de 5 segundos, envía `{"tipo":"autenticar","token":"…","sucursalId":"…"}`: el token va en un mensaje y nunca en la URL, para que no quede en registros de acceso. El servidor verifica el token y la sesión, y decide la suscripción con la matriz de permisos: el stock de la sucursal pedida, si está en el ámbito del usuario, y las alertas de su rol. Responde `{"tipo":"listo"}`. Los avisos son `{"tipo":"stock","productoId","disponible"}` y `{"tipo":"alertas"}`; ante este último, el cliente vuelve a pedir `GET /alertas`. Antes de que venza el token, el cliente envía `{"tipo":"token","token":"…"}`, que tiene que ser de la misma sesión. Cada 30 segundos el servidor vuelve a verificar el token y la sesión, y corta las conexiones vencidas, cerradas o de un comercio suspendido. Solo acepta el origen del frontend. Cierres: 4400 mensaje inválido, 4401 sin sesión válida, 4403 sin permiso y 4404 sucursal inexistente.
+
+**Origen de los avisos.** Los disparadores `inventario_aviso` y `alerta_aviso` (migración `1794600000000_tiempo_real`) llaman a `pg_notify` dentro de la transacción que cambia el stock o la alerta. PostgreSQL entrega el aviso solo si la transacción confirma, así que nunca se avisa un cambio revertido. Cada instancia de la API lo recibe con su propio `LISTEN`. Esto reemplaza, para el tiempo real, el paso por el outbox que preveía AD-07: no depende de la cola del worker, que también despacha las llamadas fiscales y de la pasarela, y llega a todas las instancias de la API. Un aviso perdido por un corte se recupera porque, al reconectar, el cliente vuelve a pedir el estado. El outbox sigue para los efectos que deben ocurrir sí o sí, como el pedido de comprobante.
+
+## Módulo de reportes (`modulos/reportes`)
+
+| Pieza                | Capa                      | Qué hace                                                                                                                                                                                  |
+| :------------------- | :------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reglas               | dominio (`reports.ts`)    | Fecha de hoy en la zona del comercio, períodos (hasta 366 días; por defecto, los últimos 30), ticket promedio e identificación fiscal del ticket.                                         |
+| Casos de uso         | aplicación (`reports.ts`) | `GetTicket`, `GetDailyReport`, `GetStrategicDashboard`, `GetBranchDashboard` y `QueryCommercialAudit`. Solo leen.                                                                         |
+| Puertos              | aplicación (`ports.ts`)   | `ReportReader` y `AuditReader`.                                                                                                                                                           |
+| Consultas PostgreSQL | adaptador (`postgres.ts`) | Agrupan por fecha de jornada (turno → jornada) y siempre filtran por comercio y por las sucursales del ámbito. Las ventas son brutas, y las devoluciones y anulaciones van aparte (D-91). |
+| Rutas HTTP           | adaptador (`http.ts`)     | `/ventas/{id}/ticket`, `/reportes/...` y `/auditoria-comercial`.                                                                                                                          |
+
 ## Adaptadores de entrada
 
 | Adaptador              | Ubicación                                               | Qué hace                                                                                                                                                                                                      |

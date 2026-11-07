@@ -1,5 +1,6 @@
 // Marco de la aplicación autenticada: barra superior de vidrio con el rol activo, el cambio de
-// rol y la salida, y el menú del rol activo.
+// rol, las alertas y la salida, y el menú del rol activo. Los roles del comercio tienen la
+// conexión en vivo (AD-06): el VO recibe el stock de su sucursal.
 import type { Role } from '@pos/contracts';
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
@@ -24,10 +25,29 @@ import { useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/httpClient';
 import { useAuth } from '../auth/AuthContext';
 import { homeFor, NAVIGATION, ROLE_NAMES } from '../navigation';
+import { RealtimeProvider, useRealtime } from '../realtime/RealtimeContext';
 import { glassSurface, pageBackground } from '../theme';
+import { AlertCenter } from './AlertCenter';
 import { ColorModeToggle } from './ColorModeToggle';
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const role = user?.rolActivo ?? null;
+  if (!user || role === null || role === 'SA') return <Shell>{children}</Shell>;
+  return (
+    <RealtimeProvider branchId={role === 'VO' ? (user.sucursales[0] ?? null) : null}>
+      <Shell>{children}</Shell>
+    </RealtimeProvider>
+  );
+}
+
+function ConnectionChip() {
+  const { status } = useRealtime();
+  if (status !== 'sin_conexion') return null;
+  return <Chip color="error" label="Sin conexión" data-testid="sin-conexion" />;
+}
+
+function Shell({ children }: { children: ReactNode }) {
   const { user, selectRole, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,6 +109,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Menu>
             </>
           )}
+          <ConnectionChip />
+          {role !== null && role !== 'SA' && <AlertCenter />}
           <ColorModeToggle />
           <Button
             color="inherit"

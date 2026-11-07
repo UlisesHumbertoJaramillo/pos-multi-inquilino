@@ -1,7 +1,8 @@
 // Ventas del turno (T-162, T-163, T-185, T-186; RF-054, RF-060, RF-065, RF-068, RF-073, RF-077,
-// RF-126, RF-128, RF-157): carritos en curso, búsqueda, carrito táctil, descuento manual, cliente,
-// cobro mixto, pagos por verificar, traspasos y cobros de cuenta corriente. Todos los importes los
-// calcula el backend: esta pantalla solo los muestra.
+// RF-126, RF-128, RF-157, RF-061, RF-062): carritos en curso, búsqueda con stock en vivo, carrito
+// táctil, descuento manual, cliente, cobro mixto, pagos por verificar, traspasos, cobros de cuenta
+// corriente y el ticket. Sin conexión no se agrega ni se cobra. Todos los importes los calcula el
+// backend: esta pantalla solo los muestra.
 import type {
   AccountCollection,
   Cart,
@@ -36,7 +37,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatMoney } from '../../api/catalog';
 import { collectionsApi } from '../../api/collections';
 import { ApiError } from '../../api/httpClient';
@@ -45,10 +46,12 @@ import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
 import { useLoader } from '../../hooks/useLoader';
+import { useRealtime } from '../../realtime/RealtimeContext';
 import { AccountCollectionDialog } from './AccountCollectionDialog';
 import { CustomerPicker } from './CustomerPicker';
 import { PaymentDialog, type PaymentLine } from './PaymentDialog';
 import { ReturnDialog } from './ReturnDialog';
+import { TicketDialog } from './TicketDialog';
 
 const SEARCH_DELAY_MS = 250;
 const REFRESH_MS = 15_000;
@@ -92,6 +95,11 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
     null,
   );
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const [ticketOf, setTicketOf] = useState<string | null>(null);
+  const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
+  const realtime = useRealtime();
+  // Sin conexión no se agrega ni se cobra (RF-062): las reservas siguen sujetas a su vencimiento.
+  const offline = realtime.status === 'sin_conexion';
 
   const sales = loaded.data?.ventas ?? [];
   const incoming = loaded.data?.traspasosRecibidos ?? [];
@@ -314,10 +322,88 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
     });
   }
 
+  // Stock en vivo (RF-061): el disponible de los resultados se actualiza sin recargar. Los combos
+  // dependen de varios componentes: se vuelve a buscar.
+  const latestFound = useRef(found);
+  latestFound.current = found;
+  const { onStock } = realtime;
+  useEffect(
+    () =>
+      onStock((change) => {
+        const current = latestFound.current;
+        if (!current) return;
+        if (current.items.some((p) => p.tipo === 'combo')) {
+          api.search(current.term).then(
+            (items) => {
+              setFound((now) => (now?.term === current.term ? { term: current.term, items } : now));
+            },
+            () => undefined,
+          );
+          return;
+        }
+        setFound((now) =>
+          now
+            ? {
+                ...now,
+                items: now.items.map((p) =>
+                  p.id === change.productoId ? { ...p, disponible: change.disponible } : p,
+                ),
+              }
+            : now,
+        );
+      }),
+    [onStock, api],
+  );
+
+  // Al volver la conexión se muestra la venta vigente, o se informa que se descartó (RF-062).
+  const cartId = cart?.id ?? null;
+  const lostCart = useRef<string | null>(null);
+  useEffect(() => {
+    if (offline) lostCart.current = cartId;
+  }, [offline, cartId]);
+  const { reconnections } = realtime;
+  useEffect(() => {
+    if (reconnections === 0) return;
+    const previous = lostCart.current;
+    lostCart.current = null;
+    api.listOwn().then(
+      (list) => {
+        setOverride(null);
+        reloadSales();
+        if (previous === null) setConnectionNotice('Volvió la conexión.');
+        else if (list.ventas.some((v) => v.id === previous)) {
+          setConnectionNotice('Volvió la conexión: se muestra la venta vigente.');
+        } else {
+          setSelected(null);
+          setConnectionNotice(
+            'Volvió la conexión, pero la venta en curso se descartó: venció su reserva mientras no había conexión.',
+          );
+        }
+      },
+      () => undefined,
+    );
+  }, [reconnections, api, reloadSales]);
+
   const locked = cart !== null && (cart.traspaso !== null || cart.pagos.some(isLive));
 
   return (
     <Stack spacing={2}>
+      {offline && (
+        <Alert severity="error" data-testid="pos-sin-conexion">
+          Sin conexión con el servidor: no se pueden agregar productos ni cobrar. Las reservas
+          siguen corriendo; al volver la conexión se muestra la venta vigente.
+        </Alert>
+      )}
+      {connectionNotice !== null && !offline && (
+        <Alert
+          severity={connectionNotice.includes('descartó') ? 'warning' : 'info'}
+          onClose={() => {
+            setConnectionNotice(null);
+          }}
+        >
+          {connectionNotice}
+        </Alert>
+      )}
       {(error ?? loaded.error) !== null && <Alert severity="error">{error ?? loaded.error}</Alert>}
       {notice !== null && <Alert severity="success">{notice}</Alert>}
       {(pendingCollections.data ?? []).map((c) => (
@@ -399,6 +485,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         ))}
         <Button
           variant="outlined"
+          disabled={offline}
           onClick={() =>
             void run(
               () => api.start(),
@@ -413,6 +500,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
         <Button
           variant="outlined"
+          disabled={offline}
           onClick={() =>
             void run(
               () => api.methods(),
@@ -426,6 +514,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
         <Button
           variant="outlined"
+          disabled={offline}
           onClick={() => {
             setDialog({ kind: 'devolucion' });
           }}
@@ -436,6 +525,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
 
       <Autocomplete<SaleSearchResult>
         options={options}
+        disabled={offline}
         filterOptions={(x) => x}
         getOptionLabel={(p) => p.nombre}
         getOptionDisabled={(p) => p.precio === null}
@@ -518,7 +608,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                     >
                       <IconButton
                         aria-label={`Restar ${item.nombre}`}
-                        disabled={locked || Number(item.cantidad) <= 1}
+                        disabled={locked || offline || Number(item.cantidad) <= 1}
                         onClick={() =>
                           void run(
                             () =>
@@ -532,7 +622,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                       <span>{formatQuantity(item.cantidad)}</span>
                       <IconButton
                         aria-label={`Sumar ${item.nombre}`}
-                        disabled={locked}
+                        disabled={locked || offline}
                         onClick={() =>
                           void run(
                             () =>
@@ -711,6 +801,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
               size="large"
               variant="contained"
               disabled={
+                offline ||
                 cart.items.length === 0 ||
                 cart.traspaso !== null ||
                 cart.estado === 'pago_por_verificar'
@@ -882,6 +973,14 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           </DialogContent>
           <DialogActions>
             <Button
+              onClick={() => {
+                setTicketOf(receipt.venta.id);
+                setReceipt(null);
+              }}
+            >
+              Ver ticket
+            </Button>
+            <Button
               variant="contained"
               onClick={() => {
                 setReceipt(null);
@@ -891,6 +990,14 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             </Button>
           </DialogActions>
         </Dialog>
+      )}
+      {ticketOf !== null && (
+        <TicketDialog
+          saleId={ticketOf}
+          onClose={() => {
+            setTicketOf(null);
+          }}
+        />
       )}
     </Stack>
   );

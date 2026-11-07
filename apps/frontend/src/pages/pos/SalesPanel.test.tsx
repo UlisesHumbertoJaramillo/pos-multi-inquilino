@@ -15,6 +15,7 @@ import type {
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FakeWebSocket } from '../../test/realtime';
 import { mockApi, renderApp } from '../../test/render';
 
 const later = () => new Date(Date.now() + 5 * 60_000).toISOString();
@@ -159,6 +160,54 @@ function posApi(sale: Cart, extra: Parameters<typeof mockApi>[0]) {
     ...extra,
   });
 }
+
+describe('[RF-061] [RF-062] stock en vivo y desconexión', () => {
+  it('un cambio de stock de otra sesión actualiza el disponible sin recargar', async () => {
+    posApi(saleOf({}), { 'GET /ventas/productos': () => ({ status: 200, body: [AGUA] }) });
+    renderApp('/pos');
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText('Buscar por nombre o código'), 'Agua');
+    expect(await screen.findByText(/disponible 10/)).toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(FakeWebSocket.latest()?.sent).toContainEqual(
+        expect.objectContaining({ tipo: 'autenticar', sucursalId: 'centro' }),
+      );
+    });
+    FakeWebSocket.latest()?.receive({ tipo: 'stock', productoId: 'agua', disponible: '7.000' });
+    expect(await screen.findByText(/disponible 7/)).toBeInTheDocument();
+  });
+
+  it('sin conexión bloquea agregar y cobrar, y al volver informa el descarte', async () => {
+    let sales: Cart[] = [saleOf({})];
+    posApi(saleOf({}), {
+      'GET /ventas': () => ({
+        status: 200,
+        body: { ventas: sales, traspasosRecibidos: [] } satisfies SalesOverview,
+      }),
+    });
+    renderApp('/pos');
+    expect(await screen.findByRole('button', { name: 'Cobrar' })).toBeEnabled();
+    await vi.waitFor(() => {
+      expect(FakeWebSocket.latest()).toBeDefined();
+    });
+
+    // El servidor se cae: la reserva vence mientras tanto y la venta se descarta.
+    FakeWebSocket.reachable = false;
+    sales = [];
+    FakeWebSocket.latest()?.close(1006);
+    expect(await screen.findByTestId('pos-sin-conexion')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cobrar' })).toBeDisabled();
+    expect(screen.getByLabelText('Buscar por nombre o código')).toBeDisabled();
+    expect(screen.getByTestId('sin-conexion')).toBeInTheDocument();
+
+    FakeWebSocket.reachable = true;
+    expect(
+      await screen.findByText(/la venta en curso se descartó/, {}, { timeout: 8000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('pos-sin-conexion')).toBeNull();
+  });
+});
 
 describe('[RF-068] [RF-073] [RF-074] [RF-126] cobro mixto, crédito y pago por verificar', () => {
   it('cobra una fracción con la tarjeta y el resto en efectivo, con los importes del backend', async () => {

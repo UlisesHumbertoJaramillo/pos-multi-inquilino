@@ -525,27 +525,27 @@
 
 ## Fase 14 — Alertas, tiempo real y reportes
 
-- [ ] **T-227** · Alertas: listar y resolver por destinatario, más el worker de recordatorios para las persistentes. · RF: RF-041, RF-098, RF-127 · Dep: T-092, T-021
+- [x] **T-227** · Alertas: listar y resolver por destinatario, más el worker de recordatorios para las persistentes. · RF: RF-041, RF-098, RF-127 · Dep: T-092, T-021
   - Hecho cuando: en /docs, el AS ve sus alertas y no las del AS de otra sucursal.
-- [ ] **T-228** · WebSocket autenticado con el token, con un canal por comercio y sucursal asignado por el servidor. · RF: RF-061 · Dep: T-031, T-035
+- [x] **T-228** · WebSocket autenticado con el token, con un canal por comercio y sucursal asignado por el servidor. · RF: RF-061 · Dep: T-031, T-035
   - Hecho cuando: una conexión sin token se rechaza y un cliente no puede suscribirse a otra sucursal.
-- [ ] **T-229** · Difusión de los cambios de stock desde el outbox. · RF: RF-061 · Dep: T-228, T-022, T-089
+- [x] **T-229** · Difusión de los cambios de stock desde el outbox. · RF: RF-061 · Dep: T-228, T-022, T-089
   - Hecho cuando: una prueba mide que el evento llega en 2 segundos como máximo a la misma sucursal y nunca a otra.
-- [ ] **T-230** · Frontend POS: stock en vivo y centro de alertas. · RF: RF-061 · Dep: T-229, T-227, T-162
+- [x] **T-230** · Frontend POS: stock en vivo y centro de alertas. · RF: RF-061 · Dep: T-229, T-227, T-162
   - Hecho cuando: con dos navegadores, una venta en uno actualiza el disponible en el otro sin recargar.
-- [ ] **T-231** · Frontend POS: desconexión (bloquea agregar y cobrar) y reconexión (muestra el carrito vigente o informa el descarte). · RF: RF-062 · Dep: T-230
+- [x] **T-231** · Frontend POS: desconexión (bloquea agregar y cobrar) y reconexión (muestra el carrito vigente o informa el descarte). · RF: RF-062 · Dep: T-230
   - Hecho cuando: al detener el backend, el POS muestra "sin conexión", y al volver muestra el carrito o el aviso de descarte.
-- [ ] **T-232** · Documento del ticket: sucursal, vendedor, ítems, promociones, pagos, totales y si es fiscal o no válido como factura. · RF: RF-107 · Dep: T-158, T-196
+- [x] **T-232** · Documento del ticket: sucursal, vendedor, ítems, promociones, pagos, totales y si es fiscal o no válido como factura. · RF: RF-107 · Dep: T-158, T-196
   - Hecho cuando: el endpoint del ticket devuelve el documento completo para una venta facturada y para una no facturada.
-- [ ] **T-233** · Informe diario por sucursal según la fecha de jornada. · RF: RF-109 · Dep: T-158, T-130
+- [x] **T-233** · Informe diario por sucursal según la fecha de jornada. · RF: RF-109 · Dep: T-158, T-130
   - Hecho cuando: una venta hecha después de medianoche en una jornada abierta antes aparece en la fecha de la jornada.
-- [ ] **T-234** · Dashboard del AC con las métricas de D-50, filtrable por período y sucursal. · RF: RF-110 · Dep: T-158, T-172, T-201
+- [x] **T-234** · Dashboard del AC con las métricas de D-50, filtrable por período y sucursal. · RF: RF-110 · Dep: T-158, T-172, T-201
   - Hecho cuando: las métricas del seed coinciden con los valores esperados de una prueba.
-- [ ] **T-235** · Dashboard del AS, limitado a su sucursal. · RF: RF-111 · Dep: T-234
+- [x] **T-235** · Dashboard del AS, limitado a su sucursal. · RF: RF-111 · Dep: T-234
   - Hecho cuando: el AS de la sucursal 1 no ve datos de la sucursal 2.
-- [ ] **T-236** · Consulta de la auditoría comercial: el AC ve su comercio y el AS su sucursal. · RF: RF-114 · Dep: T-041
+- [x] **T-236** · Consulta de la auditoría comercial: el AC ve su comercio y el AS su sucursal. · RF: RF-114 · Dep: T-041
   - Hecho cuando: hay pruebas de ámbito y el SA recibe un rechazo.
-- [ ] **T-237** · Frontend: dashboards, informe diario y auditoría comercial. · RF: RF-109 a RF-111, RF-114 · Dep: T-233 a T-236, T-070
+- [x] **T-237** · Frontend: dashboards, informe diario y auditoría comercial. · RF: RF-109 a RF-111, RF-114 · Dep: T-233 a T-236, T-070
   - Hecho cuando: desde /admin, el AC filtra el dashboard por sucursal y el AS ve el informe de su sucursal.
 
 ## Fase 15 — Periféricos y experiencia táctil

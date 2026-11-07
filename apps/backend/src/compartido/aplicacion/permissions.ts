@@ -154,6 +154,11 @@ export const PERMISSIONS = {
     rf: ['RF-109', 'RF-111'],
     roles: { AC: 'tenant', AS: 'branch' },
   },
+  'alertas.consultar': {
+    description: 'Ver y resolver las alertas de su rol y recibir los avisos en vivo',
+    rf: ['RF-041', 'RF-061', 'RF-098', 'RF-127'],
+    roles: { AC: 'tenant', AS: 'branch', VO: 'branch' },
+  },
 } as const satisfies Record<string, ActionRule>;
 
 export type Action = keyof typeof PERMISSIONS;

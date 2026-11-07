@@ -1,6 +1,9 @@
 // Cliente HTTP base hacia la API. El frontend se comunica con el backend solo por endpoints (Const. 15).
 const API_URL = import.meta.env.VITE_API_URL ?? 'https://localhost:3000';
 
+// Canal de avisos en vivo (AD-06): mismo servidor, por WebSocket seguro.
+export const REALTIME_URL = `${API_URL.replace(/^http/, 'ws')}/tiempo-real`;
+
 const UNEXPECTED_ERROR_MESSAGE = 'Ocurrió un error inesperado.';
 
 export class ApiError extends Error {

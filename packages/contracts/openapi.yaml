@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.14.0
+  version: 0.15.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -45,6 +45,10 @@ tags:
     description: Facturación fiscal, módulo opcional por comercio (AD-26).
   - name: Devoluciones
     description: Anulaciones dentro del turno y devoluciones en cualquier sucursal (VO).
+  - name: Alertas
+    description: Alertas del rol activo y avisos en vivo. El canal WebSocket /tiempo-real se describe en docs/arquitectura/puertos-y-adaptadores.md.
+  - name: Reportes
+    description: Ticket, informe diario, dashboards y auditoría comercial.
 paths:
   /salud:
     get:
@@ -3930,6 +3934,306 @@ paths:
         '403': *a62
         '404': *a65
         '409': *a66
+  /alertas:
+    get:
+      operationId: listMyAlerts
+      tags:
+        - Alertas
+      summary: Alertas pendientes del rol activo
+      description: 'Compartidas por todos los del rol: el AC ve las de su comercio; el AS y el VO, las de sus sucursales (D-91). La recién recordada va primero.'
+      parameters:
+        - name: sucursalId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filtra por una sucursal del ámbito.
+      responses:
+        '200':
+          description: Alertas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleAlert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /alertas/{id}/resolucion:
+    post:
+      operationId: resolveAlert
+      tags:
+        - Alertas
+      summary: Resolver una alerta a mano
+      description: Queda resuelta para todos los del rol y se registra quién. Una crítica exige nota; las que se resuelven solas no se descartan (D-91).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAlertRequest'
+      responses:
+        '204':
+          description: Resuelta.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /ventas/{id}/ticket:
+    get:
+      operationId: getSaleTicket
+      tags:
+        - Reportes
+      summary: Documento del ticket
+      description: Sucursal, vendedor, ítems con promociones, pagos, totales y si es comprobante fiscal o ticket no válido como factura (RF-107). Lo pide el VO de la sucursal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /reportes/sucursales/{id}/informe-diario:
+    get:
+      operationId: getDailyReport
+      tags:
+        - Reportes
+      summary: Informe diario de una sucursal
+      description: Por fecha de jornada (RF-109, RF-118). Ventas brutas, y aparte devoluciones y anulaciones (D-91).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fecha
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de jornada. Por defecto, hoy.
+      responses:
+        '200':
+          description: Informe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /reportes/sucursales/{id}/dashboard:
+    get:
+      operationId: getBranchDashboard
+      tags:
+        - Reportes
+      summary: Dashboard operativo de una sucursal
+      description: 'Métricas de D-50 de una sucursal: el AS solo las suyas (RF-111).'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de jornada inicial. Por defecto, 29 días antes de hoy.
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de jornada final (inclusiva). Por defecto, hoy en la zona del comercio.
+      responses:
+        '200':
+          description: Dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /reportes/dashboard:
+    get:
+      operationId: getStrategicDashboard
+      tags:
+        - Reportes
+      summary: Dashboard estratégico del AC
+      description: Métricas de D-50 consolidadas para todo el comercio, filtrables por período y sucursal (RF-110).
+      parameters:
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de jornada inicial. Por defecto, 29 días antes de hoy.
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de jornada final (inclusiva). Por defecto, hoy en la zona del comercio.
+        - name: sucursalId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auditoria-comercial:
+    get:
+      operationId: queryCommercialAudit
+      tags:
+        - Reportes
+      summary: Auditoría comercial
+      description: El AC ve todo su comercio y el AS solo sus sucursales (RF-114). La más reciente primero; por defecto, los últimos 7 días.
+      parameters:
+        - name: desde
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: hasta
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: sucursalId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: usuarioId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: entidad
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 60
+        - name: accion
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - name: pagina
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: tamano
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Entradas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialAuditPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
   securitySchemes:
     tokenAcceso:
@@ -7447,3 +7751,697 @@ components:
         porMedio: *a119
         requiereAutorizacion: *a120
         operacionRef: *a115
+    RoleAlert:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tipo
+        - severidad
+        - persistente
+        - sucursalId
+        - sucursal
+        - destinatarioRol
+        - referencia
+        - detalle
+        - creadaEn
+        - ultimoRecordatorio
+        - resolubleAMano
+      properties:
+        id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+        severidad:
+          type: string
+          enum:
+            - info
+            - advertencia
+            - critica
+        persistente:
+          type: boolean
+        sucursalId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        sucursal:
+          type:
+            - string
+            - 'null'
+        destinatarioRol:
+          type: string
+          enum:
+            - AC
+            - AS
+            - VO
+        referencia:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        detalle:
+          type: object
+          additionalProperties: true
+        creadaEn:
+          type: string
+          format: date-time
+        ultimoRecordatorio:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        resolubleAMano:
+          type: boolean
+    ResolveAlertRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        nota:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+    SaleTicket:
+      type: object
+      additionalProperties: false
+      required:
+        - ventaId
+        - estado
+        - numeroTicket
+        - confirmadaEn
+        - comercio
+        - sucursal
+        - caja
+        - vendedor
+        - cliente
+        - items
+        - pagos
+        - totales
+        - identificacion
+        - leyenda
+        - comprobante
+      properties:
+        ventaId:
+          type: string
+          format: uuid
+        estado:
+          type: string
+          enum:
+            - confirmada
+            - anulada
+        numeroTicket:
+          type:
+            - integer
+            - 'null'
+        confirmadaEn:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        comercio:
+          type: object
+          additionalProperties: false
+          required:
+            - nombre
+            - cuit
+          properties:
+            nombre:
+              type: string
+            cuit:
+              type:
+                - string
+                - 'null'
+        sucursal:
+          type: object
+          additionalProperties: false
+          required:
+            - nombre
+            - direccion
+          properties:
+            nombre:
+              type: string
+            direccion:
+              type:
+                - string
+                - 'null'
+        caja:
+          type: string
+        vendedor:
+          type: string
+        cliente:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - nombre
+                - documento
+                - condicionFiscal
+              properties:
+                nombre:
+                  type: string
+                documento:
+                  type:
+                    - string
+                    - 'null'
+                condicionFiscal:
+                  type: string
+            - type: 'null'
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - nombre
+              - cantidad
+              - precioUnitario
+              - bruto
+              - promocion
+              - descuentoManual
+              - importe
+              - devuelta
+            properties:
+              nombre:
+                type: string
+              cantidad:
+                type: string
+              precioUnitario:
+                type: string
+              bruto:
+                type: string
+              promocion:
+                oneOf:
+                  - type: object
+                    additionalProperties: false
+                    required:
+                      - nombre
+                      - descuento
+                    properties:
+                      nombre:
+                        type: string
+                      descuento:
+                        type: string
+                  - type: 'null'
+              descuentoManual:
+                type: string
+              importe:
+                type: string
+              devuelta:
+                type: string
+        pagos:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - metodo
+              - tipo
+              - monto
+              - recargo
+              - abonado
+              - vuelto
+            properties:
+              metodo:
+                type: string
+              tipo:
+                type: string
+              monto:
+                type: string
+              recargo:
+                type: string
+              abonado:
+                type: string
+              vuelto:
+                type: string
+        totales:
+          type: object
+          additionalProperties: false
+          required:
+            - subtotal
+            - descuentoPromociones
+            - descuentoManual
+            - total
+            - recargos
+            - cobrado
+          properties:
+            subtotal:
+              type: string
+            descuentoPromociones:
+              type: string
+            descuentoManual:
+              type: string
+            total:
+              type: string
+            recargos:
+              type: string
+            cobrado:
+              type: string
+        identificacion:
+          type: string
+          enum:
+            - comprobante_fiscal
+            - factura_en_tramite
+            - no_valido_como_factura
+        leyenda:
+          type: string
+        comprobante:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - tipo
+                - clase
+                - puntoVenta
+                - numero
+                - cae
+                - caea
+                - estado
+              properties:
+                tipo:
+                  type: string
+                clase:
+                  type:
+                    - string
+                    - 'null'
+                puntoVenta:
+                  type:
+                    - integer
+                    - 'null'
+                numero:
+                  type:
+                    - string
+                    - 'null'
+                cae:
+                  type:
+                    - string
+                    - 'null'
+                caea:
+                  type:
+                    - string
+                    - 'null'
+                estado:
+                  type: string
+            - type: 'null'
+    ReportTotals:
+      type: object
+      additionalProperties: false
+      required:
+        - total
+        - tickets
+        - promedio
+      properties:
+        total:
+          type: string
+        tickets:
+          type: integer
+        promedio:
+          type: string
+    ReportMethodTotal:
+      type: object
+      additionalProperties: false
+      required:
+        - metodo
+        - tipo
+        - monto
+        - recargo
+      properties:
+        metodo:
+          type: string
+        tipo:
+          type: string
+        monto:
+          type: string
+        recargo:
+          type: string
+    ReportSellerTotal:
+      type: object
+      additionalProperties: false
+      required:
+        - vendedorId
+        - vendedor
+        - tickets
+        - total
+      properties:
+        vendedorId:
+          type: string
+          format: uuid
+        vendedor:
+          type: string
+        tickets:
+          type: integer
+        total:
+          type: string
+    ReportReturns:
+      type: object
+      additionalProperties: false
+      required:
+        - cantidad
+        - valor
+        - reintegro
+      properties:
+        cantidad:
+          type: integer
+        valor:
+          type: string
+        reintegro:
+          type: string
+    ReportVoids:
+      type: object
+      additionalProperties: false
+      required:
+        - cantidad
+        - total
+        - reintegro
+      properties:
+        cantidad:
+          type: integer
+        total:
+          type: string
+        reintegro:
+          type: string
+    ReportCashCount:
+      type: object
+      additionalProperties: false
+      required:
+        - tipo
+        - caja
+        - vendedor
+        - fechaJornada
+        - resultado
+        - diferencia
+        - momento
+      properties:
+        tipo:
+          type: string
+          enum:
+            - turno
+            - jornada
+        caja:
+          type: string
+        vendedor:
+          type:
+            - string
+            - 'null'
+        fechaJornada:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        resultado:
+          type: string
+          enum:
+            - faltante
+            - sobrante
+        diferencia:
+          type: string
+        momento:
+          type: string
+          format: date-time
+    DailyReport:
+      type: object
+      additionalProperties: false
+      required:
+        - sucursal
+        - fechaJornada
+        - ventas
+        - porMedio
+        - porVendedor
+        - porTurno
+        - devoluciones
+        - anulaciones
+        - arqueos
+        - comprobantesSinRegularizar
+      properties:
+        sucursal:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nombre
+          properties:
+            id:
+              type: string
+              format: uuid
+            nombre:
+              type: string
+        fechaJornada:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        ventas:
+          $ref: '#/components/schemas/ReportTotals'
+        porMedio:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportMethodTotal'
+        porVendedor:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportSellerTotal'
+        porTurno:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - turnoId
+              - caja
+              - vendedor
+              - abiertoEn
+              - cerradoEn
+              - tickets
+              - total
+              - resultado
+              - diferencia
+            properties:
+              turnoId:
+                type: string
+                format: uuid
+              caja:
+                type: string
+              vendedor:
+                type: string
+              abiertoEn:
+                type: string
+                format: date-time
+              cerradoEn:
+                type:
+                  - string
+                  - 'null'
+                format: date-time
+              tickets:
+                type: integer
+              total:
+                type: string
+              resultado:
+                type:
+                  - string
+                  - 'null'
+              diferencia:
+                type:
+                  - string
+                  - 'null'
+        devoluciones:
+          $ref: '#/components/schemas/ReportReturns'
+        anulaciones:
+          $ref: '#/components/schemas/ReportVoids'
+        arqueos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportCashCount'
+        comprobantesSinRegularizar:
+          type:
+            - integer
+            - 'null'
+    Dashboard:
+      type: object
+      additionalProperties: false
+      required:
+        - desde
+        - hasta
+        - sucursalId
+        - ventas
+        - devoluciones
+        - anulaciones
+        - porMedio
+        - porVendedor
+        - porProducto
+        - porDia
+        - arqueos
+        - bajoMinimo
+        - comprobantesSinRegularizar
+        - alertas
+      properties:
+        desde:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        hasta:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        sucursalId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        ventas:
+          $ref: '#/components/schemas/ReportTotals'
+        devoluciones:
+          $ref: '#/components/schemas/ReportReturns'
+        anulaciones:
+          $ref: '#/components/schemas/ReportVoids'
+        porMedio:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportMethodTotal'
+        porVendedor:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportSellerTotal'
+        porProducto:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - nombre
+              - cantidad
+              - total
+            properties:
+              productoId:
+                type: string
+                format: uuid
+              nombre:
+                type: string
+              cantidad:
+                type: string
+              total:
+                type: string
+        porDia:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - fecha
+              - total
+              - tickets
+            properties:
+              fecha:
+                type: string
+                pattern: ^\d{4}-\d{2}-\d{2}$
+              total:
+                type: string
+              tickets:
+                type: integer
+        arqueos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportCashCount'
+        bajoMinimo:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - sucursal
+              - producto
+              - disponible
+              - umbral
+            properties:
+              sucursal:
+                type: string
+              producto:
+                type: string
+              disponible:
+                type: string
+              umbral:
+                type: string
+        comprobantesSinRegularizar:
+          type:
+            - integer
+            - 'null'
+        alertas:
+          type: object
+          additionalProperties: false
+          required:
+            - criticas
+            - advertencias
+            - informativas
+          properties:
+            criticas:
+              type: integer
+            advertencias:
+              type: integer
+            informativas:
+              type: integer
+    CommercialAuditPage:
+      type: object
+      additionalProperties: false
+      required:
+        - entradas
+        - hayMas
+      properties:
+        entradas:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - momento
+              - sucursalId
+              - sucursal
+              - usuarioId
+              - usuario
+              - rolActivo
+              - accion
+              - entidad
+              - entidadId
+              - antes
+              - despues
+              - autorizacionId
+            properties:
+              id:
+                type: string
+                format: uuid
+              momento:
+                type: string
+                format: date-time
+              sucursalId:
+                type:
+                  - string
+                  - 'null'
+                format: uuid
+              sucursal:
+                type:
+                  - string
+                  - 'null'
+              usuarioId:
+                type: string
+                format: uuid
+              usuario:
+                type:
+                  - string
+                  - 'null'
+              rolActivo:
+                type: string
+                enum:
+                  - AC
+                  - AS
+                  - VO
+              accion:
+                type: string
+              entidad:
+                type: string
+              entidadId:
+                type: string
+              antes: {}
+              despues: {}
+              autorizacionId:
+                type:
+                  - string
+                  - 'null'
+                format: uuid
+        hayMas:
+          type: boolean

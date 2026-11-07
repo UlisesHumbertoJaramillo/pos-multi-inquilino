@@ -1,4 +1,4 @@
-// Matriz de permisos sobre las rutas reales (T-038, T-059, T-071, T-087, T-102; RF-001, RF-003,
+// Matriz de permisos sobre las rutas reales (T-038, T-059, T-071, T-087, T-102, T-236; RF-001, RF-003,
 // RF-004).
 // Se genera desde el registro de rutas: cada ruta con acción × cada rol. Al agregar una ruta con
 // acción, sus casos se agregan solos.
@@ -117,6 +117,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
   const CUSTOMER_A = 'b0000000-0000-4000-8000-000000000001';
   const COLLECTION_A = 'b1000000-0000-4000-8000-000000000001';
   const VOUCHER_A = 'b2000000-0000-4000-8000-000000000001';
+  const ALERT_A = 'b3000000-0000-4000-8000-000000000001';
   // Recurso del comercio A según el segmento de la ruta (/organizacion/cajas/:id → cajas).
   const FOREIGN: Record<string, { resourceType: string; id: string }> = {
     sucursales: { resourceType: 'sucursal', id: BRANCH_CENTRO },
@@ -137,6 +138,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
     clientes: { resourceType: 'cliente', id: CUSTOMER_A },
     comprobantes: { resourceType: 'comprobante', id: VOUCHER_A },
     cobros: { resourceType: 'cobro_cuenta_corriente', id: COLLECTION_A },
+    alertas: { resourceType: 'alerta', id: ALERT_A },
   };
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
   // Un cuerpo válido: la respuesta tiene que depender del recurso, no de los datos.
@@ -161,6 +163,7 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
       return { metodoPagoId: PAYMENT_METHOD_A, fraccion: '1', claveIdempotencia: TRANSFER_A };
     if (path.endsWith('/pagos'))
       return { monto: '1', metodo: 'efectivo', comprobante: 'Intrusión' };
+    if (path === '/alertas/:id/resolucion') return { nota: 'Intrusión' };
     if (path.endsWith('/resolucion')) return { resultado: 'aprobado', autorizacionId: TRANSFER_A };
     if (path === '/ventas/:id/cliente') return { clienteId: null };
     if (path.startsWith('/devoluciones/ventas/:id'))
@@ -188,6 +191,8 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
         'cuenta-corriente',
         'fiscal',
         'devoluciones',
+        'alertas',
+        'reportes',
       ].includes(route.path.split('/')[1] ?? ''),
   );
 
@@ -278,6 +283,11 @@ describe('[RF-001] acceso cruzado entre comercios en las rutas comerciales', () 
          proximo_intento, plazo_vence, emitido_en)
        VALUES ($1, $2, 'factura', $3, $4, $5, 1, 'rechazado', now(), now(), now())`,
       [VOUCHER_A, TENANT_A, SALE_A, BRANCH_CENTRO, REGISTER_A],
+    );
+    await ownerQuery(
+      `INSERT INTO alerta (id, tenant_id, sucursal_id, destinatario_rol, tipo, severidad, creada_en)
+       VALUES ($1, $2, $3, 'AC', 'transferencia_faltante', 'advertencia', now())`,
+      [ALERT_A, TENANT_A, BRANCH_CENTRO],
     );
   });
 

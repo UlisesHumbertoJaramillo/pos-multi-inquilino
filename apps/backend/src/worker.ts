@@ -55,6 +55,9 @@ const outbox = new PgOutboxDispatcher(db, systemClock, logger, { handlers: EVENT
 // Pasada periódica de la cola fiscal: CAEA, certificados, reintentos y plazos (RF-102, RF-105).
 const FISCAL_SWEEP_MS = Number(process.env.FISCAL_SWEEP_MS ?? '30000');
 let lastSweep = 0;
+// Recordatorios de las alertas persistentes sin resolver, cada 24 horas (D-91).
+const ALERT_SWEEP_MS = Number(process.env.ALERT_SWEEP_MS ?? '60000');
+let lastAlertSweep = 0;
 
 let running = true;
 
@@ -67,6 +70,10 @@ async function loop(): Promise<void> {
       if (Date.now() - lastSweep >= FISCAL_SWEEP_MS) {
         lastSweep = Date.now();
         await api.fiscal.queue.sweep();
+      }
+      if (Date.now() - lastAlertSweep >= ALERT_SWEEP_MS) {
+        lastAlertSweep = Date.now();
+        await api.alerts.reminders.sweep();
       }
       // Si había trabajo, se sigue sin esperar; si no, se espera al próximo ciclo.
       if (dispatched + claimed === 0) await sleep(POLL_INTERVAL_MS);

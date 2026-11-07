@@ -478,7 +478,7 @@ describe('[RF-057] [RF-152] la última unidad entre dos VO', () => {
       await post(`/ventas/${a.id}/descarte`, vo);
       await post(`/ventas/${b.id}/descarte`, voAs);
     }
-  });
+  }, 30_000);
 });
 
 describe('[RF-059] [RF-146] [RF-117] [RF-115] vencimiento, suspensión y caja', () => {

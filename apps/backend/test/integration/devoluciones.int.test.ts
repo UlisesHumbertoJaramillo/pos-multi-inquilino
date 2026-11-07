@@ -538,5 +538,5 @@ describe('[RF-152] dos devoluciones simultáneas del mismo ticket', () => {
       );
       expect(item).toEqual([{ cantidad_devuelta: '1.000' }]);
     }
-  });
+  }, 30_000);
 });

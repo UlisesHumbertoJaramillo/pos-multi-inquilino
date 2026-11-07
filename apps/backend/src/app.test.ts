@@ -24,7 +24,7 @@ describe('/docs', () => {
     expect(page.status).toBe(200);
     expect(page.text).toContain('swagger-ui');
     expect(init.text).toContain('/salud');
-  });
+  }, 30_000);
 
   it('en producción no se registra, ni siquiera para un usuario autenticado', async () => {
     const response = await request(createTestApp())

@@ -38,7 +38,9 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Cuota de descuento', path: '/admin/cuota', available: true },
     { label: 'Proveedores', path: '/admin/proveedores', available: true },
     { label: 'Compras', path: '/admin/compras', available: true },
-    { label: 'Dashboard', path: '/admin/dashboard', available: false },
+    { label: 'Dashboard', path: '/admin/dashboard', available: true },
+    { label: 'Informe diario', path: '/admin/informe', available: true },
+    { label: 'Auditoría comercial', path: '/admin/auditoria', available: true },
   ],
   AS: [
     { label: 'Inicio', path: '/admin', available: true },
@@ -49,7 +51,9 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Caja', path: '/admin/caja', available: true },
     { label: 'Clientes', path: '/admin/clientes', available: true },
     { label: 'Comprobantes', path: '/admin/comprobantes', available: true },
-    { label: 'Informe diario', path: '/admin/informe', available: false },
+    { label: 'Dashboard', path: '/admin/dashboard', available: true },
+    { label: 'Informe diario', path: '/admin/informe', available: true },
+    { label: 'Auditoría comercial', path: '/admin/auditoria', available: true },
   ],
   VO: [{ label: 'Punto de venta', path: '/pos', available: true }],
 };

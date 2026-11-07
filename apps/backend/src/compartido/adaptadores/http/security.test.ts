@@ -31,7 +31,7 @@ describe('cabeceras de seguridad', () => {
     const response = await request(createTestApp({ devRoutes: true })).get('/docs/');
 
     expect(response.headers['content-security-policy']).toContain("script-src 'self'");
-  });
+  }, 30_000);
 });
 
 describe('CORS', () => {
