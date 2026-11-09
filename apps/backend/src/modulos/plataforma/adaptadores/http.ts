@@ -323,6 +323,14 @@ export function platformRoutes(useCases: PlatformUseCases): HttpRoute[] {
             conErrores: panel.outbox.withErrors,
             pendienteMasAntiguo: panel.outbox.oldestPendingAt?.toISOString() ?? null,
           },
+          perifericosConFalla: panel.failingPeripherals.map((p) => ({
+            momento: p.at.toISOString(),
+            comercioId: p.tenantId,
+            comercio: p.tenantName,
+            dispositivo: p.device,
+            conexion: p.connection,
+            motivo: p.reason,
+          })),
         });
       },
     },

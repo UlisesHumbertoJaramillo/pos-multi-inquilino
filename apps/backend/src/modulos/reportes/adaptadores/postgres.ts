@@ -50,6 +50,8 @@ interface TicketRow {
   confirmada_en: Date | null;
   comercio: string;
   cuit: string | null;
+  moneda: string;
+  zona_horaria: string;
   sucursal: string;
   direccion: string | null;
   caja: string;
@@ -95,7 +97,7 @@ export class PgReportReader implements ReportReader {
   async ticket(tenantId: string, saleId: string): Promise<TicketDocument | undefined> {
     const sale = await this.db.query<TicketRow>(
       `SELECT v.id, v.sucursal_id, v.estado_comercial, v.numero_ticket, v.confirmada_en,
-              co.nombre AS comercio, co.cuit, s.nombre AS sucursal, s.direccion,
+              co.nombre AS comercio, co.cuit, co.moneda, co.zona_horaria, s.nombre AS sucursal, s.direccion,
               c.nombre AS caja, u.nombre AS vendedor,
               cl.razon_social AS cliente, cl.documento, cl.condicion_fiscal,
               -- Bruto, antes de promociones: el ticket muestra el desglose completo (RF-107).
@@ -184,7 +186,12 @@ export class PgReportReader implements ReportReader {
       state: row.estado_comercial,
       ticketNumber: row.numero_ticket,
       confirmedAt: row.confirmada_en,
-      tenant: { name: row.comercio, cuit: row.cuit },
+      tenant: {
+        name: row.comercio,
+        cuit: row.cuit,
+        currency: row.moneda.trim(),
+        timeZone: row.zona_horaria,
+      },
       branch: { name: row.sucursal, address: row.direccion },
       register: row.caja,
       seller: row.vendedor,

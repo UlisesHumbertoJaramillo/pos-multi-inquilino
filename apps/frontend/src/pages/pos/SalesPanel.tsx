@@ -1,8 +1,9 @@
 // Ventas del turno (T-162, T-163, T-185, T-186; RF-054, RF-060, RF-065, RF-068, RF-073, RF-077,
 // RF-126, RF-128, RF-157, RF-061, RF-062): carritos en curso, búsqueda con stock en vivo, carrito
 // táctil, descuento manual, cliente, cobro mixto, pagos por verificar, traspasos, cobros de cuenta
-// corriente y el ticket. Sin conexión no se agrega ni se cobra. Todos los importes los calcula el
-// backend: esta pantalla solo los muestra.
+// corriente, el ticket y los periféricos (T-238 a T-240: impresora y lector de códigos). Sin
+// conexión no se agrega ni se cobra; una falla de impresión no cambia la venta (RF-108). Todos los
+// importes los calcula el backend: esta pantalla solo los muestra.
 import type {
   AccountCollection,
   Cart,
@@ -52,6 +53,11 @@ import { CustomerPicker } from './CustomerPicker';
 import { PaymentDialog, type PaymentLine } from './PaymentDialog';
 import { ReturnDialog } from './ReturnDialog';
 import { TicketDialog } from './TicketDialog';
+import { PrinterDialog } from './PrinterDialog';
+import { reportsApi } from '../../api/reports';
+import { createScanDetector } from '../../peripherals/barcode';
+import { PRINTER_LABELS } from '../../peripherals/printers';
+import { usePrinter } from '../../peripherals/usePrinter';
 
 const SEARCH_DELAY_MS = 250;
 const REFRESH_MS = 15_000;
@@ -100,6 +106,24 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   const realtime = useRealtime();
   // Sin conexión no se agrega ni se cobra (RF-062): las reservas siguen sujetas a su vencimiento.
   const offline = realtime.status === 'sin_conexion';
+  const reports = useMemo(() => reportsApi(request), [request]);
+  const printer = usePrinter();
+  const [printerOpen, setPrinterOpen] = useState(false);
+  const [printFailure, setPrintFailure] = useState<{ saleId: string; ticket: number } | null>(null);
+
+  // Imprime el ticket que arma el backend. Si falla, la venta sigue confirmada y se puede
+  // reimprimir (RF-108).
+  async function printTicket(saleId: string, ticket: number) {
+    setPrintFailure(null);
+    try {
+      const document = await reports.ticket(saleId);
+      if (!(await printer.print(document.impresion.lineas))) {
+        setPrintFailure({ saleId, ticket });
+      }
+    } catch {
+      setPrintFailure({ saleId, ticket });
+    }
+  }
 
   const sales = loaded.data?.ventas ?? [];
   const incoming = loaded.data?.traspasosRecibidos ?? [];
@@ -250,6 +274,7 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
       });
       setDialog(null);
       setReceipt(result);
+      if (printer.kind !== 'ninguna') void printTicket(result.venta.id, result.numeroTicket);
       setSelected(null);
       refresh();
     } catch (e: unknown) {
@@ -384,6 +409,37 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
     );
   }, [reconnections, api, reloadSales]);
 
+  // Lector de códigos (RF-054): escribe rápido y termina con Enter. Si el foco está en un campo,
+  // ese campo lo maneja (la búsqueda ya agrega el código exacto); si no, se busca acá.
+  const addRef = useRef(add);
+  addRef.current = add;
+  useEffect(() => {
+    const detect = createScanDetector((code) => {
+      api.search(code).then(
+        (items) => {
+          const exact = items.find((p) => p.codigoBarras === code && p.precio !== null);
+          if (exact) void addRef.current(exact);
+          else setError(`No se encontró un producto con el código ${code}.`);
+        },
+        (e: unknown) => {
+          setError(errorMessage(e, 'No se pudo buscar el código.'));
+        },
+      );
+    });
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editable =
+        target !== null &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (editable || offline) return;
+      if (detect(event.key, event.timeStamp)) event.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [api, offline]);
+
   const locked = cart !== null && (cart.traspaso !== null || cart.pagos.some(isLive));
 
   return (
@@ -402,6 +458,25 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           }}
         >
           {connectionNotice}
+        </Alert>
+      )}
+      {printFailure !== null && (
+        <Alert
+          severity="warning"
+          data-testid="falla-impresion"
+          action={
+            <Button
+              size="small"
+              color="inherit"
+              onClick={() => void printTicket(printFailure.saleId, printFailure.ticket)}
+            >
+              Reimprimir
+            </Button>
+          }
+        >
+          No se pudo imprimir el ticket {String(printFailure.ticket)}
+          {printer.status.state === 'falla' ? `: ${printer.status.message}` : '.'} La venta quedó
+          confirmada.
         </Alert>
       )}
       {(error ?? loaded.error) !== null && <Alert severity="error">{error ?? loaded.error}</Alert>}
@@ -520,6 +595,15 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           }}
         >
           Devolución o anulación
+        </Button>
+        <Button
+          variant="text"
+          color={printer.status.state === 'falla' ? 'error' : 'inherit'}
+          onClick={() => {
+            setPrinterOpen(true);
+          }}
+        >
+          Impresora: {PRINTER_LABELS[printer.kind]}
         </Button>
       </Stack>
 
@@ -972,6 +1056,11 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             </Stack>
           </DialogContent>
           <DialogActions>
+            {printer.kind !== 'ninguna' && (
+              <Button onClick={() => void printTicket(receipt.venta.id, receipt.numeroTicket)}>
+                Imprimir
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setTicketOf(receipt.venta.id);
@@ -991,8 +1080,17 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           </DialogActions>
         </Dialog>
       )}
+      {printerOpen && (
+        <PrinterDialog
+          printer={printer}
+          onClose={() => {
+            setPrinterOpen(false);
+          }}
+        />
+      )}
       {ticketOf !== null && (
         <TicketDialog
+          onPrint={printer.kind === 'ninguna' ? null : printer.print}
           saleId={ticketOf}
           onClose={() => {
             setTicketOf(null);

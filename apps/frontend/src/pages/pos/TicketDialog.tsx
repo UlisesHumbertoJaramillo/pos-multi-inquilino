@@ -1,5 +1,5 @@
 // Documento del ticket de una venta (T-232; RF-107): sucursal, vendedor, ítems con promociones,
-// pagos, totales y la identificación fiscal. Lo arma el backend; la impresión llega en la Fase 15.
+// pagos, totales y la identificación fiscal. Lo arma el backend; se imprime tal cual (RF-158).
 import type { SaleTicket } from '@pos/contracts';
 import {
   Alert,
@@ -19,6 +19,7 @@ import { reportsApi } from '../../api/reports';
 import { formatQuantity } from '../../api/sales';
 import { useAuth } from '../../auth/AuthContext';
 import { useLoader } from '../../hooks/useLoader';
+import type { PrintLine } from '../../peripherals/escpos';
 
 function Line({ left, right, strong }: { left: string; right: string; strong?: boolean }) {
   return (
@@ -111,7 +112,16 @@ function TicketBody({ t }: { t: SaleTicket }) {
   );
 }
 
-export function TicketDialog({ saleId, onClose }: { saleId: string; onClose: () => void }) {
+export function TicketDialog({
+  saleId,
+  onClose,
+  onPrint = null,
+}: {
+  saleId: string;
+  onClose: () => void;
+  // Nulo sin impresora configurada.
+  onPrint?: ((lines: readonly PrintLine[]) => Promise<boolean>) | null;
+}) {
   const { request } = useAuth();
   const api = useMemo(() => reportsApi(request), [request]);
   const fetchTicket = useCallback(() => api.ticket(saleId), [api, saleId]);
@@ -128,6 +138,15 @@ export function TicketDialog({ saleId, onClose }: { saleId: string; onClose: () 
         )}
       </DialogContent>
       <DialogActions>
+        {onPrint !== null && loaded.data && (
+          <Button
+            onClick={() => {
+              if (loaded.data) void onPrint(loaded.data.impresion.lineas);
+            }}
+          >
+            Imprimir
+          </Button>
+        )}
         <Button onClick={onClose}>Cerrar</Button>
       </DialogActions>
     </Dialog>

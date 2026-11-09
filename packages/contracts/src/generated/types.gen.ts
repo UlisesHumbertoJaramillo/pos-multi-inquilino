@@ -251,6 +251,17 @@ export type TechnicalPanel = {
     conErrores: number;
     pendienteMasAntiguo: string | null;
   };
+  /**
+   * Periféricos cuyo último estado informado es una falla (T-241). Sin datos comerciales.
+   */
+  perifericosConFalla: Array<{
+    momento: string;
+    comercioId: string;
+    comercio: string;
+    dispositivo: string;
+    conexion: string;
+    motivo: string | null;
+  }>;
 };
 
 export type Branch = {
@@ -1733,6 +1744,16 @@ export type SaleTicket = {
     caea: string | null;
     estado: string;
   } | null;
+  /**
+   * Ticket diagramado por el backend para la impresora térmica de 80 mm (D-92). El frontend solo lo envía.
+   */
+  impresion: {
+    ancho: number;
+    lineas: Array<{
+      texto: string;
+      estilo: 'normal' | 'negrita' | 'titulo';
+    }>;
+  };
 };
 
 export type ReportTotals = {
@@ -1855,6 +1876,13 @@ export type CommercialAuditPage = {
     autorizacionId: string | null;
   }>;
   hayMas: boolean;
+};
+
+export type PeripheralReport = {
+  dispositivo: 'impresora' | 'lector';
+  conexion: 'usb' | 'serial' | 'navegador' | 'teclado';
+  estado: 'ok' | 'falla';
+  motivo?: 'sin_soporte' | 'sin_permiso' | 'desconectada' | 'error_envio' | 'sin_papel' | null;
 };
 
 export type GetHealthData = {
@@ -8326,3 +8354,38 @@ export type QueryCommercialAuditResponses = {
 
 export type QueryCommercialAuditResponse =
   QueryCommercialAuditResponses[keyof QueryCommercialAuditResponses];
+
+export type ReportPeripheralData = {
+  body: PeripheralReport;
+  path?: never;
+  query?: never;
+  url: '/perifericos/estado';
+};
+
+export type ReportPeripheralErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ReportPeripheralError = ReportPeripheralErrors[keyof ReportPeripheralErrors];
+
+export type ReportPeripheralResponses = {
+  /**
+   * Recibido.
+   */
+  200: {
+    registrado: boolean;
+  };
+};
+
+export type ReportPeripheralResponse = ReportPeripheralResponses[keyof ReportPeripheralResponses];

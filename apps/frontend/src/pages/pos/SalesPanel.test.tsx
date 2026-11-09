@@ -12,7 +12,7 @@ import type {
   SalesOverview,
   SessionTokens,
 } from '@pos/contracts';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeWebSocket } from '../../test/realtime';
@@ -206,6 +206,128 @@ describe('[RF-061] [RF-062] stock en vivo y desconexión', () => {
       await screen.findByText(/la venta en curso se descartó/, {}, { timeout: 8000 }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId('pos-sin-conexion')).toBeNull();
+  });
+});
+
+describe('[RF-108] [RF-158] [RF-054] impresora y lector del POS', () => {
+  const PAID: SaleReceipt = {
+    venta: saleOf({ estado: 'confirmada', numeroTicket: 7 }),
+    numeroTicket: 7,
+    cobrado: '1000.00',
+    ajuste: '0.00',
+    entregado: '1000.00',
+    vuelto: '0.00',
+    seFactura: false,
+    estadoFiscal: 'no_se_factura',
+    estadoCobro: 'pagada',
+    pagos: [],
+  };
+  const TICKET = {
+    impresion: {
+      ancho: 48,
+      lineas: [
+        { texto: 'Comercio A', estilo: 'titulo' },
+        { texto: 'TOTAL   $ 1.000,00', estilo: 'negrita' },
+      ],
+    },
+  };
+
+  it('si la impresora falla la venta queda confirmada, avisa y se reimprime al volver', async () => {
+    localStorage.setItem('pos.impresora', 'usb');
+    const reports: unknown[] = [];
+    posApi(saleOf({}), {
+      'POST /ventas/venta1/cobro': () => ({ status: 200, body: PAID }),
+      'GET /ventas/venta1/ticket': () => ({ status: 200, body: TICKET }),
+      'POST /perifericos/estado': (body) => {
+        reports.push(body);
+        return { status: 200, body: { registrado: true } };
+      },
+    });
+    renderApp('/pos');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Cobrar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar la venta' });
+    await user.type(within(dialog).getByLabelText('Entregado'), '1000');
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar venta' }));
+    const receipt = await screen.findByRole('dialog', { name: 'Venta cobrada · Ticket 7' });
+    await user.click(within(receipt).getByRole('button', { name: 'Listo' }));
+
+    // Este navegador simulado no tiene WebUSB: la impresión falla, la venta no cambia.
+    const warning = await screen.findByTestId('falla-impresion');
+    expect(warning).toHaveTextContent('No se pudo imprimir el ticket 7');
+    expect(warning).toHaveTextContent('La venta quedó confirmada.');
+    await vi.waitFor(() => {
+      expect(reports).toContainEqual({
+        dispositivo: 'impresora',
+        conexion: 'usb',
+        estado: 'falla',
+        motivo: 'sin_soporte',
+      });
+    });
+
+    // Se conecta la impresora (ya autorizada): reimprimir funciona sin diálogos.
+    const sent: Uint8Array[] = [];
+    const device = {
+      vendorId: 1,
+      productId: 2,
+      opened: false,
+      configuration: {
+        interfaces: [
+          {
+            interfaceNumber: 0,
+            alternate: { endpoints: [{ endpointNumber: 1, direction: 'out', type: 'bulk' }] },
+          },
+        ],
+      },
+      open: () => Promise.resolve(),
+      selectConfiguration: () => Promise.resolve(),
+      claimInterface: () => Promise.resolve(),
+      releaseInterface: () => Promise.resolve(),
+      transferOut: (_endpoint: number, data: Uint8Array) => {
+        sent.push(data);
+        return Promise.resolve({ status: 'ok' });
+      },
+      close: () => Promise.resolve(),
+    };
+    Object.defineProperty(navigator, 'usb', {
+      configurable: true,
+      value: { getDevices: () => Promise.resolve([device]), requestDevice: vi.fn() },
+    });
+    try {
+      await user.click(within(warning).getByRole('button', { name: 'Reimprimir' }));
+      await vi.waitFor(() => {
+        expect(screen.queryByTestId('falla-impresion')).toBeNull();
+      });
+      expect(sent).toHaveLength(1);
+      expect(reports).toContainEqual({
+        dispositivo: 'impresora',
+        conexion: 'usb',
+        estado: 'ok',
+        motivo: null,
+      });
+    } finally {
+      Reflect.deleteProperty(navigator, 'usb');
+    }
+  });
+
+  it('el lector agrega el producto aunque el foco no esté en la búsqueda', async () => {
+    let added: unknown;
+    posApi(saleOf({}), {
+      'GET /ventas/productos': () => ({ status: 200, body: [AGUA] }),
+      'POST /ventas/venta1/items': (body) => {
+        added = body;
+        return { status: 200, body: saleOf({}) };
+      },
+    });
+    renderApp('/pos');
+    const search = await screen.findByLabelText('Buscar por nombre o código');
+    search.blur();
+    for (const key of [...Array.from('7790001'), 'Enter'])
+      fireEvent.keyDown(document.body, { key });
+    await vi.waitFor(() => {
+      expect(added).toEqual({ productoId: 'agua', cantidad: '1' });
+    });
   });
 });
 

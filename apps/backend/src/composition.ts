@@ -44,6 +44,10 @@ import {
 } from './modulos/devoluciones/adaptadores/module.js';
 import { type AlertsModule, createAlertsModule } from './modulos/alertas/adaptadores/module.js';
 import { createReportsModule, type ReportsModule } from './modulos/reportes/adaptadores/module.js';
+import {
+  createPeripheralsModule,
+  type PeripheralsModule,
+} from './modulos/perifericos/adaptadores/module.js';
 import { DEFAULT_PARAMETERS } from './modulos/organizacion/dominio/parameters.js';
 import {
   createPromotionModule,
@@ -142,6 +146,7 @@ export interface Api {
   returns: ReturnsModule;
   alerts: AlertsModule;
   reports: ReportsModule;
+  peripherals: PeripheralsModule;
   routes: HttpRoute[];
 }
 
@@ -448,6 +453,9 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
   // Ticket, informe diario, dashboards y auditoría comercial: solo lectura (plan §2.18).
   const reports = createReportsModule({ db: deps.db, clock: deps.clock, access });
 
+  // Estado de la impresora y del lector, para el panel técnico del SA (T-241, AD-16).
+  const peripherals = createPeripheralsModule({ db: deps.db, access, technicalAudit });
+
   const routes = [
     ...identity.routes,
     ...platform.routes,
@@ -464,6 +472,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...returns.routes,
     ...alerts.routes,
     ...reports.routes,
+    ...peripherals.routes,
     ...(deps.extraRoutes ?? []),
   ];
   const app = createApp({
@@ -494,6 +503,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     returns,
     alerts,
     reports,
+    peripherals,
     routes,
   };
 }

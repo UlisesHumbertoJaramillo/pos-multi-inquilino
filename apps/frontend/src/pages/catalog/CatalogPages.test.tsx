@@ -118,7 +118,7 @@ describe('[RF-130] [RF-159] catálogo del AC', () => {
   });
 });
 
-describe('[RF-028] [RF-119] listas de precios', () => {
+describe('[RF-028] [RF-119] [RF-033] listas de precios', () => {
   it('el AC cambia la regla de una lista y ve los precios recalculados', async () => {
     const list: PriceList = {
       id: 'lista-1',

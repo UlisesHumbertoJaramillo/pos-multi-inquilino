@@ -10,6 +10,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['src/test/setup.ts'],
     // Las pantallas con MUI en jsdom son lentas cuando corren varios archivos en paralelo.
-    testTimeout: 20_000,
+    testTimeout: 60_000,
   },
 });

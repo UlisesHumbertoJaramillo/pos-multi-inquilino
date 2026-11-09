@@ -15,5 +15,6 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   sessionStorage.clear();
+  localStorage.clear();
   FakeWebSocket.reset();
 });

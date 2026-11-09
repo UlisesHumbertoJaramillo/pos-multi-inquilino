@@ -253,6 +253,20 @@ La Nota de Crédito se pide con el evento `nota_credito.solicitada`: la cola fis
 | Consultas PostgreSQL | adaptador (`postgres.ts`) | Agrupan por fecha de jornada (turno → jornada) y siempre filtran por comercio y por las sucursales del ámbito. Las ventas son brutas, y las devoluciones y anulaciones van aparte (D-91). |
 | Rutas HTTP           | adaptador (`http.ts`)     | `/ventas/{id}/ticket`, `/reportes/...` y `/auditoria-comercial`.                                                                                                                          |
 
+## Periféricos (`modulos/perifericos` y `frontend/src/peripherals`)
+
+Los periféricos están conectados al equipo del usuario, así que su adaptador vive en el frontend (AD-16). El backend arma el documento a imprimir y recibe el resultado.
+
+| Pieza                   | Capa                                                      | Qué hace                                                                                                                                                                                                              |
+| :---------------------- | :-------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Diagramación del ticket | dominio del backend (`reportes/dominio/ticket-layout.ts`) | Líneas de 48 caracteres para papel de 80 mm, con estilos normal, negrita y título, y solo caracteres que la impresora puede imprimir (D-92). Viajan en `impresion` dentro de `GET /ventas/{id}/ticket`.               |
+| Estado de periféricos   | backend (`perifericos`)                                   | `ReportPeripheral`: registra en la auditoría técnica cada cambio de estado de la impresora o el lector, con motivos cerrados. `POST /perifericos/estado` (VO). El panel técnico del SA lista los que están con falla. |
+| Codificador ESC/POS     | frontend (`escpos.ts`)                                    | Traduce las líneas a bytes: inicialización, página de códigos PC858, negrita, doble tamaño y corte.                                                                                                                   |
+| Impresoras              | frontend (`printers.ts`)                                  | `TicketPrinter` con tres implementaciones: `UsbPrinter` (WebUSB), `SerialPrinter` (WebSerial) y `BrowserPrinter` (impresión del navegador en 80 mm). El agente local sería otra implementación del mismo puerto.      |
+| Lector de códigos       | frontend (`barcode.ts`)                                   | El lector funciona como teclado: una ráfaga de teclas terminada en Enter es una lectura. Si falla, se sigue con la búsqueda manual (D-54).                                                                            |
+
+Una falla de impresión nunca cambia la venta (RF-108): el POS avisa y ofrece reimprimir.
+
 ## Adaptadores de entrada
 
 | Adaptador              | Ubicación                                               | Qué hace                                                                                                                                                                                                      |

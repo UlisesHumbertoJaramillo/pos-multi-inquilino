@@ -8,7 +8,7 @@ export interface TicketDocument {
   state: string;
   ticketNumber: number | null;
   confirmedAt: Date | null;
-  tenant: { name: string; cuit: string | null };
+  tenant: { name: string; cuit: string | null; currency: string; timeZone: string };
   branch: { name: string; address: string | null };
   register: string;
   seller: string;

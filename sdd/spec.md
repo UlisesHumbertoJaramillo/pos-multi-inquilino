@@ -99,7 +99,7 @@ Estos puntos tenían una solución razonable que no requería consulta. El respo
 
 ### 3.3 Decisiones de la implementación (2026-11-02 y 2026-11-03)
 
-Surgieron al construir las fases 3 a 14. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) el 2026-11-04 (D-80 a D-84), el 2026-11-05 (D-85) y el 2026-11-06 (D-86 y D-87) el 2026-11-07 (D-88), el 2026-11-06 (D-89) y el 2026-11-07 (D-90 y D-91).
+Surgieron al construir las fases 3 a 15. El responsable del producto las validó el 2026-11-02 (D-61 a D-65), el 2026-11-03 (D-66 a D-79) el 2026-11-04 (D-80 a D-84), el 2026-11-05 (D-85) y el 2026-11-06 (D-86 y D-87) el 2026-11-07 (D-88), el 2026-11-06 (D-89) y el 2026-11-07 (D-90 a D-92).
 
 | # | Tema | Decisión | Por qué |
 | :-- | :-- | :-- | :-- |
@@ -134,6 +134,7 @@ Surgieron al construir las fases 3 a 14. El responsable del producto las validó
 | D-89 | Reintegros electrónicos y anulación a crédito | La parte electrónica de una devolución se reintegra por la pasarela; si la pasarela rechaza o no responde, la devolución no se confirma y el stock no se mueve. Una venta a crédito cuyo cliente ya pagó parte de la deuda se anula igual: el saldo baja hasta cero y el excedente se devuelve en efectivo. | Respeta D-4 y deja anular dentro del turno sin pasar por una devolución (validado el 2026-11-06). |
 | D-90 | Detalles de devoluciones y anulaciones | Anula el VO que tiene abierto el turno en que se vendió, con un solo PIN que cubre también el excedente en efectivo. Una devolución pide PIN siempre que haya efectivo que pagar, sea una fracción en efectivo o el excedente de la cuenta corriente. El plazo de devolución cuenta en días desde la fecha de jornada. Con el módulo de facturación inactivo tampoco se anula una venta facturada. La Nota de Crédito es por el monto reintegrado y numera en su propia serie por tipo. Si la pasarela confirma parte de los reintegros electrónicos y después falla, se alerta al AS y al AC con un reintegro incierto. El stock en revisión se lleva por producto y sucursal, sin estado por ítem. | Hace deterministas los casos que el spec no detalla (validado el 2026-11-07). |
 | D-91 | Alertas, tiempo real y reportes | Las alertas dirigidas a un rol son compartidas: todos los AC del comercio, o todos los AS de la sucursal, ven la misma, y si uno la resuelve queda resuelta para todos, con quién la resolvió. Las que se resuelven solas (stock mínimo, jornada sin Corte Z, fiscales) no se descartan; una crítica se resuelve con una nota de lo que se hizo. Las persistentes sin resolver se recuerdan cada 24 horas solo en la aplicación: vuelven al principio del centro de alertas y se avisa en vivo, sin correo. En dashboards e informe diario las ventas son brutas (incluida la venta anulada después), y las devoluciones y anulaciones se informan aparte. El informe diario trae ventas, tickets, ticket promedio, ventas por medio de pago, por vendedor y por caja y turno, devoluciones, anulaciones, arqueos con diferencia y comprobantes sin regularizar. Sin período, el dashboard muestra los últimos 30 días; el período abarca hasta 366 días. | El spec no definía estos detalles (validado el 2026-11-07). |
+| D-92 | Periféricos | La impresora de tickets es térmica de 80 mm (48 caracteres por línea) y se maneja desde el navegador por WebUSB o WebSerial con comandos ESC/POS: el permiso se da una vez por equipo y después cada ticket sale sin diálogos. Sin impresora térmica, el ticket se imprime con el diálogo del navegador en formato de 80 mm (sin diálogo si Chrome corre en modo kiosco). El backend diagrama el ticket línea por línea; el frontend solo lo envía. El POS informa al backend los cambios de estado de la impresora con motivos cerrados, y el SA ve en el panel técnico los periféricos con falla, sin datos comerciales. El agente local y la terminal de pago quedan pendientes, junto con Mercado Pago y ARCA. En pantallas táctiles ningún control mide menos de 48 px. | El responsable del producto todavía no tiene impresora (validado el 2026-11-07). |
 
 ## 4. Supuestos validados
 
@@ -427,7 +428,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
 | RF-107 | Cuando se confirma una venta, el sistema deberá emitir un ticket con la sucursal, el vendedor, los ítems, las promociones aplicadas con su desglose, los medios de pago y los totales, identificado como comprobante fiscal o como ticket no válido como factura. | RF-20, D-57, D-58 |
-| RF-108 | Si la impresora no responde, entonces el sistema deberá mantener la venta confirmada, avisar al VO y permitir reimprimir el ticket. | Const. 11 |
+| RF-108 | Si la impresora no responde, entonces el sistema deberá mantener la venta confirmada, avisar al VO y permitir reimprimir el ticket. | Const. 11, D-92 |
 | RF-109 | El sistema deberá generar a demanda un informe diario de ventas por sucursal, agrupado por la fecha de jornada (RF-118), para el AS de esa sucursal y para el AC. | RF-20, D-13, D-91 |
 | RF-110 | El sistema deberá mostrar al AC un dashboard con las métricas de D-50 y las alertas, consolidadas para todas las sucursales de su comercio y filtrables por período y por sucursal. | RF-12, UC-AC-07, D-50, D-91 |
 | RF-111 | El sistema deberá mostrar al AS un dashboard con las métricas de D-50, las ventas diarias y las alertas de stock de su sucursal únicamente. | RF-12, UC-AS-01, D-50, D-91 |
@@ -439,8 +440,8 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | ID | Requisito | Origen |
 | :-- | :-- | :-- |
 | RF-156 | El sistema deberá guardar contraseñas y PIN de forma irreversible, de modo que nadie, ni siquiera el SA, pueda recuperarlos en texto plano. | RNF-04 |
-| RF-157 | El sistema deberá permitir operar el POS completo en pantallas táctiles de tablet, y la administración y los dashboards en escritorio. | RNF-05 |
-| RF-158 | El sistema deberá comunicarse con la impresora de tickets, el lector de códigos y la terminal de pago desde el navegador, sin diálogos del sistema operativo en cada operación. | RNF-03 |
+| RF-157 | El sistema deberá permitir operar el POS completo en pantallas táctiles de tablet, y la administración y los dashboards en escritorio. | RNF-05, D-92 |
+| RF-158 | El sistema deberá comunicarse con la impresora de tickets, el lector de códigos y la terminal de pago desde el navegador, sin diálogos del sistema operativo en cada operación. | RNF-03, D-92 |
 | RF-159 | El sistema deberá permitir asociar una imagen a cada producto. | RNF-01 |
 
 ### 5.18 Matriz de permisos

@@ -273,7 +273,34 @@ export class PgPlatformHealthQuery implements PlatformHealthQuery {
               min(creado_en) AS oldest
          FROM outbox WHERE procesado_en IS NULL`,
     );
+    const peripherals = await this.db.query<{
+      momento: Date;
+      tenant_id: string;
+      comercio: string;
+      detalle: { dispositivo?: string; conexion?: string; estado?: string; motivo?: string | null };
+    }>(
+      `SELECT * FROM (
+         SELECT DISTINCT ON (a.tenant_id, a.actor_id, a.detalle->>'dispositivo')
+                a.momento, a.tenant_id, c.nombre AS comercio, a.detalle
+           FROM auditoria_tecnica a
+           JOIN comercio c ON c.id = a.tenant_id
+          WHERE a.tipo_evento = 'periferico'
+          ORDER BY a.tenant_id, a.actor_id, a.detalle->>'dispositivo', a.momento DESC
+       ) ultimos
+       WHERE detalle->>'estado' = 'falla'
+       ORDER BY momento DESC
+       LIMIT $1`,
+      [RECENT_ERRORS],
+    );
     return {
+      failingPeripherals: peripherals.rows.map((row) => ({
+        at: row.momento,
+        tenantId: row.tenant_id,
+        tenantName: row.comercio,
+        device: row.detalle.dispositivo ?? '',
+        connection: row.detalle.conexion ?? '',
+        reason: row.detalle.motivo ?? null,
+      })),
       recentErrors: errors.rows.map((row) => ({
         at: row.momento,
         method: row.detalle.method ?? '',

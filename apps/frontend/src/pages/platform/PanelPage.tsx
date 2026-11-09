@@ -1,5 +1,5 @@
-// Panel técnico del SA: errores internos recientes y estado de los trabajos y del outbox
-// (T-058, RF-016). Los periféricos se suman en T-241.
+// Panel técnico del SA: errores internos recientes, estado de los trabajos y del outbox, y
+// periféricos con falla (T-058, T-241; RF-016). Sin datos comerciales.
 import type { TechnicalPanel } from '@pos/contracts';
 import {
   Alert,
@@ -18,6 +18,14 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLoader } from '../../hooks/useLoader';
 import { AppShell } from '../../components/AppShell';
 import { PageSection } from '../../components/PageSection';
+
+const REASONS: Record<string, string> = {
+  sin_soporte: 'el navegador no lo admite',
+  sin_permiso: 'sin permiso del navegador',
+  desconectada: 'desconectada',
+  error_envio: 'error al enviar',
+  sin_papel: 'sin papel',
+};
 
 const dateTime = new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'medium' });
 
@@ -59,7 +67,29 @@ export function PanelPage() {
               <Counter label="Trabajos fallidos" value={panel.trabajos.fallidos} alert />
               <Counter label="Eventos sin despachar" value={panel.outbox.pendientes} />
               <Counter label="Eventos con errores" value={panel.outbox.conErrores} alert />
+              <Counter
+                label="Periféricos con falla"
+                value={panel.perifericosConFalla.length}
+                alert
+              />
             </Stack>
+            <Typography variant="h6">Periféricos con falla</Typography>
+            {panel.perifericosConFalla.length === 0 ? (
+              <Typography color="text.secondary">
+                Todos los periféricos informados funcionan.
+              </Typography>
+            ) : (
+              <List dense aria-label="Periféricos con falla">
+                {panel.perifericosConFalla.map((p) => (
+                  <ListItem key={`${p.comercioId}-${p.dispositivo}-${p.momento}`} divider>
+                    <ListItemText
+                      primary={`${p.comercio}: ${p.dispositivo} (${p.conexion})${p.motivo ? ` — ${REASONS[p.motivo] ?? p.motivo}` : ''}`}
+                      secondary={dateTime.format(new Date(p.momento))}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
             <Typography variant="h6">Errores internos recientes</Typography>
             {panel.erroresRecientes.length === 0 ? (
               <Typography color="text.secondary">Sin errores recientes.</Typography>

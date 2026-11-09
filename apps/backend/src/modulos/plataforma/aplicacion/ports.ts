@@ -91,6 +91,15 @@ export interface PlatformHealth {
   recentErrors: { at: Date; method: string; path: string; error: string }[];
   jobs: { pending: number; running: number; failed: number };
   outbox: { pending: number; withErrors: number; oldestPendingAt: Date | null };
+  // Periféricos cuyo último estado informado es una falla (T-241). Sin datos comerciales.
+  failingPeripherals: {
+    at: Date;
+    tenantId: string;
+    tenantName: string;
+    device: string;
+    connection: string;
+    reason: string | null;
+  }[];
 }
 
 export interface PlatformHealthQuery {

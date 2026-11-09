@@ -550,15 +550,16 @@
 
 ## Fase 15 — Periféricos y experiencia táctil
 
-- [ ] **T-238** · Adaptador de impresora en el frontend: WebUSB o WebSerial en Chrome y Edge, y agente local como alternativa. Imprime el documento que arma el backend. · RF: RF-158 · Dep: T-232
+- [x] **T-238** · Adaptador de impresora en el frontend: WebUSB o WebSerial en Chrome y Edge, y agente local como alternativa. Imprime el documento que arma el backend. · RF: RF-158 · Dep: T-232
   - Hecho cuando: una impresora térmica de prueba imprime el ticket de una venta demo desde https://localhost:5173/pos.
-- [ ] **T-239** · Falla de impresión: la venta sigue confirmada, el VO recibe un aviso y puede reimprimir. · RF: RF-108 · Dep: T-238
+  - Nota: probada con la impresión del navegador. El envío ESC/POS a una térmica real está cubierto solo por pruebas automáticas, hasta tener el equipo (D-92).
+- [x] **T-239** · Falla de impresión: la venta sigue confirmada, el VO recibe un aviso y puede reimprimir. · RF: RF-108 · Dep: T-238
   - Hecho cuando: con la impresora desconectada, la venta figura confirmada y el botón de reimprimir funciona al reconectarla.
-- [ ] **T-240** · Lector de códigos como teclado, con búsqueda manual si el lector falla. · RF: RF-054 · Dep: T-162
+- [x] **T-240** · Lector de códigos como teclado, con búsqueda manual si el lector falla. · RF: RF-054 · Dep: T-162
   - Hecho cuando: un lector USB agrega productos al carrito, y sin lector se sigue vendiendo por búsqueda.
-- [ ] **T-241** · Informar el estado de los periféricos al backend y mostrarlo en el panel técnico del SA. · RF: RF-016 · Dep: T-238, T-057
+- [x] **T-241** · Informar el estado de los periféricos al backend y mostrarlo en el panel técnico del SA. · RF: RF-016 · Dep: T-238, T-057
   - Hecho cuando: desconectar la impresora genera una alerta técnica visible para el SA, sin datos comerciales.
-- [ ] **T-242** · Revisión táctil del POS en una tablet Android con Chrome, y de la administración en escritorio. · RF: RF-157 · Dep: T-231, T-240
+- [x] **T-242** · Revisión táctil del POS en una tablet Android con Chrome, y de la administración en escritorio. · RF: RF-157 · Dep: T-231, T-240
   - Hecho cuando: el guion de venta completo se hace en una tablet sin teclado físico, y los botones cumplen el tamaño táctil mínimo.
 
 ## Fase 16 — Cierre

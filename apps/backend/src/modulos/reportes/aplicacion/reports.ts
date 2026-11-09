@@ -18,6 +18,7 @@ import {
   type TicketIdentification,
   ticketIdentification,
 } from '../dominio/reports.js';
+import { type PrintLine, TICKET_WIDTH, ticketLines } from '../dominio/ticket-layout.js';
 import type {
   AlertCounts,
   AuditEntry,
@@ -83,6 +84,8 @@ export interface TicketView {
   document: TicketDocument;
   identification: TicketIdentification;
   legend: string;
+  // Líneas listas para la impresora térmica de 80 mm (AD-16, D-92).
+  print: { width: number; lines: PrintLine[] };
 }
 
 // Documento del ticket de una venta confirmada o anulada (RF-107). Lo pide el VO de la sucursal.
@@ -104,7 +107,13 @@ export class GetTicket extends ReportUseCase {
           authorized: document.voucher.cae !== null || document.voucher.caea !== null,
         },
       });
-      return { document, identification, legend: TICKET_LEGENDS[identification] };
+      const legend = TICKET_LEGENDS[identification];
+      return {
+        document,
+        identification,
+        legend,
+        print: { width: TICKET_WIDTH, lines: ticketLines({ ...document, legend }) },
+      };
     });
   }
 }

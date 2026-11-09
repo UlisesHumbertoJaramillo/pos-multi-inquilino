@@ -3,6 +3,11 @@ import { createTheme, type Theme } from '@mui/material/styles';
 
 const BRAND = '#3554d1';
 
+// Tamaño táctil mínimo (RF-157, T-242): en pantallas táctiles, ningún control queda por debajo de
+// 48 px. En escritorio, con mouse, la administración conserva su densidad.
+export const TOUCH_TARGET_PX = 48;
+const TOUCH_MEDIA = '@media (pointer: coarse)';
+
 export const theme = createTheme({
   cssVariables: { colorSchemeSelector: 'class' },
   colorSchemes: {
@@ -30,6 +35,21 @@ export const theme = createTheme({
     MuiButton: {
       // Botones cómodos para pantallas táctiles.
       defaultProps: { size: 'large' },
+      styleOverrides: { root: { [TOUCH_MEDIA]: { minHeight: TOUCH_TARGET_PX } } },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: { [TOUCH_MEDIA]: { minHeight: TOUCH_TARGET_PX, minWidth: TOUCH_TARGET_PX } },
+      },
+    },
+    MuiChip: {
+      styleOverrides: { root: { [TOUCH_MEDIA]: { minHeight: 40 } } },
+    },
+    MuiListItemButton: {
+      styleOverrides: { root: { [TOUCH_MEDIA]: { minHeight: TOUCH_TARGET_PX } } },
+    },
+    MuiMenuItem: {
+      styleOverrides: { root: { [TOUCH_MEDIA]: { minHeight: TOUCH_TARGET_PX } } },
     },
   },
 });

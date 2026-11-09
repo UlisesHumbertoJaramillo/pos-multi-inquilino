@@ -227,7 +227,18 @@ describe('[RF-107] documento del ticket (T-232)', () => {
       identificacion: 'no_valido_como_factura',
       leyenda: 'Ticket no válido como factura.',
       comprobante: null,
+      impresion: { ancho: 48 },
     });
+    // El documento a imprimir lo arma el backend (AD-16): el frontend solo lo envía.
+    const lines = (response.body as { impresion: { lineas: { texto: string; estilo: string }[] } })
+      .impresion.lineas;
+    expect(lines[0]).toMatchObject({
+      estilo: 'titulo',
+      texto: expect.stringContaining('Comercio A') as string,
+    });
+    expect(lines.map((l) => l.texto)).toContainEqual(
+      expect.stringMatching(/^TOTAL +\$ 1\.800,00$/),
+    );
   });
 
   it('una venta facturada se identifica como comprobante fiscal o en trámite', async () => {

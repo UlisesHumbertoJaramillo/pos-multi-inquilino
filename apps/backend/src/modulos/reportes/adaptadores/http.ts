@@ -52,7 +52,7 @@ const auditQuery = z
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
 
-const ticketDto = ({ document: d, identification, legend }: TicketView) => ({
+const ticketDto = ({ document: d, identification, legend, print }: TicketView) => ({
   ventaId: d.saleId,
   estado: d.state,
   numeroTicket: d.ticketNumber,
@@ -98,6 +98,10 @@ const ticketDto = ({ document: d, identification, legend }: TicketView) => ({
   },
   identificacion: identification,
   leyenda: legend,
+  impresion: {
+    ancho: print.width,
+    lineas: print.lines.map((l) => ({ texto: l.text, estilo: l.style })),
+  },
   comprobante:
     d.voucher === null
       ? null

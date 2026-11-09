@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.15.0
+  version: 0.16.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -49,6 +49,8 @@ tags:
     description: Alertas del rol activo y avisos en vivo. El canal WebSocket /tiempo-real se describe en docs/arquitectura/puertos-y-adaptadores.md.
   - name: Reportes
     description: Ticket, informe diario, dashboards y auditoría comercial.
+  - name: Periféricos
+    description: Estado de la impresora y del lector del POS, para el panel técnico (AD-16).
 paths:
   /salud:
     get:
@@ -4234,6 +4236,38 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /perifericos/estado:
+    post:
+      operationId: reportPeripheral
+      tags:
+        - Periféricos
+      summary: Informar el estado de un periférico
+      description: El POS informa la falla o la recuperación de la impresora o el lector. Solo se registran los cambios, en la auditoría técnica (T-241).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeripheralReport'
+      responses:
+        '200':
+          description: Recibido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - registrado
+                properties:
+                  registrado:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     tokenAcceso:
@@ -4801,6 +4835,7 @@ components:
         - erroresRecientes
         - trabajos
         - outbox
+        - perifericosConFalla
       properties:
         erroresRecientes:
           type: array
@@ -4851,6 +4886,36 @@ components:
                 - string
                 - 'null'
               format: date-time
+        perifericosConFalla:
+          type: array
+          description: Periféricos cuyo último estado informado es una falla (T-241). Sin datos comerciales.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - momento
+              - comercioId
+              - comercio
+              - dispositivo
+              - conexion
+              - motivo
+            properties:
+              momento:
+                type: string
+                format: date-time
+              comercioId:
+                type: string
+                format: uuid
+              comercio:
+                type: string
+              dispositivo:
+                type: string
+              conexion:
+                type: string
+              motivo:
+                type:
+                  - string
+                  - 'null'
     Branch:
       type: object
       additionalProperties: false
@@ -7843,6 +7908,7 @@ components:
         - identificacion
         - leyenda
         - comprobante
+        - impresion
       properties:
         ventaId:
           type: string
@@ -8045,6 +8111,33 @@ components:
                 estado:
                   type: string
             - type: 'null'
+        impresion:
+          type: object
+          additionalProperties: false
+          required:
+            - ancho
+            - lineas
+          description: Ticket diagramado por el backend para la impresora térmica de 80 mm (D-92). El frontend solo lo envía.
+          properties:
+            ancho:
+              type: integer
+            lineas:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - texto
+                  - estilo
+                properties:
+                  texto:
+                    type: string
+                  estilo:
+                    type: string
+                    enum:
+                      - normal
+                      - negrita
+                      - titulo
     ReportTotals:
       type: object
       additionalProperties: false
@@ -8445,3 +8538,39 @@ components:
                 format: uuid
         hayMas:
           type: boolean
+    PeripheralReport:
+      type: object
+      additionalProperties: false
+      required:
+        - dispositivo
+        - conexion
+        - estado
+      properties:
+        dispositivo:
+          type: string
+          enum:
+            - impresora
+            - lector
+        conexion:
+          type: string
+          enum:
+            - usb
+            - serial
+            - navegador
+            - teclado
+        estado:
+          type: string
+          enum:
+            - ok
+            - falla
+        motivo:
+          type:
+            - string
+            - 'null'
+          enum:
+            - sin_soporte
+            - sin_permiso
+            - desconectada
+            - error_envio
+            - sin_papel
+            - null
