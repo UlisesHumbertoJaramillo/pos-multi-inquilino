@@ -17,6 +17,8 @@ const session = (role: 'AC' | 'AS'): SessionTokens => ({
     nombre: 'Ana',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: [role],
     rolActivo: role,
     sucursales: ['centro'],

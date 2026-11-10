@@ -1,10 +1,10 @@
 // Caja de la sucursal para el AS: estado de las cajas, turnos abiertos con cierre forzado ciego,
-// Corte Z y alertas de caja (T-143; RF-095, RF-097, RF-098, RF-115).
+// Corte Z y alertas de caja (T-143; RF-095, RF-097, RF-098, RF-115). Las alertas se muestran como
+// puntos de atención con la acción que los resuelve (T-260, RF-191).
 import type { CashCount, CashShift, CashRegisterStatus } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Stack,
   Table,
   TableBody,
@@ -15,10 +15,13 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { cashApi } from '../../api/cash';
 import { describeAlert, inventoryApi } from '../../api/inventory';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { AttentionCard } from '../../components/AttentionCard';
+import { alertSeverity, Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { BranchSelect, useOwnBranches } from '../inventory/BranchSelect';
@@ -42,6 +45,7 @@ const time = (iso: string) =>
 
 export function BranchCashPage() {
   const { request } = useAuth();
+  const navigate = useNavigate();
   const api = useMemo(() => cashApi(request), [request]);
   const inventory = useMemo(() => inventoryApi(request), [request]);
   const branches = useOwnBranches(inventory);
@@ -97,11 +101,33 @@ export function BranchCashPage() {
         {(loaded.error ?? branches.error) !== null && (
           <Alert severity="error">{loaded.error ?? branches.error}</Alert>
         )}
-        {data?.alerts.map((alert) => (
-          <Alert key={alert.id} severity={alert.severidad === 'critica' ? 'error' : 'warning'}>
-            {describeAlert(alert)}
-          </Alert>
-        ))}
+        {data?.alerts.map((alert) => {
+          // Una caja con la jornada vencida se resuelve con su Corte Z; un arqueo con diferencia,
+          // revisándolo en el informe diario.
+          const register =
+            alert.tipo === 'jornada_sin_z'
+              ? data.registers.find((r) => r.nombre === alert.detalle.caja && !r.turnoAbierto)
+              : undefined;
+          const action =
+            register !== undefined
+              ? {
+                  label: 'Hacer el Corte Z',
+                  onClick: () => {
+                    setOperation({ kind: 'corte_z', register });
+                  },
+                }
+              : alert.tipo === 'arqueo_fuera_de_tolerancia' || alert.tipo === 'diferencia_apertura'
+                ? { label: 'Ver el informe diario', onClick: () => void navigate('/admin/informe') }
+                : undefined;
+          return (
+            <AttentionCard
+              key={alert.id}
+              severity={alertSeverity(alert.severidad)}
+              title={describeAlert(alert)}
+              {...(action ? { action } : {})}
+            />
+          );
+        })}
 
         <Typography variant="subtitle1">Cajas</Typography>
         <TableContainer>
@@ -124,9 +150,7 @@ export function BranchCashPage() {
                         <span>
                           {new Date(`${r.jornada.fecha}T12:00:00`).toLocaleDateString('es-AR')}
                         </span>
-                        {r.requiereCorteZ && (
-                          <Chip size="small" color="error" label="Requiere Corte Z" />
-                        )}
+                        {r.requiereCorteZ && <Status severity="critica" label="Requiere Corte Z" />}
                       </Stack>
                     ) : (
                       'Sin jornada abierta'

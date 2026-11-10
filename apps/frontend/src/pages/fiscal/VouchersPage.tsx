@@ -1,9 +1,10 @@
 // Comprobantes del comercio (T-211; RF-103 a RF-105, RF-168): estado, alertas fiscales, reenvío de
 // un rechazado y facturación posterior. Los datos de un rechazo se corrigen en la ficha del cliente.
+// Los rechazados y las alertas fiscales se muestran como puntos de atención (T-261, RF-191).
+import type { Voucher } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Stack,
   Table,
   TableBody,
@@ -19,8 +20,22 @@ import { formatMoney } from '../../api/catalog';
 import { describeFiscalAlert, describeVoucherState, fiscalApi } from '../../api/fiscal';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { AttentionCard } from '../../components/AttentionCard';
+import { Status } from '../../components/Status';
+import type { Severity } from '../../theme';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
+
+// Severidad de cada estado de un comprobante.
+function voucherSeverity(v: Voucher): Severity {
+  if (v.estado === 'aceptado') return 'correcta';
+  if (v.estado === 'rechazado') return 'critica';
+  if (v.estado === 'bloqueado' || v.contingencia || v.noFiscal) return 'advertencia';
+  return 'informativa';
+}
+
+const asSeverity = (value: string): Severity =>
+  value === 'critica' ? 'critica' : value === 'advertencia' ? 'advertencia' : 'informativa';
 
 export function VouchersPage() {
   const { request } = useAuth();
@@ -30,7 +45,10 @@ export function VouchersPage() {
   const [ticket, setTicket] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [onlyRejected, setOnlyRejected] = useState(false);
   const data = loaded.data;
+  const rejected = data?.comprobantes.filter((v) => v.estado === 'rechazado') ?? [];
+  const shown = onlyRejected ? rejected : (data?.comprobantes ?? []);
 
   async function run(action: () => Promise<unknown>, done: string) {
     setError(null);
@@ -52,9 +70,28 @@ export function VouchersPage() {
         )}
         {notice !== null && <Alert severity="success">{notice}</Alert>}
         {data?.alertas.map((a) => (
-          <Alert key={a.id} severity={a.severidad === 'critica' ? 'error' : 'warning'}>
-            {describeFiscalAlert(a.tipo, a.detalle)}
-          </Alert>
+          <AttentionCard
+            key={a.id}
+            severity={asSeverity(a.severidad)}
+            title={describeFiscalAlert(a.tipo, a.detalle)}
+            {...(a.tipo === 'comprobante_rechazado' && rejected.length > 0
+              ? {
+                  action: onlyRejected
+                    ? {
+                        label: 'Ver todos',
+                        onClick: () => {
+                          setOnlyRejected(false);
+                        },
+                      }
+                    : {
+                        label: 'Ver los rechazados',
+                        onClick: () => {
+                          setOnlyRejected(true);
+                        },
+                      },
+                }
+              : {})}
+          />
         ))}
         {data && (
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -90,7 +127,7 @@ export function VouchersPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data?.comprobantes.map((v) => (
+              {shown.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell>
                     {v.clase === null
@@ -101,17 +138,7 @@ export function VouchersPage() {
                   <TableCell>{v.comprador ?? 'Consumidor final'}</TableCell>
                   <TableCell align="right">{formatMoney(v.total)}</TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      color={
-                        v.estado === 'aceptado'
-                          ? 'success'
-                          : v.estado === 'rechazado'
-                            ? 'error'
-                            : 'default'
-                      }
-                      label={describeVoucherState(v)}
-                    />
+                    <Status severity={voucherSeverity(v)} label={describeVoucherState(v)} />
                     {v.motivoRechazo !== null && (
                       <Typography variant="caption" sx={{ display: 'block' }}>
                         {v.motivoRechazo}

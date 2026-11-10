@@ -85,6 +85,8 @@ function userDto(user: SessionUser) {
     rolActivo: user.activeRole,
     sucursales: user.branchIds,
     moduloFacturacion: user.billingModule,
+    nombreComercio: user.tenantName,
+    detalleSucursales: user.branches.map((b) => ({ id: b.id, nombre: b.name })),
   };
 }
 

@@ -18,6 +18,8 @@ const sessionOf = (role: 'AC' | 'AS'): SessionTokens => ({
     nombre: role,
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: [role],
     rolActivo: role,
     sucursales: role === 'AS' ? ['centro'] : [],
@@ -121,7 +123,7 @@ describe('[RF-109] informe diario del AS', () => {
   });
 });
 
-describe('[RF-127] centro de alertas', () => {
+describe('[RF-127] [RF-189] centro de alertas', () => {
   it('resuelve una crítica con la nota que pide el backend y se actualiza en vivo', async () => {
     const critical: RoleAlert = {
       id: 'alerta1',
@@ -141,6 +143,15 @@ describe('[RF-127] centro de alertas', () => {
     const notes: unknown[] = [];
     withSession('AS', {
       'GET /alertas': () => ({ status: 200, body: alerts }),
+      'GET /alertas/resumen': () => ({
+        status: 200,
+        body: {
+          cantidad: alerts.length,
+          severidadMaxima: alerts.some((a) => a.severidad === 'critica')
+            ? 'critica'
+            : (alerts[0]?.severidad ?? null),
+        },
+      }),
       'POST /alertas/alerta1/resolucion': (body) => {
         notes.push(body);
         if ((body as { nota?: string }).nota === undefined) {
@@ -156,7 +167,9 @@ describe('[RF-127] centro de alertas', () => {
     renderApp('/admin');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Alertas (1)' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Alertas (1), la más grave: Crítica' }),
+    );
     const drawer = await screen.findByLabelText('Alertas');
     expect(within(drawer).getByText(/aprobó tarde un pago de \$ 500,00/)).toBeInTheDocument();
     await user.click(within(drawer).getByRole('button', { name: 'Resolver' }));
@@ -178,5 +191,57 @@ describe('[RF-127] centro de alertas', () => {
     ];
     FakeWebSocket.latest()?.receive({ tipo: 'alertas' });
     expect(await within(drawer).findByText(/llegó con faltante/)).toBeInTheDocument();
+    // Una advertencia no se destaca sobre la pantalla.
+    expect(screen.queryByTestId('alerta-critica')).toBeNull();
+    expect(
+      // El panel abierto oculta el resto de la pantalla a los lectores: se busca igual.
+      await screen.findByRole('button', {
+        name: 'Alertas (1), la más grave: Advertencia',
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('[RF-190] una crítica que llega en vivo queda destacada hasta que se atiende', async () => {
+    const critical: RoleAlert = {
+      id: 'alerta9',
+      tipo: 'reintegro_pendiente',
+      severidad: 'critica',
+      persistente: true,
+      sucursalId: 'centro',
+      sucursal: 'Centro',
+      destinatarioRol: 'AS',
+      referencia: null,
+      detalle: { monto: '800.00' },
+      creadaEn: '2026-11-02T12:00:00Z',
+      ultimoRecordatorio: null,
+      resolubleAMano: true,
+    };
+    let alerts: RoleAlert[] = [];
+    withSession('AS', {
+      'GET /alertas': () => ({ status: 200, body: alerts }),
+      'GET /alertas/resumen': () => ({
+        status: 200,
+        body: { cantidad: alerts.length, severidadMaxima: alerts.length ? 'critica' : null },
+      }),
+    });
+    renderApp('/admin');
+    const user = userEvent.setup();
+    expect(await screen.findByRole('button', { name: 'Alertas (0)' })).toBeInTheDocument();
+    expect(screen.queryByTestId('alerta-critica')).toBeNull();
+
+    alerts = [critical];
+    FakeWebSocket.latest()?.receive({ tipo: 'alertas' });
+    const notice = await screen.findByTestId('alerta-critica');
+    expect(notice).toHaveTextContent(/800,00/);
+    expect(
+      await screen.findByRole('button', { name: 'Alertas (1), la más grave: Crítica' }),
+    ).toBeInTheDocument();
+
+    // No se va sola: queda hasta que alguien la atiende.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(screen.getByTestId('alerta-critica')).toBeVisible();
+    await user.click(within(notice).getByRole('button', { name: 'Entendido' }));
+    expect(screen.queryByTestId('alerta-critica')).toBeNull();
   });
 });

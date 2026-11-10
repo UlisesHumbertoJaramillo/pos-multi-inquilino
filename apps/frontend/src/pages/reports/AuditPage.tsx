@@ -19,6 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { reportsApi } from '../../api/reports';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { DetailList, DetailPanel } from '../../components/DetailPanel';
 import { PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { useReportBranches } from './reportBranches';
@@ -44,6 +45,7 @@ export function AuditPage() {
   const [to, setTo] = useState('');
   const [entity, setEntity] = useState('');
   const [page, setPage] = useState(1);
+  const [detail, setDetail] = useState<CommercialAuditPage['entradas'][number] | null>(null);
 
   const fetchAudit = useCallback(
     (): Promise<CommercialAuditPage> =>
@@ -136,10 +138,9 @@ export function AuditPage() {
                   <TableRow>
                     <TableCell>Momento</TableCell>
                     <TableCell>Usuario</TableCell>
-                    <TableCell>Sucursal</TableCell>
                     <TableCell>Acción</TableCell>
                     <TableCell>Entidad</TableCell>
-                    <TableCell>Después</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -149,11 +150,18 @@ export function AuditPage() {
                       <TableCell>
                         {e.usuario ?? e.usuarioId} ({e.rolActivo})
                       </TableCell>
-                      <TableCell>{e.sucursal ?? 'Comercio'}</TableCell>
                       <TableCell>{e.accion}</TableCell>
                       <TableCell>{e.entidad}</TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {summary(e.despues)}
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          aria-label={`Detalle de ${e.accion}`}
+                          onClick={() => {
+                            setDetail(e);
+                          }}
+                        >
+                          Detalle
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -185,6 +193,29 @@ export function AuditPage() {
           </>
         )}
       </PageSection>
+      <DetailPanel
+        title={detail ? `${detail.accion} sobre ${detail.entidad}` : 'Registro'}
+        open={detail !== null}
+        onClose={() => {
+          setDetail(null);
+        }}
+      >
+        {detail && (
+          <DetailList
+            items={[
+              { label: 'Momento', value: new Date(detail.momento).toLocaleString('es-AR') },
+              {
+                label: 'Usuario',
+                value: `${detail.usuario ?? detail.usuarioId} (${detail.rolActivo})`,
+              },
+              { label: 'Sucursal', value: detail.sucursal ?? 'Comercio' },
+              { label: 'Registro afectado', value: detail.entidadId },
+              { label: 'Antes', value: <code>{summary(detail.antes)}</code> },
+              { label: 'Después', value: <code>{summary(detail.despues)}</code> },
+            ]}
+          />
+        )}
+      </DetailPanel>
     </AppShell>
   );
 }

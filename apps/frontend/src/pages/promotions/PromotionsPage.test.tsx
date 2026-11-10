@@ -17,6 +17,8 @@ const AC_SESSION: SessionTokens = {
     nombre: 'Ana',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: ['AC'],
     rolActivo: 'AC',
     sucursales: [],
@@ -85,7 +87,10 @@ describe('[RF-048] promociones del AC', () => {
     const row = (await within(table).findByText('2x1 en bebidas')).closest('tr');
     if (!row) throw new Error('Falta la fila de la promoción.');
     expect(within(row).getByText('2x1')).toBeInTheDocument();
-    expect(within(row).getByText('Categoría Bebidas')).toBeInTheDocument();
-    expect(within(row).getByText('Vigente')).toBeInTheDocument();
+    expect(within(row).getByRole('status', { name: 'Correcta: Vigente' })).toBeInTheDocument();
+    // A qué se aplica y en qué sucursales, en el segundo nivel.
+    await user.click(within(row).getByRole('button', { name: 'Detalle de 2x1 en bebidas' }));
+    expect(await screen.findByText('Categoría Bebidas')).toBeVisible();
+    expect(screen.getByText('Todas')).toBeVisible();
   });
 });

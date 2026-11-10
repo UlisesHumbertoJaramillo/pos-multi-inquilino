@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +23,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { organizationApi } from '../../api/organization';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 
@@ -140,7 +140,8 @@ export function StructurePage() {
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography variant="h6" component="h2">
-                    {branch.nombre} {!branch.activa && <Chip size="small" label="Baja" />}
+                    {branch.nombre}{' '}
+                    {!branch.activa && <Status severity="informativa" label="Baja" />}
                   </Typography>
                   {branch.direccion !== null && (
                     <Typography variant="body2" color="text.secondary">

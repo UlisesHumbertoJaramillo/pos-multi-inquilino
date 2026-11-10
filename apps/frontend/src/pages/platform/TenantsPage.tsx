@@ -4,7 +4,6 @@ import type { Tenant, TenantCreateRequest } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,9 +24,15 @@ import { platformApi } from '../../api/platform';
 import { useAuth } from '../../auth/AuthContext';
 import { useLoader } from '../../hooks/useLoader';
 import { AppShell } from '../../components/AppShell';
+import type { Severity } from '../../theme';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 
-const STATUS_COLOR = { activo: 'success', suspendido: 'warning', baja: 'default' } as const;
+const STATUS: Record<Tenant['estado'], { severity: Severity; label: string }> = {
+  activo: { severity: 'correcta', label: 'Activo' },
+  suspendido: { severity: 'advertencia', label: 'Suspendido' },
+  baja: { severity: 'informativa', label: 'Baja' },
+};
 const EMPTY_TENANT: TenantCreateRequest = {
   nombre: '',
   cuit: '',
@@ -123,7 +128,7 @@ export function TenantsPage() {
                   </TableCell>
                   <TableCell>{tenant.moneda}</TableCell>
                   <TableCell>
-                    <Chip size="small" label={tenant.estado} color={STATUS_COLOR[tenant.estado]} />
+                    <Status {...STATUS[tenant.estado]} />
                   </TableCell>
                   <TableCell>
                     <FormControlLabel

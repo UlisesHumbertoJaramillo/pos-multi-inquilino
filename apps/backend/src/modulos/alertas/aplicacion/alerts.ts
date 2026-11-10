@@ -13,6 +13,7 @@ import {
   assertResolvable,
   isVisibleTo,
   nextReminder,
+  summarize,
 } from '../dominio/alerts.js';
 import type { AlertInbox, AlertView, BranchLookup } from './ports.js';
 
@@ -81,6 +82,16 @@ export class ListMyAlerts extends AlertUseCase {
     return this.inTenant(context, branchId, (actor) =>
       this.deps.alerts.pending({ tenantId: actor.tenantId, branchId, ...actor.audience }),
     );
+  }
+}
+
+// Cuántas alertas pendientes tiene el usuario y cuál es la más grave (RF-189).
+export class SummarizeMyAlerts extends AlertUseCase {
+  async execute(context: SecurityContext) {
+    const pending = await this.inTenant(context, null, (actor) =>
+      this.deps.alerts.pending({ tenantId: actor.tenantId, branchId: null, ...actor.audience }),
+    );
+    return summarize(pending.map((alert) => alert.severity));
   }
 }
 

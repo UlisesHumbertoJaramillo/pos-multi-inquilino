@@ -1,7 +1,7 @@
 # Spec — Sistema de Punto de Venta (POS) Multi-Inquilino
 
-**Versión:** 1.2 (deriva de la Especificación Funcional v8.5 Master; incorpora la revisión QA del 2026-10-31 y las decisiones de implementación del 2026-11-02)
-**Fecha:** 2026-11-02
+**Versión:** 1.3 (deriva de la Especificación Funcional v8.5 Master; incorpora la revisión QA del 2026-10-31, las decisiones de implementación del 2026-11-02 y la revisión de experiencia de uso del 2026-11-10)
+**Fecha:** 2026-11-10
 **Alcance:** sistema completo (RF-01 a RF-20 de la v8.5)
 **Naturaleza del documento:** describe solo el **QUÉ** y el **POR QUÉ**. No se fijan la tecnología, el diseño ni la implementación.
 
@@ -136,6 +136,20 @@ Surgieron al construir las fases 3 a 15. El responsable del producto las validó
 | D-91 | Alertas, tiempo real y reportes | Las alertas dirigidas a un rol son compartidas: todos los AC del comercio, o todos los AS de la sucursal, ven la misma, y si uno la resuelve queda resuelta para todos, con quién la resolvió. Las que se resuelven solas (stock mínimo, jornada sin Corte Z, fiscales) no se descartan; una crítica se resuelve con una nota de lo que se hizo. Las persistentes sin resolver se recuerdan cada 24 horas solo en la aplicación: vuelven al principio del centro de alertas y se avisa en vivo, sin correo. En dashboards e informe diario las ventas son brutas (incluida la venta anulada después), y las devoluciones y anulaciones se informan aparte. El informe diario trae ventas, tickets, ticket promedio, ventas por medio de pago, por vendedor y por caja y turno, devoluciones, anulaciones, arqueos con diferencia y comprobantes sin regularizar. Sin período, el dashboard muestra los últimos 30 días; el período abarca hasta 366 días. | El spec no definía estos detalles (validado el 2026-11-07). |
 | D-92 | Periféricos | La impresora de tickets es térmica de 80 mm (48 caracteres por línea) y se maneja desde el navegador por WebUSB o WebSerial con comandos ESC/POS: el permiso se da una vez por equipo y después cada ticket sale sin diálogos. Sin impresora térmica, el ticket se imprime con el diálogo del navegador en formato de 80 mm (sin diálogo si Chrome corre en modo kiosco). El backend diagrama el ticket línea por línea; el frontend solo lo envía. El POS informa al backend los cambios de estado de la impresora con motivos cerrados, y el SA ve en el panel técnico los periféricos con falla, sin datos comerciales. El agente local y la terminal de pago quedan pendientes, junto con Mercado Pago y ARCA. En pantallas táctiles ningún control mide menos de 48 px. | El responsable del producto todavía no tiene impresora (validado el 2026-11-07). |
 
+### 3.4 Decisiones de la revisión de experiencia de uso (2026-11-10)
+
+Pedidas y validadas por el responsable del producto el 2026-11-10.
+
+| # | Tema | Decisión | Por qué |
+| :-- | :-- | :-- | :-- |
+| D-93 | Inicio de la venta | La venta nace con el primer producto que se agrega: no hace falta iniciarla antes. "Nueva venta" queda solo para atender varias ventas en paralelo. | Quita un paso de cada venta y evita carritos vacíos. |
+| D-94 | Operación con una mano | El POS completo se opera con la mano derecha, sobre el teclado numérico y las teclas vecinas. Esa es la distribución de atajos por defecto; el AC puede cambiar cada atajo para todos los POS de su comercio desde la administración (por ejemplo, para notebooks sin teclado numérico) y volver a la distribución por defecto. Ningún atajo puede requerir las dos manos. | El vendedor suele tener la otra mano ocupada con el producto o el lector. Cada comercio adapta los atajos a sus equipos. |
+| D-95 | Orden de la sección de productos | Productos agrupados por categoría y, primero, los más vendidos de la sucursal en los últimos 30 días. El backend calcula ese orden. | Lo que más se vende queda más cerca. |
+| D-96 | Dos niveles de información | El primer nivel muestra como máximo 5 datos por fila o tarjeta. El resto se abre a un clic o una tecla, sin perder la pantalla en la que se estaba. Ningún dato existente deja de estar disponible. | Pantallas despejadas sin perder información. |
+| D-97 | Dashboards | Primer nivel: ventas totales, cantidad de tickets y ticket promedio comparados con el período anterior de igual duración, y gráficas de ventas por día, por medio de pago y de los 5 productos más vendidos. Segundo nivel: las tablas de D-50 completas. Los cálculos y las comparaciones los hace el backend. | Se entiende de un vistazo y el detalle queda a mano. |
+| D-98 | Carga desde Excel | Un archivo .xlsx por tipo de dato, con las columnas fijas de una plantilla que se descarga del sistema y hasta 5.000 filas y 5 MB. Los productos se identifican por código de barras, los proveedores por CUIT y los precios por lista y código de barras. Solo se cargan precios en listas de precio fijo. El sistema muestra cuánto va a crear, actualizar y rechazar, y aplica las filas válidas cuando se confirma (D-49). Lo que no figura en el archivo no se modifica ni se da de baja. No carga stock ni saldos. La importación CSV de D-68 sigue vigente. | Es el formato con el que ya trabajan los comercios. |
+| D-99 | Severidad visual | Cuatro niveles con un significado único en todo el sistema: crítica (rojo), advertencia (ámbar), informativa (azul) y correcta (verde). Una alerta crítica que llega en vivo queda en pantalla hasta que alguien la atiende. | El color tiene que decir lo mismo en todas las pantallas. |
+
 ## 4. Supuestos validados
 
 Estos puntos quedaron fuera de la primera ronda de preguntas. El responsable del producto los validó el 2026-10-31.
@@ -239,6 +253,10 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-031 | Mientras un ítem permanezca en el carrito, el sistema deberá mantener el precio fijado al agregarlo, aunque la lista de precios cambie. | S-1 |
 | RF-032 | Cuando cambia el costo de un producto, el sistema deberá recalcular los precios de las listas que dependen de ese costo. | RF-05 |
 | RF-033 | El sistema deberá permitir imprimir una lista de precios. | UC-AC-04 |
+| RF-170 | Cuando el AC carga un archivo Excel de productos, el sistema deberá crear o actualizar los productos de las filas válidas, identificándolos por código de barras. | D-98, D-49 |
+| RF-171 | Cuando el AC carga un archivo Excel de precios, el sistema deberá actualizar los precios de las listas de precio fijo indicadas en las filas válidas y registrar cada cambio en el historial de precios. | D-98, D-65 |
+| RF-173 | El sistema deberá ofrecer al AC una plantilla descargable por cada tipo de carga y, antes de aplicar un archivo Excel, mostrarle cuántas filas va a crear, actualizar y rechazar, con el motivo de cada rechazo, y aplicarlo solo si lo confirma. La carga queda en la auditoría como una sola operación, con su detalle. | D-98, D-49 |
+| RF-174 | Si un archivo no es un Excel .xlsx válido, tiene macros, no respeta las columnas de la plantilla o supera los límites, entonces el sistema deberá rechazarlo completo e indicar el motivo sin aplicar ningún cambio. | D-98, Const. 17 |
 
 ### 5.6 Proveedores y cuentas por pagar
 
@@ -248,6 +266,7 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | :-- | :-- | :-- |
 | RF-034 | El sistema deberá permitir al AC dar de alta, modificar y dar de baja proveedores. | RF-06, UC-AC-05 |
 | RF-035 | Cuando el AC importa el catálogo de un proveedor, el sistema deberá identificar los productos por código de barras, crear o actualizar los productos y sus costos de las filas válidas, informar qué filas no pudo procesar y por qué, y registrar en la auditoría la importación y el recálculo que provoca como una sola operación con su detalle. | RF-06, UC-AC-05, D-49, D-68 |
+| RF-172 | Cuando el AC carga un archivo Excel de proveedores, el sistema deberá crear o actualizar los proveedores de las filas válidas, identificándolos por CUIT, sin modificar su saldo adeudado. | D-98 |
 | RF-036 | Cuando el AC registra una compra a crédito indicando la sucursal de destino, el sistema deberá aumentar el saldo adeudado al proveedor, actualizar el costo de los productos comprados y dejar la compra pendiente de recepción. | RF-06, UC-AC-06, D-25, D-66 |
 | RF-133 | Cuando un AS de la sucursal de destino recibe una compra, el sistema deberá sumar las cantidades recibidas a su stock disponible y registrar cualquier diferencia con lo comprado. | D-25, D-67 |
 | RF-037 | Cuando el AC registra un pago a un proveedor, el sistema deberá reducir su saldo adeudado y conservar el comprobante de referencia. | RF-06, UC-AC-06 |
@@ -303,6 +322,17 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-060 | El sistema deberá mostrar en el POS el subtotal, los descuentos aplicados y el total final, y actualizarlos ante cada cambio del carrito. | RF-13 |
 | RF-061 | El sistema deberá reflejar en los POS conectados de la misma sucursal, sin que haga falta recargar y en 2 segundos como máximo, los cambios de stock disponible causados por otras sesiones, y nunca deberá enviar esa información a sesiones de otra sucursal o de otro comercio. | RNF-02, Const. 3, D-91 |
 | RF-062 | Si se pierde la conexión con el servidor, entonces el sistema deberá impedir agregar ítems o cobrar e indicar al VO que está sin conexión. Las reservas siguen sujetas a su vencimiento, y al reconectar el sistema muestra el carrito vigente o informa que fue descartado. | RNF-02, Const. 2, D-47 |
+| RF-175 | Mientras un VO tenga un turno abierto, el sistema deberá dejar el POS listo para buscar un producto o leer un código, sin necesidad de ningún clic previo. | D-93 |
+| RF-176 | Cuando un VO con turno abierto agrega un producto sin tener una venta activa, el sistema deberá iniciar la venta con ese producto. | D-93 |
+| RF-177 | Cuando un VO entra al POS sin turno y en su sucursal hay una sola caja disponible, el sistema deberá proponerla y pedirle solo el saldo inicial. | D-93 |
+| RF-178 | Mientras un VO esté en el POS, el sistema deberá mostrar siempre, sin acciones adicionales, el nombre de la sucursal, la caja, el usuario y sus alertas sin resolver. | D-99 |
+| RF-179 | El sistema deberá ofrecer en el POS una sección para identificar y elegir productos y combos con el mouse o con el toque, que muestre de cada producto su nombre, precio y disponibilidad. | D-95, RNF-05 |
+| RF-180 | El sistema deberá permitir recorrer y elegir con el teclado todo lo que ofrece la sección de productos. | D-94 |
+| RF-181 | El sistema deberá ofrecer atajos de teclado para cada acción del POS: buscar, elegir, cambiar la cantidad, quitar un ítem, aplicar un descuento, cambiar de venta, cobrar, elegir el medio de pago, confirmar, cancelar, devolver y hacer el Corte X. | D-94 |
+| RF-182 | El sistema deberá permitir completar una venta con cualquier medio de pago usando una sola mano, sin mouse y sin combinaciones de teclas que requieran las dos manos. | D-94 |
+| RF-183 | El sistema deberá mostrar junto a cada acción su atajo y ofrecer una ayuda con todos los atajos disponibles en la pantalla. | D-94 |
+| RF-184 | Si se está escribiendo en un campo o el lector de códigos está enviando una lectura, entonces el sistema no deberá interpretar esas teclas como atajos. Un atajo nunca reemplaza el PIN de una autorización ni la confirmación de una acción irreversible. | D-94, Const. 13 |
+| RF-185 | El sistema deberá permitir al AC cambiar los atajos del POS de su comercio y restablecer los de por defecto, y deberá rechazar un atajo repetido, uno reservado por el navegador o uno que requiera las dos manos. Los cambios se aplican a todos los POS del comercio y quedan en la auditoría. | D-94 |
 
 ### 5.10 Descuentos discrecionales
 
@@ -432,6 +462,8 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-109 | El sistema deberá generar a demanda un informe diario de ventas por sucursal, agrupado por la fecha de jornada (RF-118), para el AS de esa sucursal y para el AC. | RF-20, D-13, D-91 |
 | RF-110 | El sistema deberá mostrar al AC un dashboard con las métricas de D-50 y las alertas, consolidadas para todas las sucursales de su comercio y filtrables por período y por sucursal. | RF-12, UC-AC-07, D-50, D-91 |
 | RF-111 | El sistema deberá mostrar al AS un dashboard con las métricas de D-50, las ventas diarias y las alertas de stock de su sucursal únicamente. | RF-12, UC-AS-01, D-50, D-91 |
+| RF-186 | El sistema deberá mostrar en el primer nivel de cada dashboard los indicadores principales con su comparación contra el período anterior y las gráficas de D-97, usando color y resaltado para los valores que requieren atención. | D-97, D-99 |
+| RF-187 | Cuando un usuario elige un indicador o una gráfica de un dashboard, el sistema deberá mostrarle en un segundo nivel los datos detallados que lo componen, con el mismo período y la misma sucursal. | D-96, D-97 |
 
 ### 5.17 Requisitos no funcionales
 
@@ -443,6 +475,13 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | RF-157 | El sistema deberá permitir operar el POS completo en pantallas táctiles de tablet, y la administración y los dashboards en escritorio. | RNF-05, D-92 |
 | RF-158 | El sistema deberá comunicarse con la impresora de tickets, el lector de códigos y la terminal de pago desde el navegador, sin diálogos del sistema operativo en cada operación. | RNF-03, D-92 |
 | RF-159 | El sistema deberá permitir asociar una imagen a cada producto. | RNF-01 |
+| RF-188 | El sistema deberá presentar cada alerta, aviso y estado con uno de los niveles de severidad de D-99, combinando color, ícono y texto, de modo que nunca se identifique solo por el color. | D-99 |
+| RF-189 | Mientras un usuario tenga alertas sin resolver, el sistema deberá mostrar en todas sus pantallas la cantidad y la severidad más alta. | D-99, D-91 |
+| RF-190 | Cuando llega en vivo una alerta crítica dirigida al rol del usuario, el sistema deberá destacarla en la pantalla en la que esté y mantenerla visible hasta que la atienda. | D-99, D-91 |
+| RF-191 | El sistema deberá resaltar en su contexto los puntos que necesitan atención, como stock bajo, arqueos con diferencia, comprobantes rechazados, pagos por verificar y cajas que requieren Corte Z, y ofrecer desde ahí la acción que los resuelve. | D-99 |
+| RF-192 | El sistema deberá mostrar en el primer nivel de cada pantalla solo los datos necesarios para operar o decidir, y dar acceso al resto en un segundo nivel. | D-96 |
+| RF-193 | El sistema deberá presentar a los cuatro roles la misma estructura de navegación, los mismos componentes, los mismos nombres de estado y la misma identidad visual, en modo claro y en modo oscuro. | D-99 |
+| RF-194 | El sistema deberá ofrecer en la administración y en los dashboards atajos de teclado para ir a cada sección, buscar y confirmar o cancelar un diálogo, con las mismas reglas de RF-183 y RF-184. | D-94 |
 
 ### 5.18 Matriz de permisos
 
@@ -459,12 +498,12 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | Enviar tickets de soporte | | ✔ | ✔ | | RF-017 |
 | Consultar la auditoría comercial | | ✔ | ✔ (su sucursal) | | RF-114 |
 | Sucursales, cajas, usuarios del comercio y sus roles | | ✔ | | | RF-023 a RF-026 |
-| Parámetros del comercio, métodos de pago y plazos | | ✔ | | | RF-135 |
+| Parámetros del comercio, métodos de pago y plazos | | ✔ | | | RF-135, RF-185 |
 | Certificado fiscal, puntos de venta y política de facturación (con el módulo activo) | | ✔ | | | RF-162, RF-166 |
 | Facturar una venta posterior, dentro del plazo (con el módulo activo) | | ✔ | ✔ | | RF-168 |
-| Catálogo, categorías e IVA, combos, listas de precios y su asignación a sucursales, promociones | | ✔ | | | RF-028, RF-029, RF-048, RF-049, RF-119, RF-130 |
+| Catálogo, categorías e IVA, combos, listas de precios y su asignación a sucursales, promociones | | ✔ | | | RF-028, RF-029, RF-048, RF-049, RF-119, RF-130, RF-170, RF-171, RF-173 |
 | Tope de cuota de descuento del comercio | | ✔ | | | RF-063 |
-| Proveedores, importación de catálogo, compras y pagos | | ✔ | | | RF-034 a RF-038 |
+| Proveedores, importación de catálogo, compras y pagos | | ✔ | | | RF-034 a RF-038, RF-172 |
 | Recibir compras | | | ✔ (destino) | | RF-133 |
 | Ajustes de stock, umbrales, mermas y revisión de ítems "En Revisión" | | | ✔ | | RF-040, RF-042, RF-088 |
 | Emitir, recibir, rechazar y cancelar transferencias | | | ✔ | | RF-044 a RF-046, RF-151 |
@@ -502,6 +541,8 @@ La columna *Origen* remite a la v8.5 (RF, RN, UC) o a las decisiones (D) y supue
 | Saldo a favor del cliente en cuenta corriente | Descartado en D-23 y D-29. El saldo nunca queda negativo. |
 | Reinicio de la cuota de descuento en cada turno | Reemplazado por el reinicio por fecha de jornada (D-32). |
 | Autoautorización con PIN | Prohibida por Const. 13 (D-8). |
+| Carga de stock o de saldos desde Excel | El stock y los saldos solo cambian por operaciones auditadas (D-98). |
+| Archivos Excel con macros o formatos anteriores a .xlsx | Riesgo de seguridad (Const. 17, D-98). |
 
 ---
 
@@ -522,3 +563,4 @@ El spec se considera implementado cuando se cumplen **todas** estas condiciones:
 11. **Supuestos respetados:** hay pruebas de que el precio y la promoción fijados al agregar un ítem no cambian aunque cambien la lista o la vigencia, y de que un exceso de crédito solo se confirma con el PIN de un AS o un AC y queda en la auditoría (RF-030, RF-031, RF-074, RF-143).
 12. **Tiempo real:** un cambio de stock se refleja en los demás POS de la sucursal en 2 segundos como máximo (RF-061).
 13. **Calidad:** el código pasa formato, lint y compilación o verificación de tipos, según la constitución del proyecto.
+14. **Experiencia de uso:** una prueba en navegador completa una venta en efectivo y una con pago mixto solo con el teclado, sin combinaciones que requieran las dos manos, y sin ningún clic antes del primer producto (RF-175, RF-176, RF-182). Las alertas críticas y los puntos de atención se identifican por color, ícono y texto (RF-188). Los cuatro roles comparten la misma estructura visual (RF-193).

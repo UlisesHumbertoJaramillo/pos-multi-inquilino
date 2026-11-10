@@ -53,6 +53,28 @@ export default defineConfig(
     languageOptions: { globals: globals.browser },
   },
   {
+    // Sistema visual único (AD-30, RF-193): los colores se definen solo en el tema.
+    files: ['apps/frontend/src/**/*.{ts,tsx}'],
+    ignores: ['apps/frontend/src/theme.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/#[0-9a-fA-F]{3}/]',
+          message: 'Usá un color del tema (theme.ts), no un color literal.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3}/]',
+          message: 'Usá un color del tema (theme.ts), no un color literal.',
+        },
+        {
+          selector: 'Literal[value=/(rgba?|hsla?)[(]/]',
+          message: 'Usá un color del tema (theme.ts), no un color literal.',
+        },
+      ],
+    },
+  },
+  {
     files: ['apps/frontend/vite.config.ts', 'apps/frontend/vitest.config.ts'],
     languageOptions: { globals: globals.node },
   },

@@ -97,6 +97,24 @@ describe('[RF-009] renovación, cierre y revocación de la sesión', () => {
 describe('[RF-001] contexto de seguridad', () => {
   beforeEach(seedIdentity);
 
+  it('[RF-178] la sesión trae el nombre del comercio y solo las sucursales del rol activo', async () => {
+    const asNorte = await signIn(api.app, USERS.asNorte.email);
+    const session = await request(api.app)
+      .get('/auth/sesion')
+      .set('Authorization', asNorte.authorization);
+    expectToMatchContract(session, 'get', '/auth/sesion');
+    expect(session.body).toMatchObject({
+      nombreComercio: 'Comercio A',
+      detalleSucursales: [{ id: BRANCH_NORTE, nombre: 'Norte' }],
+    });
+
+    const sa = await signIn(api.app, USERS.sa.email);
+    const platform = await request(api.app)
+      .get('/auth/sesion')
+      .set('Authorization', sa.authorization);
+    expect(platform.body).toMatchObject({ nombreComercio: null, detalleSucursales: [] });
+  });
+
   it('el comercio sale del token: un tenant_id enviado como parámetro o en el cuerpo se ignora', async () => {
     const { authorization } = await signIn(api.app, USERS.vo.email);
 

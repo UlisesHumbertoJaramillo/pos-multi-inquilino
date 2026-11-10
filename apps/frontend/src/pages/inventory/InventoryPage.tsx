@@ -1,11 +1,12 @@
 // Inventario de la sucursal del AS: saldos en cuatro estados, ajustes, umbrales, mermas,
 // revisión, alertas, disponibilidad de combos y movimientos (T-100; RF-039 a RF-043, RF-052,
-// RF-088). Los saldos y las reglas los calcula y valida el backend.
+// RF-088). Los saldos y las reglas los calcula y valida el backend. Primer nivel: lo disponible, lo
+// que está en revisión y el mínimo, con los puntos que necesitan atención; el resto, en el detalle
+// de cada producto (RF-191, RF-192).
 import type { StockRow, WasteReason } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +25,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { describeAlert, formatQuantity, inventoryApi, MOVEMENT_TYPES } from '../../api/inventory';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { AttentionCard } from '../../components/AttentionCard';
+import { DetailList, DetailPanel } from '../../components/DetailPanel';
+import { alertSeverity, Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { BranchSelect, useOwnBranches } from './BranchSelect';
@@ -62,6 +66,7 @@ export function InventoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
+  const [detail, setDetail] = useState<StockRow | null>(null);
 
   const fetchData = useCallback(async () => {
     if (branchId === null) return null;
@@ -141,29 +146,41 @@ export function InventoryPage() {
         {notice !== null && <Alert severity="success">{notice}</Alert>}
 
         {(data?.alerts.length ?? 0) > 0 && (
-          <PageSection title="Alertas">
+          <PageSection title="Necesita atención">
             <Stack spacing={1}>
-              {data?.alerts.map((alert) => (
-                <Alert
-                  key={alert.id}
-                  severity="warning"
-                  action={
-                    alert.tipo === 'stock_minimo' || branchId === null ? undefined : (
-                      <Button
-                        color="inherit"
-                        size="small"
-                        onClick={() =>
-                          void run(() => api.dismissAlert(branchId, alert.id), 'Alerta descartada.')
+              {data?.alerts.map((alert) => {
+                // El stock bajo se resuelve ajustando el producto; el resto se descarta al revisarlo.
+                const row =
+                  alert.tipo === 'stock_minimo'
+                    ? data.stock.find((r) => r.productoId === alert.referencia)
+                    : undefined;
+                const action =
+                  row !== undefined
+                    ? {
+                        label: 'Ajustar stock',
+                        onClick: () => {
+                          setOperation({ kind: 'ajuste', row, cantidad: '', motivo: '' });
+                        },
+                      }
+                    : alert.tipo !== 'stock_minimo' && branchId !== null
+                      ? {
+                          label: 'Descartar',
+                          onClick: () =>
+                            void run(
+                              () => api.dismissAlert(branchId, alert.id),
+                              'Alerta descartada.',
+                            ),
                         }
-                      >
-                        Descartar
-                      </Button>
-                    )
-                  }
-                >
-                  {describeAlert(alert)}
-                </Alert>
-              ))}
+                      : undefined;
+                return (
+                  <AttentionCard
+                    key={alert.id}
+                    severity={alertSeverity(alert.severidad)}
+                    title={describeAlert(alert)}
+                    {...(action ? { action } : {})}
+                  />
+                );
+              })}
             </Stack>
           </PageSection>
         )}
@@ -187,9 +204,8 @@ export function InventoryPage() {
                 <TableRow>
                   <TableCell>Producto</TableCell>
                   <TableCell align="right">Disponible</TableCell>
-                  <TableCell align="right">Reservado</TableCell>
+                  <TableCell>Estado</TableCell>
                   <TableCell align="right">En revisión</TableCell>
-                  <TableCell align="right">En tránsito</TableCell>
                   <TableCell align="right">Mínimo</TableCell>
                   <TableCell align="right">Acciones</TableCell>
                 </TableRow>
@@ -197,20 +213,30 @@ export function InventoryPage() {
               <TableBody>
                 {data?.stock.map((row) => (
                   <TableRow key={row.productoId}>
-                    <TableCell>
-                      {row.nombre}{' '}
-                      {row.alertaActiva && (
-                        <Chip size="small" color="warning" label="Bajo el mínimo" />
-                      )}
-                      {!row.activo && <Chip size="small" label="Dado de baja" />}
-                    </TableCell>
+                    <TableCell>{row.nombre}</TableCell>
                     <TableCell align="right">{formatQuantity(row.disponible)}</TableCell>
-                    <TableCell align="right">{formatQuantity(row.reservado)}</TableCell>
+                    <TableCell>
+                      {row.alertaActiva ? (
+                        <Status severity="advertencia" label="Stock bajo" />
+                      ) : !row.activo ? (
+                        <Status severity="informativa" label="Dado de baja" />
+                      ) : Number(row.enRevision) > 0 ? (
+                        <Status severity="informativa" label="En revisión" />
+                      ) : null}
+                    </TableCell>
                     <TableCell align="right">{formatQuantity(row.enRevision)}</TableCell>
-                    <TableCell align="right">{formatQuantity(row.enTransito)}</TableCell>
                     <TableCell align="right">{formatQuantity(row.umbralMinimo)}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          aria-label={`Detalle de ${row.nombre}`}
+                          onClick={() => {
+                            setDetail(row);
+                          }}
+                        >
+                          Detalle
+                        </Button>
                         <Button
                           size="small"
                           aria-label={`Ajustar ${row.nombre}`}
@@ -219,35 +245,6 @@ export function InventoryPage() {
                           }}
                         >
                           Ajustar
-                        </Button>
-                        <Button
-                          size="small"
-                          aria-label={`Merma de ${row.nombre}`}
-                          onClick={() => {
-                            setOperation({
-                              kind: 'merma',
-                              row,
-                              cantidad: '',
-                              motivo: 'rotura',
-                              observacion: '',
-                            });
-                          }}
-                        >
-                          Merma
-                        </Button>
-                        <Button
-                          size="small"
-                          aria-label={`Umbral de ${row.nombre}`}
-                          onClick={() => {
-                            setOperation({
-                              kind: 'umbral',
-                              row,
-                              umbral:
-                                row.umbralMinimo === null ? '' : String(Number(row.umbralMinimo)),
-                            });
-                          }}
-                        >
-                          Umbral
                         </Button>
                         {Number(row.enRevision) > 0 && (
                           <Button
@@ -292,7 +289,7 @@ export function InventoryPage() {
                       {combo.vendible ? (
                         combo.unidades
                       ) : (
-                        <Chip size="small" label="No disponible" />
+                        <Status severity="advertencia" label="No disponible" />
                       )}
                     </TableCell>
                   </TableRow>
@@ -329,6 +326,61 @@ export function InventoryPage() {
           </TableContainer>
         </PageSection>
       </Stack>
+
+      <DetailPanel
+        title={detail ? detail.nombre : 'Producto'}
+        open={detail !== null}
+        onClose={() => {
+          setDetail(null);
+        }}
+        actions={
+          detail && (
+            <>
+              <Button
+                aria-label={`Merma de ${detail.nombre}`}
+                onClick={() => {
+                  setOperation({
+                    kind: 'merma',
+                    row: detail,
+                    cantidad: '',
+                    motivo: 'rotura',
+                    observacion: '',
+                  });
+                  setDetail(null);
+                }}
+              >
+                Registrar merma
+              </Button>
+              <Button
+                aria-label={`Umbral de ${detail.nombre}`}
+                onClick={() => {
+                  setOperation({
+                    kind: 'umbral',
+                    row: detail,
+                    umbral: detail.umbralMinimo === null ? '' : String(Number(detail.umbralMinimo)),
+                  });
+                  setDetail(null);
+                }}
+              >
+                Cambiar el mínimo
+              </Button>
+            </>
+          )
+        }
+      >
+        {detail && (
+          <DetailList
+            items={[
+              { label: 'Disponible', value: formatQuantity(detail.disponible) },
+              { label: 'Reservado en ventas en curso', value: formatQuantity(detail.reservado) },
+              { label: 'En revisión', value: formatQuantity(detail.enRevision) },
+              { label: 'En tránsito', value: formatQuantity(detail.enTransito) },
+              { label: 'Mínimo', value: formatQuantity(detail.umbralMinimo) },
+              { label: 'Estado del producto', value: detail.activo ? 'Activo' : 'Dado de baja' },
+            ]}
+          />
+        )}
+      </DetailPanel>
 
       <Dialog
         open={operation !== null}

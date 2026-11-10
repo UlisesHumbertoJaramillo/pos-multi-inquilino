@@ -1,7 +1,7 @@
 # Roadmap — Sistema POS Multi-Inquilino
 
-**Deriva de:** [tareas.md](tareas.md) (T-001 a T-250), [plan.md](plan.md) y [spec.md](spec.md) v1.1 (RF-001 a RF-169).
-**Cómo leerlo:** el trabajo se agrupa en 11 entregas. Cada entrega termina con una **demo en localhost** que se puede mostrar, y su criterio de salida es verificable. El orden respeta las dependencias de `tareas.md`.
+**Deriva de:** [tareas.md](tareas.md) (T-001 a T-300), [plan.md](plan.md) y [spec.md](spec.md) v1.3 (RF-001 a RF-194).
+**Cómo leerlo:** el trabajo se agrupa en 12 entregas. Cada entrega termina con una **demo en localhost** que se puede mostrar, y su criterio de salida es verificable. El orden respeta las dependencias de `tareas.md`.
 
 **Esfuerzo:** cada tarea dura como máximo 30 minutos, así que el esfuerzo de cada entrega es un **tope** de implementación: no incluye revisiones, esperas por credenciales externas ni retrabajo. El total del roadmap es de **250 tareas, con un tope de 125 horas**.
 
@@ -24,7 +24,8 @@
 | E8 | Devoluciones y anulaciones | T-214 a T-226 (13) | 6,5 h | 12 | |
 | E9 | Tiempo real, alertas y reportes | T-227 a T-237 (11) | 5,5 h | 10 | **H2 · Piloto sin facturación** |
 | E10 | Periféricos y cierre | T-238 a T-250 (13) | 6,5 h | 18 | **H3 · Listo para producción** |
-| | **Total** | **250** | **125 h** | **169** | |
+| E11 | Experiencia de uso | T-251 a T-300 (50) | 25 h | 25 | **H4 · Revisión de experiencia de uso** |
+| | **Total** | **300** | **150 h** | **194** | |
 
 ---
 
@@ -124,6 +125,15 @@
 - **Criterio de salida:** `npm run verify` en modo estricto con los 169 RF cubiertos por pruebas (T-248), las cuatro pruebas punta a punta pasan y la documentación de arquitectura está al día.
 - **Requisitos externos:** una tablet Android con Chrome, una impresora térmica USB y un lector de códigos USB antes de T-238.
 
+### ☐ E11 — Experiencia de uso · **H4: Revisión de experiencia de uso**
+
+- **Objetivo:** un sistema visual único con severidades claras, alertas que se ven en todas las pantallas, un POS que se opera con una mano y sin clics de más, pantallas en dos niveles, dashboards con gráficas y carga de productos, proveedores y precios desde Excel.
+- **Tareas:** T-251 a T-300 (Fases 17 a 21).
+- **RF cerrados:** RF-170 a RF-194.
+- **Demo en localhost:** guion T-300. Un día de comercio vendiendo solo con el teclado numérico, con una alerta crítica en vivo, dashboards con gráficas y su detalle, y el catálogo cargado desde una planilla.
+- **Criterio de salida:** `npm run verify` en modo estricto con los 194 RF cubiertos, la prueba de venta solo con teclado (T-282) y la de accesibilidad (T-298) pasan.
+- **Requisitos externos:** una notebook sin teclado numérico y una planilla real de productos del comercio antes de la Fase 20.
+
 ---
 
 ## Hitos
@@ -132,7 +142,8 @@
 | :-- | :-- | :-- | :-- |
 | **H1 · Demo interna** | E5 | Mostrar un día de caja completo con ventas en efectivo y datos de demostración. | Tarjetas, crédito, facturación, devoluciones, reportes y periféricos. |
 | **H2 · Piloto sin facturación** | E9 | Operar un comercio real sin factura electrónica, cobrando con Mercado Pago, con devoluciones y dashboards. | Impresora térmica y lector, revisión táctil y el cierre de calidad de E10. |
-| **H3 · Listo para producción** | E10 | Vender el SaaS, con o sin el módulo de facturación. | El despliegue en producción (ver abajo). |
+| **H4 · Revisión de experiencia de uso** | E11 | Operar el POS con una mano y cargar el catálogo desde Excel, con la misma interfaz para todos los roles. | El despliegue en producción. |
+| **H3 · Listo para producción** | Vender el SaaS, con o sin el módulo de facturación. | El despliegue en producción (ver abajo). |
 
 ---
 
@@ -144,6 +155,7 @@
 | Confirmación del contador sobre el régimen CAEA | Inicio de E7 | Responsable del producto |
 | Credenciales del sandbox de Mercado Pago y una terminal Point de prueba | T-180 (E6) | Responsable del producto |
 | Certificado de homologación de ARCA con un CUIT de prueba | T-206 (E7) | Contador o responsable del producto |
+| Notebook sin teclado numérico y una planilla real de productos del comercio | Fase 20 (E11) | Responsable del producto |
 | Tablet Android con Chrome, impresora térmica USB y lector de códigos USB | T-238 (E10) | Equipo |
 
 Conviene gestionarlos con al menos una entrega de anticipación. Si alguno se demora, la entrega puede avanzar con los simuladores y dejar pendientes solo las tareas de adaptador real (T-180 a T-184 y T-206 a T-208).

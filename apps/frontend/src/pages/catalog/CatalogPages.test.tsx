@@ -25,6 +25,8 @@ const AC_SESSION: SessionTokens = {
     nombre: 'Ana',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: ['AC'],
     rolActivo: 'AC',
     sucursales: [],

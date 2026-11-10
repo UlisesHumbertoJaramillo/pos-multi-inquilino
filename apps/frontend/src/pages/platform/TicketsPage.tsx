@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   List,
   ListItemButton,
   ListItemText,
@@ -18,6 +17,7 @@ import { platformApi } from '../../api/platform';
 import { useAuth } from '../../auth/AuthContext';
 import { useLoader } from '../../hooks/useLoader';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
@@ -91,7 +91,16 @@ export function TicketsPage() {
                 onClick={() => void act(() => api.getTicket(ticket.id))}
               >
                 <ListItemText primary={ticket.asunto} secondary={ticket.comercioNombre} />
-                <Chip size="small" label={STATUS_LABEL[ticket.estado]} />
+                <Status
+                  severity={
+                    ticket.estado === 'abierto'
+                      ? 'advertencia'
+                      : ticket.estado === 'respondido'
+                        ? 'informativa'
+                        : 'correcta'
+                  }
+                  label={STATUS_LABEL[ticket.estado]}
+                />
               </ListItemButton>
             ))}
           </List>

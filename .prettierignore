@@ -8,3 +8,6 @@ package-lock.json
 # Documentos de la metodología SDD: se editan a mano y no se reformatean.
 sdd/
 CLAUDE.md
+
+# Herramientas locales del editor y de los agentes
+.agents/

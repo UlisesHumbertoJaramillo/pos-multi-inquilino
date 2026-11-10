@@ -156,6 +156,29 @@ describe('[RF-041] [RF-098] alertas por destinatario (T-227)', () => {
   });
 });
 
+describe('[RF-189] resumen de alertas para el indicador', () => {
+  it('cuenta las pendientes del ámbito y trae la más grave', async () => {
+    const empty = await get('/alertas/resumen', asNorte);
+    expectToMatchContract(empty, 'get', '/alertas/resumen');
+    expect(empty.body).toEqual({ cantidad: 0, severidadMaxima: null });
+
+    await alert({ role: 'AS', branch: BRANCH_NORTE, severity: 'info' });
+    const critical = await alert({ role: 'AS', branch: BRANCH_NORTE, severity: 'critica' });
+    await alert({ role: 'AS', severity: 'critica', type: 'otra' });
+    await alert({ role: 'AS', tenant: TENANT_B, branch: BRANCH_B, severity: 'critica' });
+
+    expect((await get('/alertas/resumen', asNorte)).body).toEqual({
+      cantidad: 2,
+      severidadMaxima: 'critica',
+    });
+    await ownerQuery('UPDATE alerta SET resuelta_en = now() WHERE id = $1', [critical]);
+    expect((await get('/alertas/resumen', asNorte)).body).toEqual({
+      cantidad: 1,
+      severidadMaxima: 'info',
+    });
+  });
+});
+
 describe('[RF-127] resolver una alerta (D-91)', () => {
   it('la resuelve un AS y queda resuelta para todos los AS, con quién la resolvió', async () => {
     const id = await alert({ role: 'AS', branch: BRANCH_NORTE });

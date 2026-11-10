@@ -4,7 +4,6 @@ import type { StockRow, Transfer } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,6 +24,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { formatQuantity, inventoryApi, TRANSFER_STATES } from '../../api/inventory';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { BranchSelect, useOwnBranches } from './BranchSelect';
@@ -168,9 +168,14 @@ export function TransfersPage() {
                           .join(', ')}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          size="small"
-                          color={pending ? 'info' : t.estado === 'parcial' ? 'warning' : 'default'}
+                        <Status
+                          severity={
+                            pending
+                              ? 'informativa'
+                              : t.estado === 'parcial'
+                                ? 'advertencia'
+                                : 'correcta'
+                          }
                           label={TRANSFER_STATES[t.estado]}
                         />
                       </TableCell>

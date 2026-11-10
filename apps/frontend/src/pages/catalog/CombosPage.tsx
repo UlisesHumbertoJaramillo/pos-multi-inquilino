@@ -4,7 +4,6 @@ import type { Combo } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +23,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { catalogApi, formatMoney } from '../../api/catalog';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 
@@ -144,9 +144,9 @@ export function CombosPage() {
                   <TableCell>{formatMoney(combo.precioCombo)}</TableCell>
                   <TableCell>
                     {combo.disponible ? (
-                      <Chip size="small" color="success" label="Disponible" />
+                      <Status severity="correcta" label="Disponible" />
                     ) : (
-                      <Chip size="small" color="warning" label="No disponible" />
+                      <Status severity="advertencia" label="No disponible" />
                     )}
                   </TableCell>
                   <TableCell align="right">

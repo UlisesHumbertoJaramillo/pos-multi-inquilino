@@ -1,54 +1,87 @@
-// Centro de alertas del rol activo (T-230; RF-041, RF-098, RF-127, D-91). Se actualiza con el
-// aviso en vivo; resolver una alerta la resuelve para todos los del rol. Qué se puede resolver
-// y si hace falta nota lo decide el backend: si la pide, se abre el cuadro para escribirla.
-import type { RoleAlert } from '@pos/contracts';
+// Alertas del rol activo (T-230, T-258, T-259; RF-041, RF-098, RF-127, RF-189, RF-190, D-91, D-99).
+// Un mismo estado alimenta el indicador del encabezado, el panel de alertas y el aviso de una
+// alerta crítica que llega en vivo. Qué ve cada uno, la cantidad y la más grave las decide el
+// backend; resolver una alerta la resuelve para todos los del rol.
+import type { AlertSummary, RoleAlert } from '@pos/contracts';
 import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
 import {
   Alert,
-  Badge,
+  AlertTitle,
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Drawer,
-  IconButton,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { alertsApi, SEVERITY_LABELS } from '../api/alerts';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { alertsApi } from '../api/alerts';
 import { ApiError } from '../api/httpClient';
 import { describeAlert } from '../api/inventory';
 import { useAuth } from '../auth/AuthContext';
 import { useRealtime } from '../realtime/RealtimeContext';
+import { SEVERITY_NAMES, SEVERITY_PALETTE } from '../theme';
+import { DetailPanel } from './DetailPanel';
 import { errorMessage } from './PageSection';
+import { alertSeverity, SeverityIcon, Status } from './Status';
 
-const SEVERITY_COLORS: Record<RoleAlert['severidad'], 'error' | 'warning' | 'info'> = {
-  critica: 'error',
-  advertencia: 'warning',
-  info: 'info',
-};
+interface AlertsValue {
+  alerts: RoleAlert[];
+  summary: AlertSummary;
+  // Alerta crítica que llegó en vivo y nadie atendió todavía.
+  pendingCritical: RoleAlert | null;
+  openPanel: () => void;
+  acknowledge: () => void;
+}
 
-export function AlertCenter() {
+const EMPTY: AlertSummary = { cantidad: 0, severidadMaxima: null };
+const AlertsContext = createContext<AlertsValue | null>(null);
+
+export function useAlerts(): AlertsValue | null {
+  return useContext(AlertsContext);
+}
+
+export function AlertsProvider({ children }: { children: ReactNode }) {
   const { request } = useAuth();
   const api = useMemo(() => alertsApi(request), [request]);
   const { alertsVersion } = useRealtime();
   const [alerts, setAlerts] = useState<RoleAlert[]>([]);
+  const [summary, setSummary] = useState<AlertSummary>(EMPTY);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState<RoleAlert | null>(null);
+  const [pendingCritical, setPendingCritical] = useState<RoleAlert | null>(null);
+  // Alertas ya conocidas: solo una crítica nueva, que llega en vivo, se destaca.
+  const known = useRef<Set<string> | null>(null);
 
   const load = useCallback(() => {
     api.list().then(
       (list) => {
         setAlerts(list);
+        const seen = known.current;
+        if (seen !== null) {
+          const arrived = list.find((a) => a.severidad === 'critica' && !seen.has(a.id));
+          if (arrived) setPendingCritical(arrived);
+        }
+        known.current = new Set([...(seen ?? []), ...list.map((a) => a.id)]);
       },
       () => {
         // Sin conexión, se conserva la última lista conocida.
       },
     );
+    api.summary().then(setSummary, () => undefined);
   }, [api]);
 
   useEffect(() => {
@@ -60,6 +93,7 @@ export function AlertCenter() {
     try {
       await api.resolve(alert.id, note);
       setResolving(null);
+      if (pendingCritical?.id === alert.id) setPendingCritical(null);
       load();
     } catch (e: unknown) {
       if (e instanceof ApiError && e.code === 'NOTA_REQUERIDA') {
@@ -70,56 +104,39 @@ export function AlertCenter() {
     }
   }
 
-  const critical = alerts.some((a) => a.severidad === 'critica');
+  const value: AlertsValue = {
+    alerts,
+    summary,
+    pendingCritical,
+    openPanel: () => {
+      setPendingCritical(null);
+      setOpen(true);
+    },
+    acknowledge: () => {
+      setPendingCritical(null);
+    },
+  };
 
   return (
-    <>
-      <IconButton
-        aria-label={`Alertas (${String(alerts.length)})`}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <Badge badgeContent={alerts.length} color={critical ? 'error' : 'warning'}>
-          <NotificationsOutlined />
-        </Badge>
-      </IconButton>
-      <Drawer
-        anchor="right"
+    <AlertsContext.Provider value={value}>
+      {children}
+      <DetailPanel
+        title="Alertas"
         open={open}
         onClose={() => {
           setOpen(false);
         }}
       >
-        <Stack spacing={1.5} sx={{ p: 2, width: { xs: '100vw', sm: 420 } }} aria-label="Alertas">
-          <Typography variant="h6">Alertas</Typography>
+        <Stack spacing={1.5}>
           {error !== null && <Alert severity="error">{error}</Alert>}
           {alerts.length === 0 && (
             <Typography color="text.secondary">No hay alertas pendientes.</Typography>
           )}
           {alerts.map((alert) => (
-            <Alert
-              key={alert.id}
-              severity={SEVERITY_COLORS[alert.severidad]}
-              action={
-                alert.resolubleAMano ? (
-                  <Button size="small" color="inherit" onClick={() => void resolve(alert, null)}>
-                    Resolver
-                  </Button>
-                ) : undefined
-              }
-            >
-              <Typography variant="body2">{describeAlert(alert)}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {SEVERITY_LABELS[alert.severidad]}
-                {alert.sucursal ? ` · ${alert.sucursal}` : ''} ·{' '}
-                {new Date(alert.creadaEn).toLocaleString('es-AR')}
-                {alert.ultimoRecordatorio ? ' · Recordatorio' : ''}
-              </Typography>
-            </Alert>
+            <AlertItem key={alert.id} alert={alert} onResolve={() => void resolve(alert, null)} />
           ))}
         </Stack>
-      </Drawer>
+      </DetailPanel>
       {resolving && (
         <ResolveDialog
           alert={resolving}
@@ -129,7 +146,104 @@ export function AlertCenter() {
           }}
         />
       )}
-    </>
+    </AlertsContext.Provider>
+  );
+}
+
+function AlertItem({ alert, onResolve }: { alert: RoleAlert; onResolve: () => void }) {
+  const severity = alertSeverity(alert.severidad);
+  return (
+    <Box
+      sx={(t) => ({
+        borderLeft: `4px solid ${t.palette[SEVERITY_PALETTE[severity]].main}`,
+        pl: 1.5,
+        py: 0.5,
+      })}
+    >
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <Status severity={severity} label={SEVERITY_NAMES[severity]} />
+        {alert.sucursal && (
+          <Typography variant="body2" color="text.secondary">
+            {alert.sucursal}
+          </Typography>
+        )}
+        {alert.ultimoRecordatorio && (
+          <Typography variant="body2" color="text.secondary">
+            Recordatorio
+          </Typography>
+        )}
+      </Stack>
+      <Typography sx={{ mt: 0.5 }}>{describeAlert(alert)}</Typography>
+      <Stack direction="row" sx={{ alignItems: 'center', mt: 0.5 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+          {new Date(alert.creadaEn).toLocaleString('es-AR')}
+        </Typography>
+        {alert.resolubleAMano && (
+          <Button size="small" onClick={onResolve}>
+            Resolver
+          </Button>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+// Indicador del encabezado (RF-189): la cantidad y el ícono de la más grave.
+export function AlertIndicator() {
+  const alerts = useAlerts();
+  if (!alerts) return null;
+  const { cantidad, severidadMaxima } = alerts.summary;
+  const severity = severidadMaxima === null ? null : alertSeverity(severidadMaxima);
+  const label =
+    severity === null
+      ? `Alertas (${String(cantidad)})`
+      : `Alertas (${String(cantidad)}), la más grave: ${SEVERITY_NAMES[severity]}`;
+  return (
+    <Button
+      aria-label={label}
+      color={severity === null ? 'inherit' : SEVERITY_PALETTE[severity]}
+      variant={severity === 'critica' ? 'contained' : 'text'}
+      startIcon={
+        severity === null ? (
+          <NotificationsOutlined />
+        ) : (
+          <SeverityIcon severity={severity} color="inherit" />
+        )
+      }
+      onClick={alerts.openPanel}
+      sx={{ minWidth: 0 }}
+    >
+      {cantidad}
+    </Button>
+  );
+}
+
+// Aviso de una alerta crítica que llegó en vivo (RF-190): queda hasta que alguien la atiende.
+export function CriticalAlertNotice() {
+  const alerts = useAlerts();
+  const critical = alerts?.pendingCritical ?? null;
+  if (!alerts || critical === null) return null;
+  return (
+    <Alert
+      severity="error"
+      variant="filled"
+      role="alert"
+      data-testid="alerta-critica"
+      sx={{ mb: 2 }}
+      action={
+        <Stack direction="row" spacing={1}>
+          <Button color="inherit" variant="outlined" onClick={alerts.openPanel}>
+            Ver alertas
+          </Button>
+          <Button color="inherit" onClick={alerts.acknowledge}>
+            Entendido
+          </Button>
+        </Stack>
+      }
+    >
+      <AlertTitle>Alerta crítica</AlertTitle>
+      {describeAlert(critical)}
+    </Alert>
   );
 }
 

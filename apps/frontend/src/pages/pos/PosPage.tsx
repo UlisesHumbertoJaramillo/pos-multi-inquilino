@@ -9,7 +9,6 @@ import {
   Card,
   CardActions,
   CardContent,
-  Chip,
   Grid,
   MenuItem,
   Stack,
@@ -26,6 +25,7 @@ import { formatMoney } from '../../api/catalog';
 import { cashApi, MOVEMENT_NAMES, twoDecimals } from '../../api/cash';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
 import { useLoader } from '../../hooks/useLoader';
@@ -165,7 +165,7 @@ export function PosPage() {
   }
 
   return (
-    <AppShell>
+    <AppShell register={shift?.caja ?? null}>
       <PageSection
         title="Punto de venta"
         actions={
@@ -198,7 +198,7 @@ export function PosPage() {
           <Stack spacing={2}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Typography variant="h6">{shift.caja}</Typography>
-              <Chip size="small" color="success" label="Turno abierto" />
+              <Status severity="correcta" label="Turno abierto" />
               <Typography variant="body2" color="text.secondary">
                 Jornada del {new Date(`${shift.fechaJornada}T12:00:00`).toLocaleDateString('es-AR')}{' '}
                 · desde las{' '}
@@ -283,17 +283,19 @@ export function PosPage() {
                     <CardContent>
                       <Typography variant="h6">{r.nombre}</Typography>
                       {r.turnoAbierto ? (
-                        <Chip size="small" label={`Ocupada por ${r.turnoAbierto.vendedor}`} />
+                        <Status
+                          severity="informativa"
+                          label={`Ocupada por ${r.turnoAbierto.vendedor}`}
+                        />
                       ) : r.requiereCorteZ ? (
-                        <Chip size="small" color="error" label="Requiere Corte Z" />
+                        <Status severity="critica" label="Requiere Corte Z" />
                       ) : r.jornada ? (
-                        <Chip
-                          size="small"
-                          color="info"
+                        <Status
+                          severity="informativa"
                           label={`Jornada del ${new Date(`${r.jornada.fecha}T12:00:00`).toLocaleDateString('es-AR')}`}
                         />
                       ) : (
-                        <Chip size="small" label="Sin jornada abierta" />
+                        <Status severity="informativa" label="Sin jornada abierta" />
                       )}
                     </CardContent>
                     <CardActions>

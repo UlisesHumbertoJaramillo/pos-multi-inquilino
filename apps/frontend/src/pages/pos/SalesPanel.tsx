@@ -43,6 +43,9 @@ import { formatMoney } from '../../api/catalog';
 import { collectionsApi } from '../../api/collections';
 import { ApiError } from '../../api/httpClient';
 import { formatQuantity, salesApi } from '../../api/sales';
+import { AttentionCard } from '../../components/AttentionCard';
+import { Status } from '../../components/Status';
+import type { Severity } from '../../theme';
 import { useAuth } from '../../auth/AuthContext';
 import { errorMessage } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
@@ -61,6 +64,15 @@ import { usePrinter } from '../../peripherals/usePrinter';
 
 const SEARCH_DELAY_MS = 250;
 const REFRESH_MS = 15_000;
+
+const PAYMENT_SEVERITY: Record<SalePayment['estado'], Severity> = {
+  pendiente: 'informativa',
+  aprobado: 'correcta',
+  rechazado: 'critica',
+  por_verificar: 'advertencia',
+  revirtiendo: 'informativa',
+  revertido: 'informativa',
+};
 
 const PAYMENT_STATES: Record<SalePayment['estado'], string> = {
   pendiente: 'Procesando',
@@ -758,9 +770,11 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
           </Stack>
 
           {cart.estado === 'pago_por_verificar' && (
-            <Alert severity="warning">
-              Hay un pago por verificar: la venta espera el resultado de la pasarela.
-            </Alert>
+            <AttentionCard
+              severity="advertencia"
+              title="Hay un pago por verificar"
+              detail="La venta espera el resultado de la pasarela. Si ya sabés si se cobró, indicalo en el pago."
+            />
           )}
           {cart.pagos.length > 0 && (
             <List dense aria-label="Pagos de la venta">
@@ -807,7 +821,13 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
                 >
                   <ListItemText
                     primary={`${p.metodo}: ${formatMoney(p.fraccion)}`}
-                    secondary={PAYMENT_STATES[p.estado]}
+                    secondary={
+                      <Status
+                        severity={PAYMENT_SEVERITY[p.estado]}
+                        label={PAYMENT_STATES[p.estado]}
+                      />
+                    }
+                    slotProps={{ secondary: { component: 'div' } }}
                   />
                 </ListItem>
               ))}

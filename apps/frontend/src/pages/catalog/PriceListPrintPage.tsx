@@ -8,6 +8,7 @@ import { catalogApi, formatMoney } from '../../api/catalog';
 import { useAuth } from '../../auth/AuthContext';
 import { useLoader } from '../../hooks/useLoader';
 import { describeRule } from './PriceListsPage';
+import { PRINT } from '../../theme';
 
 type Row = PriceSheet['precios'][number];
 
@@ -29,13 +30,18 @@ export function PriceListPrintPage() {
   return (
     <Box
       sx={{
-        bgcolor: '#fff',
-        color: '#000',
+        bgcolor: PRINT.paper,
+        color: PRINT.ink,
         minHeight: '100vh',
         p: { xs: 2, sm: 4 },
         '@media print': { p: 0 },
         '& table': { width: '100%', borderCollapse: 'collapse', mb: 3 },
-        '& th, & td': { borderBottom: '1px solid #ccc', py: 0.75, px: 1, textAlign: 'left' },
+        '& th, & td': {
+          borderBottom: `1px solid ${PRINT.rule}`,
+          py: 0.75,
+          px: 1,
+          textAlign: 'left',
+        },
         '& td.precio, & th.precio': { textAlign: 'right', whiteSpace: 'nowrap' },
       }}
     >

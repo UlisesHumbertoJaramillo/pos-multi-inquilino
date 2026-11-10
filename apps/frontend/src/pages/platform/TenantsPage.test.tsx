@@ -17,6 +17,8 @@ const SA_SESSION: SessionTokens = {
     nombre: 'Super',
     comercioId: null,
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: ['SA'],
     rolActivo: 'SA',
     sucursales: [],
@@ -75,7 +77,8 @@ describe('[RF-013] [RF-163] comercios del SA', () => {
     expect(
       await screen.findByText('Facturación activada para Almacén Don Pepe.'),
     ).toBeInTheDocument();
-    expect(within(row).getByText('Activo')).toBeInTheDocument();
+    expect(within(row).getByRole('status', { name: 'Correcta: Activo' })).toBeInTheDocument();
+    expect(within(row).getByLabelText('Activo')).toBeChecked();
     const toggle = api.mock.calls.find(
       ([input]) => typeof input === 'string' && input.endsWith('/modulo-facturacion'),
     );

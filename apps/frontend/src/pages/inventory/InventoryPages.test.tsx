@@ -24,6 +24,8 @@ const AS_SESSION: SessionTokens = {
     nombre: 'Sergio',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: ['AS'],
     rolActivo: 'AS',
     sucursales: ['centro', 'norte'],
@@ -92,7 +94,9 @@ describe('[RF-042] inventario del AS', () => {
       within(screen.getByRole('table', { name: 'Disponibilidad de combos' })).getByText('3'),
     ).toBeInTheDocument();
 
-    await user.click(within(table).getByRole('button', { name: 'Merma de Leche' }));
+    // La merma está en el detalle del producto, en el segundo nivel.
+    await user.click(within(table).getByRole('button', { name: 'Detalle de Leche' }));
+    await user.click(await screen.findByRole('button', { name: 'Merma de Leche' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByLabelText(/^Cantidad/), '3');
     await user.click(within(dialog).getByRole('button', { name: 'Guardar' }));
@@ -163,5 +167,48 @@ describe('[RF-044] [RF-045] transferencias del AS', () => {
     });
     expect(await within(table).findByText('Recibida con diferencias')).toBeInTheDocument();
     expect(within(table).getByText('4 × Leche (faltaron 1)')).toBeInTheDocument();
+  });
+});
+
+describe('[RF-191] [RF-192] puntos de atención y detalle del inventario', () => {
+  it('el stock bajo se ve con su severidad y su acción abre el ajuste', async () => {
+    mockAs({
+      'GET /inventario/sucursales/centro/stock': () => ({
+        status: 200,
+        body: [row({ alertaActiva: true, disponible: '2.000', reservado: '1.000' })],
+      }),
+      'GET /inventario/sucursales/centro/alertas': () => ({
+        status: 200,
+        body: [
+          {
+            id: 'a1',
+            tipo: 'stock_minimo',
+            severidad: 'advertencia',
+            referencia: 'leche',
+            detalle: { producto: 'Leche' },
+            creadaEn: '2026-11-10T12:00:00Z',
+          },
+        ],
+      }),
+      'GET /inventario/sucursales/centro/combos': () => ({ status: 200, body: [] }),
+      'GET /inventario/sucursales/centro/movimientos': () => ({ status: 200, body: [] }),
+    });
+    renderApp('/admin/inventario');
+    const user = userEvent.setup();
+
+    const card = await screen.findByRole('group', { name: /^Advertencia:/ });
+    const table = screen.getByRole('table', { name: 'Stock de la sucursal' });
+    expect(within(table).getByRole('status', { name: 'Advertencia: Stock bajo' })).toBeVisible();
+    await user.click(within(card).getByRole('button', { name: 'Ajustar stock' }));
+    expect(await screen.findByRole('dialog', { name: 'Ajustar stock: Leche' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    // Lo reservado y lo que está en tránsito pasan al segundo nivel.
+    expect(within(table).queryByText('Reservado')).toBeNull();
+    await user.click(within(table).getByRole('button', { name: 'Detalle de Leche' }));
+    expect(await screen.findByText('Reservado en ventas en curso')).toBeVisible();
   });
 });

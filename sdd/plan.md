@@ -1,8 +1,8 @@
 # Plan técnico — Sistema POS Multi-Inquilino
 
-**Versión:** 1.0
-**Fecha:** 2026-10-31
-**Deriva de:** [constitution.md](constitution.md) (principios 1 a 17) y [spec.md](spec.md) v1.1 (RF-001 a RF-169, D-1 a D-60, S-1 a S-6).
+**Versión:** 1.1 (agrega la revisión de experiencia de uso: RF-170 a RF-194)
+**Fecha:** 2026-11-10
+**Deriva de:** [constitution.md](constitution.md) (principios 1 a 17) y [spec.md](spec.md) v1.3 (RF-001 a RF-194, D-1 a D-99, S-1 a S-6).
 **Integraciones definidas:** ARCA (factura electrónica, Argentina; módulo opcional por comercio), Mercado Pago (Point y QR). Equipos del POS: Chrome o Edge en Windows y Android.
 **Naturaleza:** describe el **CÓMO** a nivel de arquitectura: módulos, modelo de datos, decisiones y estrategia de pruebas. No contiene código. Las tareas y el orden de implementación van en `tareas.md` y `roadmap.md`, y la tabla RF ↔ prueba en `trazabilidad.md`.
 
@@ -89,7 +89,8 @@ Cada módulo es un contexto del dominio con sus propias tablas, casos de uso y p
 ### 2.4 Organización
 
 - **Responsabilidad:** sucursales, cajas, usuarios del comercio y asignación de roles y sucursales, parámetros del comercio y métodos de pago.
-- **RF:** RF-023 a RF-027, RF-135.
+- **RF:** RF-023 a RF-027, RF-135, RF-185.
+- **Notas:** los atajos del POS son un parámetro del comercio (AD-28). El dominio valida cada cambio: sin teclas repetidas, sin teclas reservadas por el navegador y sin combinaciones que requieran las dos manos.
 
 ### 2.5 Catálogo y precios
 
@@ -124,8 +125,8 @@ Cada módulo es un contexto del dominio con sus propias tablas, casos de uso y p
 ### 2.10 Ventas (POS)
 
 - **Responsabilidad:** carritos y ventas, agregado y quita de ítems con reserva, precio y promoción fijados, expiración por inactividad, traspasos, estados comercial, de cobro y fiscal, confirmación atómica, alertas de sesión.
-- **RF:** RF-030, RF-031, RF-051, RF-053 a RF-060, RF-062, RF-076 a RF-080, RF-116, RF-152, RF-153.
-- **Notas:** la confirmación (RF-076) es el caso de uso más crítico. En **una sola transacción** consume las reservas, registra la venta y sus pagos, imputa a caja y a cuenta corriente, consume la cuota, escribe la auditoría y deja en el outbox el pedido de comprobante fiscal (AD-07).
+- **RF:** RF-030, RF-031, RF-051, RF-053 a RF-060, RF-062, RF-076 a RF-080, RF-116, RF-152, RF-153, RF-175 a RF-177, RF-179.
+- **Notas:** la confirmación (RF-076) es el caso de uso más crítico. En **una sola transacción** consume las reservas, registra la venta y sus pagos, imputa a caja y a cuenta corriente, consume la cuota, escribe la auditoría y deja en el outbox el pedido de comprobante fiscal (AD-07). Agregar un producto sin venta activa crea la venta y reserva el ítem en la misma transacción (AD-31). La sección de productos del POS es una consulta de solo lectura: categorías y productos de la lista activa de la sucursal, ordenados por lo vendido en ella en los últimos 30 días (D-95).
 
 ### 2.11 Descuentos discrecionales (cuota)
 
@@ -166,20 +167,29 @@ Cada módulo es un contexto del dominio con sus propias tablas, casos de uso y p
 ### 2.17 Alertas y tiempo real
 
 - **Responsabilidad:** alertas persistentes por destinatario (stock mínimo, arqueo, rechazo fiscal, escalamiento, reintegro pendiente, transferencia con faltante), recordatorios y difusión en tiempo real de cambios de stock por sucursal.
-- **RF:** RF-061, (consume eventos de RF-041, RF-045, RF-089, RF-098, RF-103, RF-105, RF-115, RF-127).
+- **RF:** RF-061, RF-189, RF-190, (consume eventos de RF-041, RF-045, RF-089, RF-098, RF-103, RF-105, RF-115, RF-127).
+- **Notas:** el canal en vivo envía también el resumen de alertas del usuario (cantidad y severidad más alta), para el indicador de todas las pantallas.
 
 ### 2.18 Reportes y dashboards
 
 - **Responsabilidad:** contenido del ticket, informe diario por fecha de jornada, dashboard estratégico (AC) y operativo (AS) con las métricas de D-50.
-- **RF:** RF-107, RF-109, RF-110, RF-111.
-- **Notas:** son consultas de solo lectura sobre vistas que siempre filtran por comercio y sucursal. No escriben.
+- **RF:** RF-107, RF-109, RF-110, RF-111, RF-186, RF-187.
+- **Notas:** son consultas de solo lectura sobre vistas que siempre filtran por comercio y sucursal. No escriben. El backend calcula los indicadores, la comparación con el período anterior de igual duración y las series de las gráficas (D-97); el frontend solo las dibuja (AD-29).
 
 ### 2.19 Frontend y periféricos
 
 - **Responsabilidad:** interfaz táctil del POS e interfaz de escritorio de la administración. Adaptadores de periféricos en el navegador: impresora, lector de códigos y terminal de pago.
-- **RF:** RF-108, RF-157, RF-158, (presentación de RF-027, RF-054, RF-060, RF-062).
+- **RF:** RF-108, RF-157, RF-158, RF-178, RF-180 a RF-184, RF-188, RF-191 a RF-194, (presentación de RF-027, RF-054, RF-060, RF-062).
 - **Equipos soportados:** Chrome o Edge en Windows y Android. El lector de códigos funciona como teclado. La impresora térmica se maneja por WebUSB o WebSerial y, si el equipo no lo permite, por el agente local.
 - **Notas:** los periféricos son un adaptador **del frontend** porque están conectados al equipo del usuario (AD-16). El frontend imprime documentos que el backend ya armó y le informa el resultado. Una falla de impresión nunca cambia el estado de la venta (RF-108).
+- **Sistema visual (AD-30):** un único tema con los cuatro niveles de severidad de D-99 en modo claro y oscuro, y componentes compartidos para estados, puntos de atención, encabezado y panel de detalle de segundo nivel (D-96). Una regla de lint impide colores y estados armados a mano en las pantallas.
+- **Atajos (AD-28):** el frontend traduce teclas en acciones con el mapa que le da el backend. No se disparan mientras se escribe en un campo, durante una lectura del lector de códigos ni en el diálogo de PIN. Los dígitos del teclado numérico quedan para importes, cantidades y búsquedas; las acciones usan sus teclas de operación, Enter y las teclas vecinas.
+
+### 2.20 Carga desde Excel
+
+- **Responsabilidad:** plantillas descargables y carga de productos, proveedores y precios desde archivos .xlsx, con vista previa y confirmación.
+- **RF:** RF-170 a RF-174.
+- **Notas:** el archivo se lee y valida en el backend con un puerto `SpreadsheetReader` (AD-27). Se procesa dos veces: la vista previa valida y no escribe, y la aplicación vuelve a validar el mismo archivo antes de escribir, así nada cambia entre lo anunciado y lo aplicado. Cada fila pasa por los mismos casos de uso que la carga manual (Catálogo, Proveedores, Precios), y la carga queda en la auditoría como una sola operación (D-49). No modifica stock, saldos ni lo que no figura en el archivo.
 
 ---
 
@@ -217,6 +227,7 @@ Cada módulo es un contexto del dominio con sus propias tablas, casos de uso y p
 | `caja` | tenant_id, sucursal_id, nombre, punto_venta_fiscal, is_active | Punto de venta único por comercio | RF-024, RF-025 |
 | `parametro_comercio` | tenant_id, inactividad_carrito, inactividad_sesion, plazo_fiscal, plazo_devolucion, tolerancia_arqueo, politica_facturacion (siempre, opcional con factura, opcional sin factura), plazo_facturacion_posterior | Valores dentro de los márgenes de plataforma. La política solo aplica con el módulo activo | RF-135, RF-098, RF-166, RF-168 |
 | `metodo_pago` | tenant_id, nombre, tipo (efectivo, electrónico, cuenta corriente), recargo_pct (positivo es recargo, negativo es descuento), is_active | | RF-068, RF-069, RF-135 |
+| `atajo_comercio` | tenant_id, accion, tecla, actualizado_en, actualizado_por | Una tecla por acción y una acción por tecla. Sin filas rige la distribución por defecto | RF-185 |
 
 ### 3.4 Catálogo y precios
 
@@ -346,6 +357,11 @@ Cada decisión indica qué se eligió, la alternativa descartada y por qué. Se 
 | **AD-24** | Webhooks de Mercado Pago en un endpoint público, verificados con la firma del proveedor y con límite de frecuencia. La notificación nunca se toma como verdadera: solo dispara la consulta del pago a la API, y el worker de verificación sigue consultando si la notificación no llega. | Consultar solo periódicamente, sin webhooks. | Los webhooks reducen la demora entre el pago en la terminal y la confirmación de la venta. Verificar la firma y volver a consultar evita que una notificación falsa confirme un pago. Requirió ampliar Const. 16. | RF-075, RF-126, Const. 16 |
 | **AD-25** | El certificado y la clave fiscal de cada comercio se guardan cifrados en la base, con una clave maestra que vive fuera de la base y del repositorio (en un gestor de secretos o en una variable de entorno protegida). Ningún endpoint los devuelve. | Guardarlos en texto plano o en archivos del servidor. | Un acceso a la base o a un respaldo no expone las credenciales fiscales de los comercios. Cumple Const. 17 sobre secretos. | RF-162, D-55, Const. 17 |
 | **AD-26** | Los módulos opcionales del SaaS (hoy, la facturación) son capacidades activables por comercio, guardadas en el comercio. La política de permisos las consulta junto con la matriz §5.18: una acción de un módulo inactivo se rechaza. Los casos de uso afectados (confirmar venta, anular, devolver) preguntan por la capacidad a través de un puerto, sin depender del módulo fiscal. | Versiones o despliegues distintos según el plan, o ramas de código por cliente. | Una sola base de código y un solo despliegue sirven a todos los planes. Activar o desactivar es un cambio de datos auditado, no un despliegue. El dominio de Ventas no queda acoplado a la facturación. | RF-163 a RF-169, D-57 |
+| **AD-27** | Los archivos Excel se leen en el backend, con una librería mantenida y sin vulnerabilidades conocidas, detrás del puerto `SpreadsheetReader`. Solo .xlsx; se rechazan los que traen macros, los formatos anteriores y los que superan 5 MB o 5.000 filas. Las fórmulas se toman por su valor calculado y nunca se evalúan. | Leer el archivo en el navegador y mandar JSON al backend. | La validación tiene que ocurrir en el servidor (Const. 17) y la del navegador se puede saltear. El puerto deja cambiar de librería sin tocar los casos de uso. | RF-170 a RF-174, Const. 14, 17 |
+| **AD-28** | Atajos como parámetro del comercio: el catálogo de acciones y la distribución por defecto viven en el dominio del backend, que también valida cada cambio del AC. El frontend recibe el mapa y solo traduce teclas en acciones. | Atajos fijos en el frontend. | El AC los configura (D-94) y las reglas de validación (dos manos, reservadas, repetidas) son de negocio (Const. 15). | RF-181 a RF-185 |
+| **AD-29** | Gráficas con la librería del mismo ecosistema que la interfaz, alimentadas con series que calcula el backend. | Calcular agregados en el navegador a partir de datos crudos, o una librería de gráficas con estilos propios. | Los cálculos van en el backend (Const. 7 y 15), y la misma librería toma los colores del tema en modo claro y oscuro. | RF-186, RF-187 |
+| **AD-30** | Sistema visual único: el tema define la paleta y los niveles de severidad, y las pantallas usan componentes compartidos (estado, punto de atención, encabezado, panel de detalle). Una regla de lint prohíbe colores literales fuera del tema. | Estilos decididos en cada pantalla. | Es la única forma de sostener la coherencia entre roles (RF-193) a medida que crecen las pantallas. | RF-188, RF-192, RF-193 |
+| **AD-31** | Agregar un producto sin venta activa crea la venta y la reserva en una sola operación del backend. | Que el frontend cree la venta y después agregue el ítem. | Dos llamadas pueden dejar ventas vacías si la segunda falla, y suman una espera más a cada venta. | RF-176 |
 
 ---
 
@@ -368,6 +384,9 @@ Cada decisión indica qué se eligió, la alternativa descartada y por qué. Se 
 | **Homologación** | Pruebas manuales y automatizadas contra el entorno de homologación de ARCA y el sandbox de Mercado Pago antes de cada versión. No corren en cada integración continua. | Entornos de prueba de los proveedores | 7, 10 |
 | **Tiempo real** | Un cambio de stock llega a los demás POS de la sucursal en 2 segundos como máximo y nunca a otra sucursal ni a otro comercio. | Clientes WebSocket de prueba | 2, 12 |
 | **Frontend** | Componentes y flujos con la API simulada desde el contrato. Validaciones de formato. | Vitest y Testing Library | 1 |
+| **Teclado y una mano** | Ventas completas solo con el teclado, con la distribución por defecto y sin ningún clic antes del primer producto. La prueba verifica que ningún atajo usado combine teclas de las dos mitades del teclado. | Playwright | 14 |
+| **Accesibilidad** | Contraste de los niveles de severidad y nombres accesibles en las pantallas principales de los cuatro roles, en modo claro y oscuro. | Playwright con axe | 14 |
+| **Carga desde Excel** | Archivos de muestra generados en las pruebas: válidos, con filas inválidas, con macros, con fórmulas, en formato viejo, dañados y por encima de los límites. | Vitest con archivos generados | 1, 9 |
 | **Punta a punta** | Flujos completos en navegador: venta con pago mixto, cierre ciego (verificando que el teórico no aparezca ni en pantalla ni en el tráfico de red del VO), devolución en otra sucursal, contingencia fiscal, cierre forzado. | Playwright | 5, 7, 8 |
 
 ### 5.2 Verificaciones estáticas y de arquitectura (Const. 8, 14, 15, 17)
@@ -381,7 +400,7 @@ Cada decisión indica qué se eligió, la alternativa descartada y por qué. Se 
 ### 5.3 Trazabilidad (criterio 1)
 
 - Cada prueba de aceptación se etiqueta con los RF que verifica.
-- Un script recorre las etiquetas, genera `trazabilidad.md` (RF → pruebas) y **falla en CI si algún RF de RF-001 a RF-169 queda sin prueba**.
+- Un script recorre las etiquetas, genera `trazabilidad.md` (RF → pruebas) y **falla en CI si algún RF de RF-001 a RF-194 queda sin prueba**.
 - Las pruebas de la matriz de seguridad se etiquetan con RF-001 a RF-004 y con el RF de la acción probada.
 
 ### 5.4 Correspondencia con los criterios de finalización del spec
@@ -401,6 +420,7 @@ Cada decisión indica qué se eligió, la alternativa descartada y por qué. Se 
 | 11. Supuestos respetados | Casos de uso de precio y promoción fijados, y exceso de crédito con autorización. |
 | 12. Tiempo real | Prueba de latencia con clientes WebSocket. |
 | 13. Calidad | Verificaciones estáticas de §5.2 en CI. |
+| 14. Experiencia de uso | Punta a punta solo con el teclado, pruebas de accesibilidad y regla de lint del sistema visual. |
 
 ---
 
@@ -411,24 +431,25 @@ Cada decisión indica qué se eligió, la alternativa descartada y por qué. Se 
 | 2.1 Núcleo transversal | RF-001, RF-002, RF-003, RF-004 |
 | 2.2 Identidad y acceso | RF-005, RF-006, RF-007, RF-008, RF-009, RF-010, RF-011, RF-012, RF-113, RF-141, RF-145, RF-156 |
 | 2.3 Plataforma | RF-013, RF-014, RF-015, RF-016, RF-017, RF-134, RF-146, RF-147, RF-163, RF-164 |
-| 2.4 Organización | RF-023, RF-024, RF-025, RF-026, RF-027, RF-135 |
+| 2.4 Organización | RF-023, RF-024, RF-025, RF-026, RF-027, RF-135, RF-185 |
 | 2.5 Catálogo y precios | RF-028, RF-029, RF-032, RF-033, RF-049, RF-052, RF-119, RF-130, RF-131, RF-149, RF-159 |
 | 2.6 Proveedores y compras | RF-034, RF-035, RF-036, RF-037, RF-038, RF-133 |
 | 2.7 Inventario | RF-039, RF-040, RF-041, RF-042, RF-043, RF-044, RF-045, RF-046, RF-047, RF-088, RF-150, RF-151 |
 | 2.8 Promociones | RF-048, RF-050, RF-143 |
 | 2.9 Motor de cálculo | RF-069, RF-070, RF-071, RF-120, RF-121, RF-122, RF-123, RF-124 |
-| 2.10 Ventas | RF-030, RF-031, RF-051, RF-053, RF-054, RF-055, RF-056, RF-057, RF-058, RF-059, RF-060, RF-062, RF-076, RF-077, RF-078, RF-079, RF-080, RF-116, RF-152, RF-153 |
+| 2.10 Ventas | RF-030, RF-031, RF-051, RF-053, RF-054, RF-055, RF-056, RF-057, RF-058, RF-059, RF-060, RF-062, RF-076, RF-077, RF-078, RF-079, RF-080, RF-116, RF-152, RF-153, RF-175, RF-176, RF-177, RF-179 |
 | 2.11 Cuota | RF-063, RF-064, RF-065, RF-066, RF-067, RF-140, RF-142 |
 | 2.12 Cobros, clientes y crédito | RF-068, RF-072, RF-073, RF-074, RF-075, RF-125, RF-126, RF-127, RF-128, RF-129, RF-132, RF-144 |
 | 2.13 Devoluciones y anulaciones | RF-081, RF-082, RF-083, RF-084, RF-085, RF-086, RF-087, RF-136, RF-137, RF-138, RF-139, RF-169 |
 | 2.14 Caja | RF-089, RF-090, RF-091, RF-092, RF-093, RF-094, RF-095, RF-096, RF-097, RF-098, RF-099, RF-112, RF-115, RF-117, RF-118, RF-154 |
 | 2.15 Facturación fiscal | RF-100, RF-101, RF-102, RF-103, RF-104, RF-105, RF-106, RF-155, RF-160, RF-161, RF-162, RF-165, RF-166, RF-167, RF-168 |
 | 2.16 Auditoría y retención | RF-018, RF-019, RF-020, RF-021, RF-022, RF-114, RF-148 |
-| 2.17 Alertas y tiempo real | RF-061 |
-| 2.18 Reportes y dashboards | RF-107, RF-109, RF-110, RF-111 |
-| 2.19 Frontend y periféricos | RF-108, RF-157, RF-158 |
+| 2.17 Alertas y tiempo real | RF-061, RF-189, RF-190 |
+| 2.18 Reportes y dashboards | RF-107, RF-109, RF-110, RF-111, RF-186, RF-187 |
+| 2.19 Frontend y periféricos | RF-108, RF-157, RF-158, RF-178, RF-180, RF-181, RF-182, RF-183, RF-184, RF-188, RF-191, RF-192, RF-193, RF-194 |
+| 2.20 Carga desde Excel | RF-170, RF-171, RF-172, RF-173, RF-174 |
 
-Cada uno de los 169 RF tiene exactamente un módulo responsable.
+Cada uno de los 194 RF tiene exactamente un módulo responsable.
 
 ---
 
@@ -445,3 +466,7 @@ Cada uno de los 169 RF tiene exactamente un módulo responsable.
 | R-7 | Cada caja necesita una terminal Point asociada en Mercado Pago, y la API de terminales puede cambiar. | Configuración adicional por caja y mantenimiento del adaptador. | El adaptador encapsula la API. La asociación terminal ↔ caja va en los parámetros de la caja. Pruebas en el sandbox antes de cada versión. |
 | R-8 | El certificado de ARCA de cada comercio vence periódicamente. | Si vence, el comercio no puede facturar en línea. | Alerta anticipada al AC (RF-162), y el panel del AC muestra la fecha de vencimiento. |
 | R-5 | La seguridad a nivel de fila exige fijar el comercio en cada transacción. Un error ahí rompe el aislamiento o bloquea todo. | Alto. | La unidad de trabajo lo fija siempre. Pruebas de integración específicas, y el usuario de base de datos de la aplicación no puede saltearse esa seguridad. |
+| R-9 | La librería que lee Excel puede traer vulnerabilidades, y un archivo armado a propósito puede intentar explotarlas. | Alto: el archivo viene del usuario. | Versión fija y `npm audit` en CI, límites de tamaño y filas antes de leer, sin macros ni evaluación de fórmulas, y lectura en el backend detrás de un puerto (AD-27). |
+| R-10 | Las notebooks no tienen teclado numérico, y el navegador o el sistema operativo reservan algunas teclas. | La distribución por defecto no sirve en todos los equipos. | El AC adapta los atajos de su comercio (RF-185) y el dominio rechaza las teclas reservadas. |
+| R-11 | Los dígitos y el Enter del teclado numérico también los usan el lector de códigos y la carga de importes. | Un atajo podría dispararse en medio de una lectura o de un importe. | Los dígitos nunca son atajos, los atajos no corren en campos de texto y la ráfaga del lector se detecta por su velocidad (RF-184). |
+| R-12 | Rediseñar todas las pantallas puede romper las pruebas de interfaz existentes. | Retrabajo y regresiones. | Se migra pantalla por pantalla manteniendo verdes sus pruebas, que buscan por rol y nombre accesible y no por estilos. |

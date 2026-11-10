@@ -4,7 +4,6 @@ import type { Customer, CustomerRequest } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -27,6 +26,7 @@ import { formatMoney } from '../../api/catalog';
 import { collectionsApi, FISCAL_CONDITIONS } from '../../api/collections';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 
@@ -150,7 +150,7 @@ export function CustomersPage() {
                     {c.cuentaCorriente ? (
                       formatMoney(c.limiteCredito)
                     ) : (
-                      <Chip size="small" label="Sin cuenta" />
+                      <Status severity="informativa" label="Sin cuenta" />
                     )}
                   </TableCell>
                   <TableCell align="right">{formatMoney(c.saldo)}</TableCell>

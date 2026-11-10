@@ -4,7 +4,6 @@ import type { Promotion, PromotionCreateRequest } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -26,6 +25,8 @@ import { catalogApi } from '../../api/catalog';
 import { describeRule, promotionsApi } from '../../api/promotions';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { DetailList, DetailPanel } from '../../components/DetailPanel';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 
@@ -68,6 +69,7 @@ export function PromotionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState<PromotionForm | null>(null);
+  const [detail, setDetail] = useState<Promotion | null>(null);
 
   const fetchData = useCallback(
     async () => ({
@@ -201,9 +203,7 @@ export function PromotionsPage() {
               <TableRow>
                 <TableCell>Promoción</TableCell>
                 <TableCell>Regla</TableCell>
-                <TableCell>Se aplica a</TableCell>
                 <TableCell>Vigencia</TableCell>
-                <TableCell>Sucursales</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell align="right">Acciones</TableCell>
               </TableRow>
@@ -214,25 +214,27 @@ export function PromotionsPage() {
                   <TableCell>{p.nombre}</TableCell>
                   <TableCell>{describeRule(p.regla)}</TableCell>
                   <TableCell>
-                    {p.alcance === 'categoria' ? 'Categoría ' : ''}
-                    {p.objetivo.nombre}
-                  </TableCell>
-                  <TableCell>
                     {new Date(p.vigenteDesde).toLocaleDateString('es-AR')} al{' '}
                     {new Date(p.vigenteHasta).toLocaleDateString('es-AR')}
                   </TableCell>
                   <TableCell>
-                    {p.sucursales === null ? 'Todas' : p.sucursales.map(branchName).join(', ')}
-                  </TableCell>
-                  <TableCell>
                     {p.vigente ? (
-                      <Chip size="small" color="success" label="Vigente" />
+                      <Status severity="correcta" label="Vigente" />
                     ) : (
-                      <Chip size="small" label="Fuera de vigencia" />
+                      <Status severity="informativa" label="Fuera de vigencia" />
                     )}
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        aria-label={`Detalle de ${p.nombre}`}
+                        onClick={() => {
+                          setDetail(p);
+                        }}
+                      >
+                        Detalle
+                      </Button>
                       <Button
                         size="small"
                         onClick={() => {
@@ -263,6 +265,37 @@ export function PromotionsPage() {
           </Table>
         </TableContainer>
       </PageSection>
+
+      <DetailPanel
+        title={detail?.nombre ?? 'Promoción'}
+        open={detail !== null}
+        onClose={() => {
+          setDetail(null);
+        }}
+      >
+        {detail && (
+          <DetailList
+            items={[
+              { label: 'Regla', value: describeRule(detail.regla) },
+              {
+                label: 'Se aplica a',
+                value: `${detail.alcance === 'categoria' ? 'Categoría ' : ''}${detail.objetivo.nombre}`,
+              },
+              {
+                label: 'Vigencia',
+                value: `${new Date(detail.vigenteDesde).toLocaleDateString('es-AR')} al ${new Date(detail.vigenteHasta).toLocaleDateString('es-AR')}`,
+              },
+              {
+                label: 'Sucursales',
+                value:
+                  detail.sucursales === null
+                    ? 'Todas'
+                    : detail.sucursales.map(branchName).join(', '),
+              },
+            ]}
+          />
+        )}
+      </DetailPanel>
 
       <Dialog
         open={form !== null}

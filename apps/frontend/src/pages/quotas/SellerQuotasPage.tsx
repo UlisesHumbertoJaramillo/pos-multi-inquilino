@@ -4,7 +4,6 @@ import type { SellerQuota } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,6 +24,7 @@ import { inventoryApi } from '../../api/inventory';
 import { formatPercent, quotasApi } from '../../api/quotas';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { BranchSelect, useOwnBranches } from '../inventory/BranchSelect';
@@ -119,7 +119,7 @@ export function SellerQuotasPage() {
                     {v.asignada ? (
                       formatPercent(v.porcentajeMaximo)
                     ) : (
-                      <Chip size="small" label="Sin cuota" />
+                      <Status severity="informativa" label="Sin cuota" />
                     )}
                   </TableCell>
                   <TableCell align="right">{v.asignada ? formatMoney(v.monto) : '—'}</TableCell>

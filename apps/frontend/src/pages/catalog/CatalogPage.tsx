@@ -4,7 +4,6 @@ import type { Category, Product } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,6 +22,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { catalogApi, formatMoney, formatRate } from '../../api/catalog';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { ProductImage } from './ProductImage';
@@ -237,7 +237,7 @@ export function CatalogPage() {
                     </TableCell>
                     <TableCell>{p.nombre}</TableCell>
                     <TableCell>
-                      {p.codigoBarras ?? <Chip size="small" label="Sin código" />}
+                      {p.codigoBarras ?? <Status severity="informativa" label="Sin código" />}
                     </TableCell>
                     <TableCell>{categoryName(p.categoriaId)}</TableCell>
                     <TableCell>{formatMoney(p.costo)}</TableCell>

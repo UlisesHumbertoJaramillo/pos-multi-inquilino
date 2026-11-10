@@ -25,6 +25,8 @@ const session = (role: 'VO' | 'AS'): SessionTokens => ({
     nombre: role === 'VO' ? 'Valeria' : 'Sergio',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: [role],
     rolActivo: role,
     sucursales: ['centro'],
@@ -228,5 +230,46 @@ describe('[RF-115] caja del AS', () => {
     expect(within(result).getByText('Teórico: $ 1.000,00')).toBeInTheDocument();
     await user.click(within(result).getByRole('button', { name: 'Listo' }));
     expect(await screen.findByText('No hay turnos abiertos en la sucursal.')).toBeInTheDocument();
+  });
+});
+
+describe('[RF-191] la caja vencida se resuelve desde su punto de atención', () => {
+  it('la alerta de jornada sin Corte Z ofrece hacer el Corte Z de esa caja', async () => {
+    const branches: TransferBranch[] = [{ id: 'centro', nombre: 'Centro', propia: true }];
+    mockApi({
+      ...signedIn('AS'),
+      'GET /inventario/sucursales': () => ({ status: 200, body: branches }),
+      'GET /caja/sucursales/centro/cajas': () => ({
+        status: 200,
+        body: [
+          {
+            ...REGISTER,
+            jornada: { id: 'j1', fecha: '2026-11-02', abiertaEn: '2026-11-02T12:00:00Z' },
+            requiereCorteZ: true,
+          },
+        ],
+      }),
+      'GET /caja/sucursales/centro/turnos-abiertos': () => ({ status: 200, body: [] }),
+      'GET /inventario/sucursales/centro/alertas': () => ({
+        status: 200,
+        body: [
+          {
+            id: 'z1',
+            tipo: 'jornada_sin_z',
+            severidad: 'critica',
+            referencia: 'j1',
+            detalle: { caja: 'Caja 1', fechaJornada: '2026-11-02' },
+            creadaEn: '2026-11-03T12:00:00Z',
+          },
+        ],
+      }),
+    });
+    renderApp('/admin/caja');
+    const user = userEvent.setup();
+
+    const card = await screen.findByRole('group', { name: /^Crítica: Caja 1 tiene la jornada/ });
+    expect(screen.getByRole('status', { name: 'Crítica: Requiere Corte Z' })).toBeVisible();
+    await user.click(within(card).getByRole('button', { name: 'Hacer el Corte Z' }));
+    expect(await screen.findByRole('dialog', { name: 'Corte Z · Caja 1' })).toBeVisible();
   });
 });

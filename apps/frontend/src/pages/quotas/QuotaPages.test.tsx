@@ -23,6 +23,8 @@ const session = (role: 'AC' | 'AS'): SessionTokens => ({
     nombre: role === 'AS' ? 'Sergio' : 'Ana',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: [role],
     rolActivo: role,
     sucursales: role === 'AS' ? ['centro'] : [],

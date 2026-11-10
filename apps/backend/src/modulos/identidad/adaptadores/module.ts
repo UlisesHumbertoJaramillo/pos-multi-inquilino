@@ -45,6 +45,7 @@ import {
   PgAuthorizationCredentialRepository,
   PgAuthorizationRepository,
   PgOneTimeTokenRepository,
+  PgSessionPlaces,
   PgSessionRepository,
   PgUserRepository,
 } from './postgres.js';
@@ -117,6 +118,7 @@ export function createIdentityModule(deps: IdentityModuleDependencies): Identity
     logoutGuard: deps.logoutGuard ?? {
       pending: () => Promise.resolve({ openShift: false, sales: [] }),
     },
+    places: new PgSessionPlaces(deps.db),
   };
   const recoveryDeps = {
     uow: deps.db,

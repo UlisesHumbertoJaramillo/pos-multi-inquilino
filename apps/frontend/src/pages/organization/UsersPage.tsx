@@ -22,6 +22,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { organizationApi } from '../../api/organization';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 import { RoleAssignmentsEditor } from './RoleAssignmentsEditor';
@@ -140,11 +141,11 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell>
                     {!user.activo ? (
-                      <Chip size="small" label="Baja" />
+                      <Status severity="informativa" label="Baja" />
                     ) : user.correoValidado ? (
-                      <Chip size="small" color="success" label="Activo" />
+                      <Status severity="correcta" label="Activo" />
                     ) : (
-                      <Chip size="small" color="warning" label="Pendiente de activación" />
+                      <Status severity="advertencia" label="Pendiente de activación" />
                     )}
                   </TableCell>
                   <TableCell align="right">

@@ -1,7 +1,8 @@
 // Genera sdd/trazabilidad.md: qué pruebas verifican cada RF del spec (T-018, criterio 1).
 //   npm run trazabilidad              escribe el archivo
 //   npm run trazabilidad -- --check   falla si el archivo está desactualizado
-//   npm run trazabilidad -- --strict  falla si algún RF no tiene pruebas
+//   npm run trazabilidad -- --strict  falla si algún RF no tiene pruebas, salvo los pendientes de
+//                                     sdd/rf-pendientes.json, que tienen tarea asignada
 // Siempre falla si una prueba etiqueta un RF que no existe en el spec.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
@@ -21,6 +22,7 @@ export interface TestReference {
 const ROOT = resolve(import.meta.dirname, '..');
 const SPEC_PATH = join(ROOT, 'sdd/spec.md');
 const OUTPUT_PATH = join(ROOT, 'sdd/trazabilidad.md');
+const PENDING_PATH = join(ROOT, 'sdd/rf-pendientes.json');
 // scripts/ queda afuera: sus pruebas usan etiquetas de ejemplo, no verifican RF.
 const SEARCH_DIRS = ['apps', 'packages', 'e2e'];
 const IGNORED_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git']);
@@ -112,6 +114,41 @@ export function renderTable(
   ].join('\n');
 }
 
+// Problemas del modo estricto: RF sin pruebas que no están pendientes, pendientes que ya tienen
+// pruebas (hay que sacarlos de la lista) y pendientes que no existen en el spec.
+export function strictProblems(
+  requirements: Requirement[],
+  references: Map<string, TestReference[]>,
+  pending: Record<string, string>,
+): string[] {
+  const known = new Set(requirements.map((req) => req.id));
+  const problems: string[] = [];
+  const missing = requirements.filter((req) => !references.has(req.id) && !(req.id in pending));
+  if (missing.length > 0) {
+    problems.push(`RF sin pruebas: ${missing.map((req) => req.id).join(', ')}.`);
+  }
+  const done = Object.keys(pending).filter((id) => references.has(id));
+  if (done.length > 0) {
+    problems.push(`Ya tienen pruebas, sacalos de sdd/rf-pendientes.json: ${done.join(', ')}.`);
+  }
+  const unknown = Object.keys(pending).filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    problems.push(`Pendientes que no existen en el spec: ${unknown.join(', ')}.`);
+  }
+  return problems;
+}
+
+function readPending(): Record<string, string> {
+  try {
+    const raw = JSON.parse(readFileSync(PENDING_PATH, 'utf8')) as {
+      pendientes?: Record<string, string>;
+    };
+    return raw.pendientes ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export function collectReferences(files: { path: string; content: string }[]) {
   const all = new Map<string, TestReference[]>();
   for (const { path, content } of files) {
@@ -155,11 +192,16 @@ function main(): void {
     );
   }
 
-  if (args.has('--strict') && missing.length > 0) {
-    console.error(
-      `✖ ${String(missing.length)} RF sin pruebas: ${missing.map((req) => req.id).join(', ')}.`,
-    );
-    process.exit(1);
+  if (args.has('--strict')) {
+    const pending = readPending();
+    const problems = strictProblems(requirements, references, pending);
+    if (problems.length > 0) {
+      for (const problem of problems) console.error(`✖ ${problem}`);
+      process.exit(1);
+    }
+    const count = Object.keys(pending).length;
+    if (count > 0)
+      console.log(`ℹ ${String(count)} RF pendientes con tarea asignada (sdd/rf-pendientes.json).`);
   }
 }
 

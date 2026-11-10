@@ -5,6 +5,20 @@ import type { Role } from '../../../compartido/dominio/roles.js';
 export type AlertRole = Extract<Role, 'AC' | 'AS' | 'VO'>;
 export type AlertSeverity = 'info' | 'advertencia' | 'critica';
 
+const SEVERITY_RANK: Record<AlertSeverity, number> = { info: 1, advertencia: 2, critica: 3 };
+
+// Resumen para el indicador de todas las pantallas (RF-189): cuántas hay y la más grave.
+export function summarize(severities: readonly AlertSeverity[]): {
+  count: number;
+  highest: AlertSeverity | null;
+} {
+  let highest: AlertSeverity | null = null;
+  for (const severity of severities) {
+    if (highest === null || SEVERITY_RANK[severity] > SEVERITY_RANK[highest]) highest = severity;
+  }
+  return { count: severities.length, highest };
+}
+
 // Se resuelven solas cuando el sistema corrige lo que las generó: nadie las puede descartar
 // (D-38, D-51). Por ejemplo, el stock mínimo se rearma al reponer.
 export const SELF_RESOLVING_ALERTS: readonly string[] = [

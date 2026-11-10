@@ -1,6 +1,6 @@
 # Tareas — Sistema POS Multi-Inquilino
 
-**Deriva de:** [plan.md](plan.md) y [spec.md](spec.md) v1.1 (RF-001 a RF-169).
+**Deriva de:** [plan.md](plan.md) y [spec.md](spec.md) v1.3 (RF-001 a RF-194).
 **Regla de tamaño:** cada tarea se completa en menos de 30 minutos. Si una tarea crece, se divide antes de empezarla.
 **Orden:** el orden de la lista respeta las dependencias. "Dep" indica las tareas que tienen que estar terminadas antes.
 
@@ -580,3 +580,118 @@
   - Hecho cuando: cada puerto del código figura en el catálogo con sus adaptadores.
 - [x] **T-250** · **[Localhost]** Guion de demostración completo. · RF: — · Dep: T-249
   - Hecho cuando: desde `npm run db:reset && npm run db:seed && npm run dev` se recorre un día completo de un comercio (apertura, ventas, devolución, contingencia, cortes, dashboards) siguiendo el guion del README.
+
+## Fase 17 — Sistema visual y alertas
+
+- [x] **T-251** · Niveles de severidad (crítica, advertencia, informativa, correcta) y paleta única en el tema, en modo claro y oscuro. · RF: RF-188, RF-193 · Dep: —
+  - Hecho cuando: una prueba del tema verifica los cuatro niveles en los dos modos, con contraste de 4,5:1 o más sobre su fondo.
+- [x] **T-252** · Componente de estado compartido, con color, ícono y texto. · RF: RF-188 · Dep: T-251
+  - Hecho cuando: una prueba verifica que cada nivel muestra su ícono y su texto, y que su nombre accesible incluye la severidad.
+- [x] **T-253** · Panel de detalle de segundo nivel (lateral en escritorio, pantalla completa en tablet) y tarjeta de punto de atención con su acción. · RF: RF-191, RF-192 · Dep: T-252
+  - Hecho cuando: el detalle se abre con un clic o con Enter, se cierra con Esc y devuelve el foco a donde estaba.
+- [x] **T-254** · Regla de lint que prohíbe colores literales fuera del tema y de los componentes compartidos. · RF: RF-193 · Dep: T-251
+  - Hecho cuando: un color hexadecimal en una página hace fallar `npm run lint`.
+- [x] **T-255** · Contrato y backend: la sesión informa el nombre del comercio y de las sucursales del usuario. · RF: RF-178, RF-193 · Dep: —
+  - Hecho cuando: `GET /auth/sesion` los devuelve según el contrato y nunca incluye sucursales fuera de su ámbito.
+- [x] **T-256** · Encabezado único para los cuatro roles: comercio, sucursal, caja (con turno abierto), usuario y rol. · RF: RF-178, RF-193 · Dep: T-252, T-255
+  - Hecho cuando: una prueba con un usuario de cada rol muestra el mismo encabezado, y en el POS se ven la sucursal, la caja y el usuario sin ninguna acción.
+- [x] **T-257** · Backend: resumen de alertas sin resolver del usuario (cantidad y severidad más alta) en `GET /alertas` y en el canal en vivo. · RF: RF-189 · Dep: —
+  - Hecho cuando: una prueba de integración verifica que el resumen cambia al crear y resolver alertas y que respeta el ámbito del rol.
+- [x] **T-258** · Indicador de alertas en el encabezado de todas las pantallas, con la cantidad y la severidad más alta. · RF: RF-189 · Dep: T-256, T-257
+  - Hecho cuando: el indicador cambia sin recargar cuando llega o se resuelve una alerta.
+- [x] **T-259** · Alerta crítica en vivo destacada en la pantalla actual hasta que el usuario la atiende. · RF: RF-190 · Dep: T-258
+  - Hecho cuando: una alerta crítica que llega por el canal en vivo aparece sobre la pantalla actual y no se va sola.
+- [x] **T-260** · Puntos de atención en contexto, con su acción: stock bajo en inventario, y arqueo con diferencia y Corte Z pendiente en la caja de la sucursal. · RF: RF-191 · Dep: T-253
+  - Hecho cuando: cada punto se ve con su severidad y su acción abre la operación que lo resuelve.
+- [x] **T-261** · Puntos de atención en contexto, con su acción: comprobantes rechazados y pagos por verificar. · RF: RF-191 · Dep: T-253
+  - Hecho cuando: cada punto se ve con su severidad y su acción abre la operación que lo resuelve.
+- [x] **T-262** · Dos niveles en la administración del AC (1 de 3): estructura, usuarios, parámetros y pagos. · RF: RF-192, RF-193 · Dep: T-253
+  - Hecho cuando: ninguna fila de primer nivel muestra más de 5 datos, el resto está en el panel de detalle y las pruebas existentes siguen pasando.
+- [x] **T-263** · Dos niveles en la administración del AC (2 de 3): catálogo, combos, listas de precios y promociones. · RF: RF-192, RF-193 · Dep: T-262
+  - Hecho cuando: ninguna fila de primer nivel muestra más de 5 datos, el resto está en el panel de detalle y las pruebas existentes siguen pasando.
+- [x] **T-264** · Dos niveles en la administración del AC (3 de 3): proveedores, compras y cuota de descuento. · RF: RF-192, RF-193 · Dep: T-262
+  - Hecho cuando: ninguna fila de primer nivel muestra más de 5 datos, el resto está en el panel de detalle y las pruebas existentes siguen pasando.
+- [x] **T-265** · Dos niveles en la operación del AS: inventario, transferencias, recepciones, caja, clientes y cuotas de vendedores. · RF: RF-192, RF-193 · Dep: T-260
+  - Hecho cuando: ninguna fila de primer nivel muestra más de 5 datos, el resto está en el panel de detalle y las pruebas existentes siguen pasando.
+- [x] **T-266** · Dos niveles en la plataforma del SA y en comprobantes. · RF: RF-192, RF-193 · Dep: T-261
+  - Hecho cuando: ninguna fila de primer nivel muestra más de 5 datos, el resto está en el panel de detalle y las pruebas existentes siguen pasando.
+
+## Fase 18 — POS rápido y atajos de teclado
+
+- [ ] **T-267** · Backend: agregar un producto sin venta activa crea la venta y reserva el ítem en una sola operación. · RF: RF-176 · Dep: —
+  - Hecho cuando: una prueba de integración verifica que se crea la venta con su ítem y su reserva, y que sin stock no queda ninguna venta vacía.
+- [ ] **T-268** · POS listo para vender: con el turno abierto, el foco queda en la búsqueda y el primer producto o lectura inicia la venta. · RF: RF-175, RF-176 · Dep: T-267
+  - Hecho cuando: sin ningún clic, escribir o leer un código y elegirlo agrega el producto a una venta nueva.
+- [ ] **T-269** · Apertura de turno con la única caja disponible ya propuesta: solo se pide el saldo inicial. · RF: RF-177 · Dep: —
+  - Hecho cuando: con una sola caja libre, el turno se abre escribiendo el saldo y apretando Enter.
+- [ ] **T-270** · Backend: sección de productos del POS, por categoría y con primero lo más vendido de la sucursal en 30 días, con precio de la lista activa, disponibilidad y combos. · RF: RF-179 · Dep: —
+  - Hecho cuando: una prueba de integración con ventas cargadas verifica el orden, y que nunca usa ventas de otra sucursal ni de otro comercio.
+- [ ] **T-271** · Sección de productos con mouse y toque: categorías y tarjetas con nombre, precio y disponibilidad, actualizada en vivo. · RF: RF-179 · Dep: T-270, T-252
+  - Hecho cuando: tocar una tarjeta agrega el producto, y la disponibilidad cambia sin recargar cuando vende otro POS.
+- [ ] **T-272** · Sección de productos con teclado: flechas, Enter y salto entre categorías. · RF: RF-180 · Dep: T-271
+  - Hecho cuando: todo lo que ofrece la sección se recorre y se elige sin mouse.
+- [ ] **T-273** · Dominio de atajos: catálogo de acciones, distribución por defecto para la mano derecha y validación de teclas repetidas, reservadas por el navegador o que requieran las dos manos. · RF: RF-182, RF-185 · Dep: —
+  - Hecho cuando: una tabla de casos verifica que la distribución por defecto es válida y que cada regla rechaza su caso.
+- [ ] **T-274** · Persistencia y endpoints de atajos: consulta para los usuarios del comercio, y cambio y restablecimiento solo para el AC, con auditoría. · RF: RF-185 · Dep: T-273
+  - Hecho cuando: las pruebas de integración y la matriz verifican que el AC cambia y restablece, que el AS y el VO reciben 403 y que otro comercio no ve los atajos.
+- [ ] **T-275** · Motor de atajos del frontend: aplica el mapa del comercio y no se dispara en campos de texto, durante una lectura del lector ni en el diálogo de PIN. · RF: RF-184 · Dep: T-274
+  - Hecho cuando: las pruebas verifican que las teclas en un campo, una ráfaga del lector y el PIN no disparan atajos.
+- [ ] **T-276** · Atajos de la venta: buscar, elegir, cantidad, quitar ítem, descuento, cambiar de venta y cobrar. · RF: RF-181 · Dep: T-275, T-272
+  - Hecho cuando: cada acción de la venta se ejecuta con su atajo.
+- [ ] **T-277** · Atajos del cobro y de la caja: medio de pago, importe, confirmar, cancelar, devolución y Corte X. · RF: RF-181, RF-182 · Dep: T-276
+  - Hecho cuando: una venta con pago mixto se cobra y se confirma con atajos, sin mouse.
+- [ ] **T-278** · Atajo visible junto a cada acción, y ayuda con todos los atajos de la pantalla. · RF: RF-183 · Dep: T-275
+  - Hecho cuando: cada botón con atajo lo muestra, y la ayuda lista los de la pantalla según el mapa del comercio.
+- [ ] **T-279** · Pantalla del AC para cambiar y restablecer los atajos del comercio, con los rechazos del backend. · RF: RF-185 · Dep: T-274, T-278
+  - Hecho cuando: el AC cambia un atajo, el POS lo usa al recargar, y un atajo repetido se rechaza con su motivo.
+- [ ] **T-280** · Atajos de la administración y los dashboards: ir a cada sección, buscar y confirmar o cancelar un diálogo. · RF: RF-194 · Dep: T-275
+  - Hecho cuando: cada sección del menú tiene su atajo, y Enter y Esc confirman y cancelan los diálogos.
+- [ ] **T-281** · POS en dos niveles: carrito y cobro despejados, con el detalle de ítems, promociones y pagos en el segundo nivel. · RF: RF-192 · Dep: T-253, T-276
+  - Hecho cuando: las pruebas del POS siguen pasando, y el detalle se abre con un clic o con su atajo.
+- [ ] **T-282** · Prueba punta a punta: venta en efectivo y venta con pago mixto solo con el teclado, con la mano derecha y sin clics antes del primer producto. · RF: RF-175, RF-176, RF-182 · Dep: T-277, T-269
+  - Hecho cuando: la prueba de Playwright pasa sin usar el mouse, y ningún atajo usado combina teclas de las dos mitades del teclado.
+- [ ] **T-283** · **[Localhost]** Guion del POS rápido. · RF: — · Dep: T-282, T-279, T-259
+  - Hecho cuando: (1) se entra y se abre el turno en la caja propuesta, (2) se vende solo con el teclado numérico, (3) el AC cambia un atajo y el POS lo usa, (4) una alerta crítica en vivo aparece en el POS.
+
+## Fase 19 — Dashboards en dos niveles
+
+- [ ] **T-284** · Backend: indicadores con comparación contra el período anterior de igual duración, y series de ventas por día, por medio de pago y de los 5 productos más vendidos. · RF: RF-186 · Dep: —
+  - Hecho cuando: tablas de casos con períodos de distinto largo y sin ventas en el anterior, y respuestas validadas contra el contrato.
+- [ ] **T-285** · Backend: marca de atención en los valores del dashboard que la requieren: arqueos con diferencia, stock bajo y comprobantes sin regularizar. · RF: RF-186 · Dep: T-284
+  - Hecho cuando: una prueba de integración verifica cada marca y que desaparece cuando el punto se resuelve.
+- [ ] **T-286** · Librería de gráficas (AD-29) y componentes de indicador y gráfica con los colores del tema. · RF: RF-186 · Dep: T-251
+  - Hecho cuando: las pruebas de componentes pasan, y las gráficas se leen en modo claro y oscuro y tienen texto alternativo.
+- [ ] **T-287** · Primer nivel del dashboard estratégico del AC: indicadores comparados, gráficas y valores resaltados. · RF: RF-186 · Dep: T-284, T-285, T-286
+  - Hecho cuando: el dashboard muestra los indicadores y las gráficas de D-97, y los valores con marca de atención se ven resaltados.
+- [ ] **T-288** · Primer nivel del dashboard operativo del AS y del informe diario. · RF: RF-186 · Dep: T-287
+  - Hecho cuando: el AS ve solo su sucursal, con los mismos componentes que el AC.
+- [ ] **T-289** · Segundo nivel desde cada indicador y gráfica, con el mismo período y la misma sucursal. · RF: RF-187 · Dep: T-287, T-253
+  - Hecho cuando: elegir un indicador o una barra abre el detalle filtrado, y las tablas de D-50 siguen completas en el segundo nivel.
+
+## Fase 20 — Carga desde Excel
+
+- [ ] **T-290** · Puerto `SpreadsheetReader` y adaptador de .xlsx en el backend (AD-27): límites de 5 MB y 5.000 filas, rechazo de macros y formatos viejos, y fórmulas por su valor calculado. · RF: RF-174 · Dep: —
+  - Hecho cuando: pruebas con archivos generados: válido, con macros, .xls, dañado, demasiado grande y con fórmulas.
+- [ ] **T-291** · Plantillas descargables de productos, proveedores y precios. · RF: RF-173 · Dep: T-290
+  - Hecho cuando: cada plantilla descargada se vuelve a cargar vacía sin errores de formato.
+- [ ] **T-292** · Dominio y caso de uso de la carga de productos, con vista previa y aplicación. · RF: RF-170, RF-173 · Dep: T-290
+  - Hecho cuando: una tabla de casos valida cada fila, la vista previa no escribe nada y la aplicación crea, actualiza y rechaza exactamente lo que anunció.
+- [ ] **T-293** · Carga de proveedores identificados por CUIT, sin tocar el saldo adeudado. · RF: RF-172 · Dep: T-292
+  - Hecho cuando: un CUIT existente actualiza el proveedor y su saldo no cambia.
+- [ ] **T-294** · Carga de precios en listas de precio fijo, con su historial de precios. · RF: RF-171 · Dep: T-292
+  - Hecho cuando: cada cambio queda en el historial, y una lista con otra regla se rechaza con su motivo.
+- [ ] **T-295** · Contrato y endpoints de carga (vista previa y aplicación), con auditoría como una sola operación. · RF: RF-170 a RF-174 · Dep: T-291 a T-294
+  - Hecho cuando: las pruebas de integración y la matriz pasan, la carga queda en la auditoría comercial con su detalle, y el archivo se valida en el servidor.
+- [ ] **T-296** · Pantalla de carga desde Excel: tipo, plantilla, archivo, resumen con los rechazos y confirmación. · RF: RF-173 · Dep: T-295
+  - Hecho cuando: el AC ve cuánto se va a crear, actualizar y rechazar, y nada cambia hasta que confirma.
+- [ ] **T-297** · **[Localhost]** Guion de la carga desde Excel. · RF: — · Dep: T-296
+  - Hecho cuando: (1) se descarga la plantilla, (2) se completa en Excel, (3) se ve la vista previa con una fila rechazada, (4) se confirma, (5) un archivo con macros se rechaza completo.
+
+## Fase 21 — Cierre de la revisión de experiencia de uso
+
+- [ ] **T-298** · Pruebas de accesibilidad automáticas (contraste y nombres accesibles) en las pantallas principales de los cuatro roles, en modo claro y oscuro. · RF: RF-188, RF-193 · Dep: T-266, T-288
+  - Hecho cuando: la prueba de Playwright con axe no encuentra violaciones graves.
+- [ ] **T-299** · Trazabilidad estricta con los 194 RF y catálogo de puertos y adaptadores al día. · RF: todos (criterio 1) · Dep: T-298, T-297, T-283
+  - Hecho cuando: `npm run verify` pasa en modo estricto con los 194 RF cubiertos.
+- [ ] **T-300** · **[Localhost]** Guion completo de la revisión de experiencia de uso en el README. · RF: — · Dep: T-299
+  - Hecho cuando: se recorre un día de comercio que muestra los ocho pedidos de la revisión: alertas, POS rápido con teclado, dos niveles, dashboards, carga desde Excel y la misma interfaz en los cuatro roles.

@@ -4,12 +4,13 @@ import { z } from 'zod';
 import { securityContextOf } from '../../../compartido/adaptadores/http/authentication.js';
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import { parseInput } from '../../../compartido/adaptadores/http/validation.js';
-import type { ListMyAlerts, ResolveAlert } from '../aplicacion/alerts.js';
+import type { ListMyAlerts, ResolveAlert, SummarizeMyAlerts } from '../aplicacion/alerts.js';
 import type { AlertView } from '../aplicacion/ports.js';
 import { MAX_NOTE_LENGTH, SELF_RESOLVING_ALERTS } from '../dominio/alerts.js';
 
 export interface AlertUseCases {
   listMyAlerts: ListMyAlerts;
+  summarizeMyAlerts: SummarizeMyAlerts;
   resolveAlert: ResolveAlert;
 }
 
@@ -50,6 +51,15 @@ export function alertRoutes(useCases: AlertUseCases): HttpRoute[] {
           query.sucursalId ?? null,
         );
         res.json(list.map(alertDto));
+      },
+    },
+    {
+      method: 'get',
+      path: '/alertas/resumen',
+      action: ACTION,
+      handler: async (_req, res) => {
+        const summary = await useCases.summarizeMyAlerts.execute(securityContextOf(res));
+        res.json({ cantidad: summary.count, severidadMaxima: summary.highest });
       },
     },
     {

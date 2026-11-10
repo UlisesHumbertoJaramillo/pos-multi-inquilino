@@ -4,7 +4,6 @@ import type { Purchase } from '@pos/contracts';
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -26,6 +25,8 @@ import { formatQuantity } from '../../api/inventory';
 import { suppliersApi } from '../../api/suppliers';
 import { useAuth } from '../../auth/AuthContext';
 import { AppShell } from '../../components/AppShell';
+import { DetailList, DetailPanel } from '../../components/DetailPanel';
+import { Status } from '../../components/Status';
 import { errorMessage, PageSection } from '../../components/PageSection';
 import { useLoader } from '../../hooks/useLoader';
 
@@ -53,6 +54,7 @@ export function PurchasesPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState<PurchaseForm | null>(null);
+  const [detail, setDetail] = useState<Purchase | null>(null);
 
   const fetchData = useCallback(
     async () => ({
@@ -125,29 +127,34 @@ export function PurchasesPage() {
               <TableRow>
                 <TableCell>Fecha</TableCell>
                 <TableCell>Proveedor</TableCell>
-                <TableCell>Destino</TableCell>
-                <TableCell>Productos</TableCell>
                 <TableCell align="right">Total</TableCell>
                 <TableCell>Estado</TableCell>
+                <TableCell align="right">Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {data?.purchases.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{new Date(p.registradaEn).toLocaleDateString('es-AR')}</TableCell>
-                  <TableCell>
-                    {p.proveedor.razonSocial}
-                    {p.comprobante ? ` · ${p.comprobante}` : ''}
-                  </TableCell>
-                  <TableCell>{p.sucursal.nombre}</TableCell>
-                  <TableCell>{describeItems(p)}</TableCell>
+                  <TableCell>{p.proveedor.razonSocial}</TableCell>
                   <TableCell align="right">{formatMoney(p.total)}</TableCell>
                   <TableCell>
-                    <Chip
+                    {p.estado === 'pendiente' ? (
+                      <Status severity="informativa" label="Pendiente de recepción" />
+                    ) : (
+                      <Status severity="correcta" label="Recibida" />
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button
                       size="small"
-                      color={p.estado === 'pendiente' ? 'info' : 'default'}
-                      label={p.estado === 'pendiente' ? 'Pendiente de recepción' : 'Recibida'}
-                    />
+                      aria-label={`Detalle de la compra a ${p.proveedor.razonSocial}`}
+                      onClick={() => {
+                        setDetail(p);
+                      }}
+                    >
+                      Detalle
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -155,6 +162,26 @@ export function PurchasesPage() {
           </Table>
         </TableContainer>
       </PageSection>
+
+      <DetailPanel
+        title={detail ? `Compra a ${detail.proveedor.razonSocial}` : 'Compra'}
+        open={detail !== null}
+        onClose={() => {
+          setDetail(null);
+        }}
+      >
+        {detail && (
+          <DetailList
+            items={[
+              { label: 'Fecha', value: new Date(detail.registradaEn).toLocaleDateString('es-AR') },
+              { label: 'Comprobante', value: detail.comprobante ?? 'Sin comprobante' },
+              { label: 'Sucursal de destino', value: detail.sucursal.nombre },
+              { label: 'Productos', value: describeItems(detail) },
+              { label: 'Total', value: formatMoney(detail.total) },
+            ]}
+          />
+        )}
+      </DetailPanel>
 
       <Dialog
         open={form !== null}

@@ -18,6 +18,8 @@ function session(user: Partial<SessionUser>, requiresRole = false): SessionToken
       nombre: 'Valeria',
       comercioId: 'c1',
       moduloFacturacion: true,
+      nombreComercio: 'Demo',
+      detalleSucursales: [],
       roles: ['VO'],
       rolActivo: 'VO',
       sucursales: ['s1'],
@@ -127,8 +129,8 @@ describe('[RF-010] rol activo en la interfaz', () => {
     });
     expect(await screen.findByText('Inventario')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Cambiar rol' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Vendedor' }));
+    await user.click(screen.getByRole('button', { name: /, Administrador de Sucursal$/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Cambiar a Vendedor' }));
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/pos');

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { collectReferences, parseRequirements, renderTable } from './trazabilidad.js';
+import {
+  collectReferences,
+  parseRequirements,
+  renderTable,
+  strictProblems,
+} from './trazabilidad.js';
 
 const SPEC = [
   '### 5.1 Aislamiento, seguridad y acceso',
@@ -11,6 +16,30 @@ const SPEC = [
   '### 5.3 Auditoría y retención',
   '| RF-020 | Las bajas son lógicas. | RN-02 |',
 ].join('\n');
+
+describe('modo estricto con RF pendientes', () => {
+  const requirements = parseRequirements(SPEC);
+  const tested = collectReferences([{ path: 'a.test.ts', content: "it('[RF-001] x', () => {});" }]);
+
+  it('un RF sin pruebas falla, salvo que esté pendiente con su tarea', () => {
+    expect(strictProblems(requirements, tested, {})).toEqual(['RF sin pruebas: RF-002, RF-020.']);
+    expect(strictProblems(requirements, tested, { 'RF-002': 'T-1', 'RF-020': 'T-2' })).toEqual([]);
+  });
+
+  it('un pendiente que ya tiene pruebas o que no existe se informa', () => {
+    expect(
+      strictProblems(requirements, tested, {
+        'RF-001': 'T-1',
+        'RF-002': 'T-1',
+        'RF-020': 'T-1',
+        'RF-999': 'T-9',
+      }),
+    ).toEqual([
+      'Ya tienen pruebas, sacalos de sdd/rf-pendientes.json: RF-001.',
+      'Pendientes que no existen en el spec: RF-999.',
+    ]);
+  });
+});
 
 describe('trazabilidad', () => {
   it('lee los RF del spec con su sección', () => {

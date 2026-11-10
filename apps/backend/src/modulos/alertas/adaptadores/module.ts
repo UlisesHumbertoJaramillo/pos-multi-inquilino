@@ -12,6 +12,7 @@ import {
   AlertReminders,
   AuthorizeRealtime,
   ListMyAlerts,
+  SummarizeMyAlerts,
   ResolveAlert,
 } from '../aplicacion/alerts.js';
 import type { RealtimeFeed } from '../aplicacion/ports.js';
@@ -55,6 +56,7 @@ export function createAlertsModule(deps: AlertsModuleDependencies): AlertsModule
   };
   const useCases: AlertUseCases = {
     listMyAlerts: new ListMyAlerts(dependencies),
+    summarizeMyAlerts: new SummarizeMyAlerts(dependencies),
     resolveAlert: new ResolveAlert(dependencies),
   };
   const authorize = new AuthorizeRealtime(dependencies);

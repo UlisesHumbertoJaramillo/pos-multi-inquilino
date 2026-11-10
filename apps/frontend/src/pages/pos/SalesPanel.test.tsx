@@ -31,6 +31,8 @@ const SESSION: SessionTokens = {
     nombre: 'Valeria',
     comercioId: 'demo',
     moduloFacturacion: true,
+    nombreComercio: 'Demo',
+    detalleSucursales: [],
     roles: ['VO'],
     rolActivo: 'VO',
     sucursales: ['centro'],

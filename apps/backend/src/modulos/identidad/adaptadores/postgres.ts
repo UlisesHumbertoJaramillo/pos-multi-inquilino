@@ -24,6 +24,7 @@ import type {
   UserAccount,
   UserRepository,
 } from '../aplicacion/ports.js';
+import type { SessionPlaces } from '../aplicacion/sessions.js';
 
 interface UserRow {
   id: string;
@@ -451,5 +452,34 @@ export class PgAuthorizationRepository implements AuthorizationRepository {
       [input.id, input.type, input.operationRef, input.requesterId, input.at],
     );
     return result.rowCount === 1;
+  }
+}
+
+// Nombres del comercio y de las sucursales de la sesión (RF-178). Las sucursales tienen seguridad
+// a nivel de fila: se leen dentro del comercio del usuario.
+export class PgSessionPlaces implements SessionPlaces {
+  constructor(private readonly db: PgDatabase) {}
+
+  async describe(tenantId: string | null, branchIds: readonly string[]) {
+    if (tenantId === null) return { tenantName: null, branches: [] };
+    return this.db.run(
+      async () => {
+        const tenant = await this.db.query<{ nombre: string }>(
+          'SELECT nombre FROM comercio WHERE id = $1',
+          [tenantId],
+        );
+        const branches =
+          branchIds.length === 0
+            ? []
+            : (
+                await this.db.query<{ id: string; nombre: string }>(
+                  'SELECT id, nombre FROM sucursal WHERE id = ANY($1::uuid[]) ORDER BY nombre',
+                  [branchIds],
+                )
+              ).rows.map((row) => ({ id: row.id, name: row.nombre }));
+        return { tenantName: tenant.rows[0]?.nombre ?? null, branches };
+      },
+      { tenantId },
+    );
   }
 }

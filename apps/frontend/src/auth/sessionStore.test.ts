@@ -16,6 +16,8 @@ function tokens(access: string, refresh: string): SessionTokens {
       nombre: 'Valeria',
       comercioId: 'c1',
       moduloFacturacion: true,
+      nombreComercio: 'Demo',
+      detalleSucursales: [],
       roles: ['VO'],
       rolActivo: 'VO',
       sucursales: [],

@@ -28,6 +28,9 @@ export interface SessionUser {
   activeRole: Role | null;
   branchIds: string[];
   billingModule: boolean;
+  // Nombres para mostrar dónde se está operando (RF-178). Nulo y vacío para el SA.
+  tenantName: string | null;
+  branches: { id: string; name: string }[];
 }
 
 export interface SessionTokens {
@@ -54,6 +57,16 @@ export interface SessionDependencies {
   config: IdentityConfig;
   sessionPolicy: SessionPolicy;
   logoutGuard: LogoutGuard;
+  places: SessionPlaces;
+}
+
+// Nombre del comercio y de las sucursales del usuario, para mostrarlos en el encabezado (RF-178).
+// Lo provee la base, dentro del comercio de la sesión.
+export interface SessionPlaces {
+  describe(
+    tenantId: string | null,
+    branchIds: readonly string[],
+  ): Promise<{ tenantName: string | null; branches: { id: string; name: string }[] }>;
 }
 
 // Lo que impide cerrar sesión voluntariamente (RF-080): un turno abierto o ventas en curso. Lo
@@ -84,7 +97,10 @@ function invalidSession(): ApplicationError {
   );
 }
 
-function sessionUser(account: UserAccount, activeRole: Role | null): SessionUser {
+function sessionUser(
+  account: UserAccount,
+  activeRole: Role | null,
+): Omit<SessionUser, 'tenantName' | 'branches'> {
   return {
     id: account.id,
     email: account.email,
@@ -119,6 +135,14 @@ function accessBlocker(account: UserAccount): ApplicationError | null {
 
 abstract class SessionUseCase {
   constructor(protected readonly deps: SessionDependencies) {}
+
+  // Completa el usuario con los nombres del comercio y de sus sucursales.
+  protected async describe(
+    user: Omit<SessionUser, 'tenantName' | 'branches'>,
+  ): Promise<SessionUser> {
+    const places = await this.deps.places.describe(user.tenantId, user.branchIds);
+    return { ...user, ...places };
+  }
 
   protected async issueAccessToken(
     account: UserAccount,
@@ -167,7 +191,7 @@ abstract class SessionUseCase {
       accessTokenExpiresAt: access.expiresAt,
       refreshToken,
       sessionExpiresAt,
-      user: sessionUser(account, activeRole),
+      user: await this.describe(sessionUser(account, activeRole)),
       requiresRoleSelection: activeRole === null,
     };
   }
@@ -343,7 +367,7 @@ export class SelectActiveRole extends SessionUseCase {
     return {
       accessToken: access.token,
       accessTokenExpiresAt: access.expiresAt,
-      user: sessionUser(account, role),
+      user: await this.describe(sessionUser(account, role)),
     };
   }
 }
@@ -353,10 +377,10 @@ export class GetCurrentSession extends SessionUseCase {
     const account = await this.deps.users.findById(context.userId);
     if (!account?.isActive) throw invalidSession();
     // Rol, comercio y sucursales salen del token verificado, no de la solicitud (T-035).
-    return {
+    return this.describe({
       ...sessionUser(account, context.activeRole),
       tenantId: context.tenantId,
       branchIds: [...context.branchIds],
-    };
+    });
   }
 }

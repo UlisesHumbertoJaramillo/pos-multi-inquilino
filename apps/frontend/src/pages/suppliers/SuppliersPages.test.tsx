@@ -24,6 +24,8 @@ function session(role: 'AC' | 'AS'): SessionTokens {
       nombre: role,
       comercioId: 'demo',
       moduloFacturacion: true,
+      nombreComercio: 'Demo',
+      detalleSucursales: [],
       roles: [role],
       rolActivo: role,
       sucursales: role === 'AS' ? ['centro'] : [],

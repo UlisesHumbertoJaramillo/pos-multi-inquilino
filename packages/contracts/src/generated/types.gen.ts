@@ -49,6 +49,17 @@ export type SessionUser = {
    * Si el comercio tiene activo el módulo de facturación. Falso para el Super Administrador.
    */
   moduloFacturacion: boolean;
+  /**
+   * Nombre del comercio, para mostrar dónde se opera. Nulo para el Super Administrador.
+   */
+  nombreComercio: string | null;
+  /**
+   * Sucursales del rol activo con su nombre, en el mismo ámbito que sucursales.
+   */
+  detalleSucursales: Array<{
+    id: string;
+    nombre: string;
+  }>;
 };
 
 export type SessionTokens = {
@@ -1887,6 +1898,14 @@ export type PeripheralReport = {
   conexion: 'usb' | 'serial' | 'navegador' | 'teclado';
   estado: 'ok' | 'falla';
   motivo?: 'sin_soporte' | 'sin_permiso' | 'desconectada' | 'error_envio' | 'sin_papel' | null;
+};
+
+export type AlertSummary = {
+  cantidad: number;
+  /**
+   * La más grave de las pendientes. Nula si no hay ninguna.
+   */
+  severidadMaxima: 'critica' | 'advertencia' | 'info' | null;
 };
 
 export type GetHealthData = {
@@ -8066,6 +8085,36 @@ export type ListMyAlertsResponses = {
 };
 
 export type ListMyAlertsResponse = ListMyAlertsResponses[keyof ListMyAlertsResponses];
+
+export type SummarizeMyAlertsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/alertas/resumen';
+};
+
+export type SummarizeMyAlertsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type SummarizeMyAlertsError = SummarizeMyAlertsErrors[keyof SummarizeMyAlertsErrors];
+
+export type SummarizeMyAlertsResponses = {
+  /**
+   * Resumen.
+   */
+  200: AlertSummary;
+};
+
+export type SummarizeMyAlertsResponse =
+  SummarizeMyAlertsResponses[keyof SummarizeMyAlertsResponses];
 
 export type ResolveAlertData = {
   body?: ResolveAlertRequest;
