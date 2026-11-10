@@ -410,7 +410,7 @@
   - Hecho cuando: el saldo baja, el teórico del turno sube y un cobro de más se rechaza.
 - [x] **T-173** · Prueba de concurrencia del límite de crédito con dos ventas simultáneas. · RF: RF-152 · Dep: T-170
   - Hecho cuando: el límite nunca se supera en 20 repeticiones.
-- [ ] **T-174** · Puerto `PasarelaDePagos` y simulador local controlable desde /dev/simuladores. · RF: RF-075 · Dep: T-166
+- [x] **T-174** · Puerto `PasarelaDePagos` y simulador local controlable desde /dev/simuladores. · RF: RF-075 · Dep: T-166
   - Hecho cuando: desde https://localhost:3000/dev/simuladores se elige "aprobar", "rechazar", "no responder" o "aprobar tarde".
 - [x] **T-175** · Pago electrónico rechazado: la venta queda sin confirmar y conserva sus reservas y los pagos aprobados. · RF: RF-075 · Dep: T-174, T-169
   - Hecho cuando: con el simulador en "rechazar", la segunda tarjeta falla y la primera sigue imputada.
@@ -432,11 +432,11 @@
   - Hecho cuando: una firma inválida responde 401, y un webhook con firma válida y contenido falso no cambia el estado del pago.
 - [ ] **T-184** · Asociación de una terminal Point a cada caja en los parámetros de la caja. · RF: RF-024 · Dep: T-180, T-062
   - Hecho cuando: cada caja demo tiene su terminal del sandbox y el cobro se envía a la terminal correcta.
-- [ ] **T-185** · Frontend POS: pago mixto, cliente, crédito y modal de autorización. · RF: RF-068, RF-073, RF-074 · Dep: T-171, T-163
+- [x] **T-185** · Frontend POS: pago mixto, cliente, crédito y modal de autorización. · RF: RF-068, RF-073, RF-074 · Dep: T-171, T-163
   - Hecho cuando: en /pos se cobra una venta con efectivo y tarjeta del simulador, y otra a crédito con exceso autorizado.
-- [ ] **T-186** · Frontend POS: pago por verificar, cobro de cuenta corriente y recibo. · RF: RF-126, RF-128 · Dep: T-185, T-178, T-172
+- [x] **T-186** · Frontend POS: pago por verificar, cobro de cuenta corriente y recibo. · RF: RF-126, RF-128 · Dep: T-185, T-178, T-172
   - Hecho cuando: con el simulador en "no responder", la pantalla muestra la venta por verificar, y un cobro de cuenta corriente imprime su recibo en pantalla.
-- [ ] **T-187** · Frontend del AS: clientes y límites de crédito. · RF: RF-132, RF-072 · Dep: T-168, T-070
+- [x] **T-187** · Frontend del AS: clientes y límites de crédito. · RF: RF-132, RF-072 · Dep: T-168, T-070
   - Hecho cuando: desde /admin, el AS crea un cliente con límite.
 - [x] **T-188** · Sumar las acciones de cobros al generador de la matriz. · RF: RF-004 · Dep: T-187
   - Hecho cuando: las pruebas generadas pasan.
@@ -453,7 +453,7 @@
   - Hecho cuando: hay pruebas de los tres modos y de un cliente responsable inscripto que fuerza la factura.
 - [x] **T-193** · Credencial fiscal cifrada con la clave maestra del entorno, nunca devuelta, con alerta antes del vencimiento. · RF: RF-162 · Dep: T-189
   - Hecho cuando: ningún endpoint devuelve el certificado, el valor guardado en la base está cifrado y un certificado que vence en 15 días genera la alerta.
-- [ ] **T-194** · Puerto `ServicioFiscal` y simulador de ARCA controlable desde /dev/simuladores. · RF: RF-100 · Dep: T-189, T-174
+- [x] **T-194** · Puerto `ServicioFiscal` y simulador de ARCA controlable desde /dev/simuladores. · RF: RF-100 · Dep: T-189, T-174
   - Hecho cuando: el simulador se puede poner en "acepta", "rechaza" o "caído".
 - [x] **T-195** · Tipo de comprobante (A, B o C) según emisor y comprador, y numeración por punto de venta. · RF: RF-155 · Dep: T-194
   - Hecho cuando: pasa una tabla de casos de tipos, y la numeración de dos cajas es independiente.
@@ -485,11 +485,11 @@
   - Hecho cuando: se obtiene un CAEA de homologación y se informa un comprobante emitido con él.
 - [x] **T-209** · Conectar la alerta al AC por bloqueo de PIN (pendiente de T-045). · RF: RF-145 · Dep: T-045, T-092
   - Hecho cuando: el sexto PIN erróneo genera la alerta al AC.
-- [ ] **T-210** · Frontend del AC: configuración fiscal (certificado, puntos de venta, política). · RF: RF-162, RF-166 · Dep: T-193, T-191, T-070
+- [x] **T-210** · Frontend del AC: configuración fiscal (certificado, puntos de venta, política). · RF: RF-162, RF-166 · Dep: T-193, T-191, T-070
   - Hecho cuando: desde /admin se carga un certificado de prueba y la pantalla muestra solo su fecha de vencimiento.
-- [ ] **T-211** · Frontend: comprobantes con su estado, corrección y reenvío, y facturación posterior. · RF: RF-104, RF-168 · Dep: T-202, T-204, T-210
+- [x] **T-211** · Frontend: comprobantes con su estado, corrección y reenvío, y facturación posterior. · RF: RF-104, RF-168 · Dep: T-202, T-204, T-210
   - Hecho cuando: desde /admin se reenvía un comprobante rechazado por el simulador.
-- [ ] **T-212** · Frontend POS: opción de facturar al cobrar según la política, oculta si no hay módulo. · RF: RF-165, RF-167 · Dep: T-192, T-185
+- [x] **T-212** · Frontend POS: opción de facturar al cobrar según la política, oculta si no hay módulo. · RF: RF-165, RF-167 · Dep: T-192, T-185
   - Hecho cuando: con el modo "opcional, sin factura por defecto" la opción aparece desmarcada, y con el módulo inactivo no aparece.
 - [ ] **T-213** · **[Localhost]** Guion de las Fases 11 y 12. · RF: — · Dep: T-188, T-211, T-212
   - Hecho cuando: (1) pago mixto con rechazo parcial, (2) pago por verificar, (3) venta a crédito con exceso, (4) simulador de ARCA caído → venta con CAEA → vuelve → la cola se informa, (5) rechazo y reenvío, (6) el comercio sin módulo vende con ticket no fiscal.
