@@ -30,7 +30,8 @@ import { useLoader } from '../../hooks/useLoader';
 type BranchNode = Structure['sucursales'][number];
 
 export function StructurePage() {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  const billingModule = user?.moduloFacturacion === true;
   const api = useMemo(() => organizationApi(request), [request]);
   const [showInactive, setShowInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,11 +204,14 @@ export function StructurePage() {
                   >
                     <ListItemText
                       primary={`${caja.nombre}${caja.activa ? '' : ' (baja)'}`}
-                      secondary={
-                        caja.puntoVentaFiscal === null
-                          ? 'Sin punto de venta fiscal'
-                          : `Punto de venta ${String(caja.puntoVentaFiscal)}`
-                      }
+                      {...(billingModule
+                        ? {
+                            secondary:
+                              caja.puntoVentaFiscal === null
+                                ? 'Sin punto de venta fiscal'
+                                : `Punto de venta ${String(caja.puntoVentaFiscal)}`,
+                          }
+                        : {})}
                     />
                   </ListItem>
                 ))}
@@ -286,16 +290,18 @@ export function StructurePage() {
               required
               autoFocus
             />
-            <TextField
-              label="Punto de venta fiscal (opcional)"
-              type="number"
-              value={register.puntoVentaFiscal}
-              onChange={(e) => {
-                setRegister({ ...register, puntoVentaFiscal: e.target.value });
-              }}
-              helperText="Para la facturación electrónica. No se repite entre las cajas del comercio."
-              slotProps={{ htmlInput: { min: 1, max: 99999 } }}
-            />
+            {billingModule && (
+              <TextField
+                label="Punto de venta fiscal (opcional)"
+                type="number"
+                value={register.puntoVentaFiscal}
+                onChange={(e) => {
+                  setRegister({ ...register, puntoVentaFiscal: e.target.value });
+                }}
+                helperText="Para la facturación electrónica. No se repite entre las cajas del comercio."
+                slotProps={{ htmlInput: { min: 1, max: 99999 } }}
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

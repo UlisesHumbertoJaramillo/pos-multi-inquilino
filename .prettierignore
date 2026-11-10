@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+test-results/
+playwright-report/
 package-lock.json
 
 # Documentos de la metodología SDD: se editan a mano y no se reformatean.

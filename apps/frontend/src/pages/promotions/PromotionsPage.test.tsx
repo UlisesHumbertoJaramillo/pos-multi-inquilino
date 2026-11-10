@@ -16,6 +16,7 @@ const AC_SESSION: SessionTokens = {
     email: 'ac@demo.local',
     nombre: 'Ana',
     comercioId: 'demo',
+    moduloFacturacion: true,
     roles: ['AC'],
     rolActivo: 'AC',
     sucursales: [],

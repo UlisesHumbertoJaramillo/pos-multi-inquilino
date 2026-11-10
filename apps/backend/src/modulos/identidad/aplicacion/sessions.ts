@@ -27,6 +27,7 @@ export interface SessionUser {
   roles: Role[];
   activeRole: Role | null;
   branchIds: string[];
+  billingModule: boolean;
 }
 
 export interface SessionTokens {
@@ -92,6 +93,7 @@ function sessionUser(account: UserAccount, activeRole: Role | null): SessionUser
     roles: assignedRoles(account.assignments),
     activeRole,
     branchIds: branchesOf(account.assignments, activeRole),
+    billingModule: account.billingModule,
   };
 }
 

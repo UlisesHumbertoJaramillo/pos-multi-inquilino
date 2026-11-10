@@ -1,12 +1,14 @@
-// Datos de demostración para desarrollo (T-026). Solo en pos_dev; nunca en producción.
+// Datos de demostración para desarrollo (T-026). En pos_dev, o en pos_test con `--db pos_test` para
+// las pruebas punta a punta; nunca en producción.
 // Se puede volver a ejecutar: actualiza lo que ya existe. Las credenciales están en el README.
+import { parseArgs } from 'node:util';
 import pg from 'pg';
 import { Argon2SecretHasher } from '../src/modulos/identidad/adaptadores/crypto.js';
 import { DEFAULT_PARAMETERS as P } from '../src/modulos/organizacion/dominio/parameters.js';
 import { seedCatalog } from './db-seed-catalog.js';
 import { seedInventory } from './db-seed-inventory.js';
 import { seedSuppliers } from './db-seed-suppliers.js';
-import { ownerConnection } from './db/migrations.js';
+import { isAllowedDatabase, ownerConnection } from './db/migrations.js';
 
 const DEMO_PASSWORD = 'Demo-2026!';
 const AS_DEMO_ID = 'de000000-0000-4000-8000-0000000000a2';
@@ -146,7 +148,9 @@ async function main(): Promise<void> {
     throw new Error('db:seed no se ejecuta en producción.');
   }
   const hasher = new Argon2SecretHasher();
-  const client = new pg.Client(ownerConnection('pos_dev'));
+  const { values } = parseArgs({ options: { db: { type: 'string', default: 'pos_dev' } } });
+  if (!isAllowedDatabase(values.db)) throw new Error(`Base no permitida: ${values.db}.`);
+  const client = new pg.Client(ownerConnection(values.db));
   await client.connect();
   try {
     await client.query('BEGIN');

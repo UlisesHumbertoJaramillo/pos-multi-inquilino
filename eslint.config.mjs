@@ -10,7 +10,14 @@ import tseslint from 'typescript-eslint';
 export default defineConfig(
   // packages/contracts/src/generated: tipos generados desde openapi.yaml, no se editan a mano.
   {
-    ignores: ['**/node_modules/', '**/dist/', '**/coverage/', 'packages/contracts/src/generated/'],
+    ignores: [
+      '**/node_modules/',
+      '**/dist/',
+      '**/coverage/',
+      'test-results/',
+      'playwright-report/',
+      'packages/contracts/src/generated/',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,

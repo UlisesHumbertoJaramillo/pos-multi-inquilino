@@ -17,6 +17,7 @@ function session(user: Partial<SessionUser>, requiresRole = false): SessionToken
       email: 'vo@demo.local',
       nombre: 'Valeria',
       comercioId: 'c1',
+      moduloFacturacion: true,
       roles: ['VO'],
       rolActivo: 'VO',
       sucursales: ['s1'],

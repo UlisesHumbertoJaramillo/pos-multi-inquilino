@@ -89,8 +89,8 @@ export class GetTenantTicket extends SupportUseCase {
     const visible =
       ticket?.tenantId === tenantId &&
       (context.activeRole === 'AC' || ticket.authorId === context.userId);
-    // Un ticket de otro comercio se responde igual que uno inexistente (RF-002).
-    if (!visible) throw notFoundError();
+    // Un ticket de otro comercio se responde igual que uno inexistente y queda auditado (RF-002).
+    if (!visible) return this.deps.access.notFound(context, 'ticket_soporte', id);
     return ticket;
   }
 }

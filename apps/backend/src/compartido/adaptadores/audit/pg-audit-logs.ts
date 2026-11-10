@@ -98,17 +98,24 @@ const OWNED_TABLES: Readonly<Record<string, string>> = {
   promocion: 'promocion',
 };
 
+const UNISOLATED_TABLES: Readonly<Record<string, string>> = {
+  usuario: 'usuario',
+  ticket_soporte: 'ticket_soporte',
+};
+
 export class PgResourceOwnership implements ResourceOwnership {
   constructor(private readonly db: PgDatabase) {}
 
   async tenantOf(resourceType: string, id: string): Promise<string | null> {
-    // Los usuarios son de identidad, sin seguridad a nivel de fila: se consultan directamente.
-    if (resourceType === 'usuario') {
-      const user = await this.db.query<{ tenant_id: string | null }>(
-        'SELECT tenant_id FROM usuario WHERE id = $1',
+    // Los usuarios y los tickets de soporte no tienen seguridad a nivel de fila (los ve el SA):
+    // se consultan directamente, sobre una tabla elegida de esta lista.
+    const direct = UNISOLATED_TABLES[resourceType];
+    if (direct) {
+      const owner = await this.db.query<{ tenant_id: string | null }>(
+        `SELECT tenant_id FROM ${direct} WHERE id = $1`,
         [id],
       );
-      return user.rows[0]?.tenant_id ?? null;
+      return owner.rows[0]?.tenant_id ?? null;
     }
     const table = OWNED_TABLES[resourceType];
     if (!table) throw new Error(`Tipo de recurso desconocido: ${resourceType}`);

@@ -23,6 +23,7 @@ function session(role: 'AC' | 'AS'): SessionTokens {
       email: `${role.toLowerCase()}@demo.local`,
       nombre: role,
       comercioId: 'demo',
+      moduloFacturacion: true,
       roles: [role],
       rolActivo: role,
       sucursales: role === 'AS' ? ['centro'] : [],

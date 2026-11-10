@@ -84,6 +84,7 @@ function userDto(user: SessionUser) {
     roles: user.roles,
     rolActivo: user.activeRole,
     sucursales: user.branchIds,
+    moduloFacturacion: user.billingModule,
   };
 }
 

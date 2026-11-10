@@ -30,6 +30,7 @@ const SESSION: SessionTokens = {
     email: 'vo@demo.local',
     nombre: 'Valeria',
     comercioId: 'demo',
+    moduloFacturacion: true,
     roles: ['VO'],
     rolActivo: 'VO',
     sucursales: ['centro'],

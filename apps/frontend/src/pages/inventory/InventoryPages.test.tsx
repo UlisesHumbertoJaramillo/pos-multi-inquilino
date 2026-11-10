@@ -23,6 +23,7 @@ const AS_SESSION: SessionTokens = {
     email: 'as@demo.local',
     nombre: 'Sergio',
     comercioId: 'demo',
+    moduloFacturacion: true,
     roles: ['AS'],
     rolActivo: 'AS',
     sucursales: ['centro', 'norte'],

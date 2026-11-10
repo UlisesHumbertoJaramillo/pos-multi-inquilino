@@ -34,12 +34,12 @@ import { useLoader } from '../../hooks/useLoader';
 
 type NumericParameter = Exclude<keyof TenantParameters, 'toleranciaArqueo' | 'politicaFacturacion'>;
 
-const NUMERIC_FIELDS: { key: NumericParameter; label: string }[] = [
+const NUMERIC_FIELDS: { key: NumericParameter; label: string; fiscal?: boolean }[] = [
   { key: 'inactividadCarritoMin', label: 'Inactividad del carrito (min)' },
   { key: 'inactividadSesionMin', label: 'Inactividad de la sesión (min)' },
-  { key: 'plazoRegularizacionHoras', label: 'Plazo de regularización fiscal (h)' },
+  { key: 'plazoRegularizacionHoras', label: 'Plazo de regularización fiscal (h)', fiscal: true },
   { key: 'plazoDevolucionDias', label: 'Plazo de devolución (días)' },
-  { key: 'plazoFacturacionPosteriorDias', label: 'Facturación posterior (días)' },
+  { key: 'plazoFacturacionPosteriorDias', label: 'Facturación posterior (días)', fiscal: true },
 ];
 
 const BILLING_POLICY_NAMES: Record<BillingPolicy, string> = {
@@ -63,7 +63,8 @@ function formatSurcharge(pct: string): string {
 }
 
 export function SettingsPage() {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  const billingModule = user?.moduloFacturacion === true;
   const api = useMemo(() => organizationApi(request), [request]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -153,19 +154,21 @@ export function SettingsPage() {
           }
         >
           <Grid container spacing={2}>
-            {NUMERIC_FIELDS.map(({ key, label }) => (
-              <Grid key={key} size={{ xs: 12, sm: 6, md: 4 }}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label={label}
-                  value={fieldValue(key)}
-                  onChange={(e) => {
-                    setDraft({ ...draft, [key]: e.target.value });
-                  }}
-                />
-              </Grid>
-            ))}
+            {NUMERIC_FIELDS.filter(({ fiscal }) => billingModule || fiscal !== true).map(
+              ({ key, label }) => (
+                <Grid key={key} size={{ xs: 12, sm: 6, md: 4 }}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label={label}
+                    value={fieldValue(key)}
+                    onChange={(e) => {
+                      setDraft({ ...draft, [key]: e.target.value });
+                    }}
+                  />
+                </Grid>
+              ),
+            )}
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <TextField
                 fullWidth
@@ -177,24 +180,25 @@ export function SettingsPage() {
                 helperText="Diferencia aceptada en el cierre de caja."
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 8 }}>
-              <TextField
-                fullWidth
-                select
-                label="Política de facturación"
-                value={fieldValue('politicaFacturacion')}
-                onChange={(e) => {
-                  setDraft({ ...draft, politicaFacturacion: e.target.value });
-                }}
-                helperText="Requiere el módulo de facturación activo."
-              >
-                {Object.entries(BILLING_POLICY_NAMES).map(([value, name]) => (
-                  <MenuItem key={value} value={value}>
-                    {name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+            {billingModule && (
+              <Grid size={{ xs: 12, md: 8 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Política de facturación"
+                  value={fieldValue('politicaFacturacion')}
+                  onChange={(e) => {
+                    setDraft({ ...draft, politicaFacturacion: e.target.value });
+                  }}
+                >
+                  {Object.entries(BILLING_POLICY_NAMES).map(([value, name]) => (
+                    <MenuItem key={value} value={value}>
+                      {name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
           </Grid>
         </PageSection>
 

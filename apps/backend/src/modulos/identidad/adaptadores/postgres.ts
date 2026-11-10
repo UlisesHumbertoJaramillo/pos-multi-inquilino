@@ -36,12 +36,14 @@ interface UserRow {
   is_active: boolean;
   contrasena_definida: boolean;
   comercio_estado: TenantStatus | null;
+  modulo_facturacion: boolean | null;
   roles: { role: string; branchId: string | null }[];
 }
 
 const USER_SELECT = `
   SELECT u.id, u.tenant_id, u.email, u.nombre, u.email_validado, u.hash_contrasena,
          u.ultimo_rol_activo, u.is_active, u.contrasena_definida, c.estado AS comercio_estado,
+         c.modulo_facturacion,
          coalesce(json_agg(json_build_object('role', r.rol, 'branchId', r.sucursal_id))
                   FILTER (WHERE r.id IS NOT NULL), '[]') AS roles
     FROM usuario u
@@ -59,6 +61,7 @@ function toAccount(row: UserRow): UserAccount {
     lastActiveRole: isRole(row.ultimo_rol_activo) ? row.ultimo_rol_activo : null,
     isActive: row.is_active,
     tenantStatus: row.comercio_estado,
+    billingModule: row.modulo_facturacion === true,
     passwordDefined: row.contrasena_definida,
     assignments: row.roles.flatMap((assignment) =>
       isRole(assignment.role) ? [{ role: assignment.role, branchId: assignment.branchId }] : [],
@@ -74,7 +77,7 @@ export class PgUserRepository implements UserRepository {
 
   private async findOne(where: string, values: unknown[]): Promise<UserAccount | undefined> {
     const result = await this.db.query<UserRow>(
-      `${USER_SELECT} WHERE ${where} GROUP BY u.id, c.estado`,
+      `${USER_SELECT} WHERE ${where} GROUP BY u.id, c.estado, c.modulo_facturacion`,
       values,
     );
     const row = result.rows[0];
@@ -95,7 +98,7 @@ export class PgUserRepository implements UserRepository {
 
   async listByTenant(tenantId: string): Promise<UserAccount[]> {
     const result = await this.db.query<UserRow>(
-      `${USER_SELECT} WHERE u.tenant_id = $1 GROUP BY u.id, c.estado ORDER BY u.nombre`,
+      `${USER_SELECT} WHERE u.tenant_id = $1 GROUP BY u.id, c.estado, c.modulo_facturacion ORDER BY u.nombre`,
       [tenantId],
     );
     return result.rows.map(toAccount);

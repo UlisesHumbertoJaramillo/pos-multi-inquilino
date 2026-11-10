@@ -24,7 +24,7 @@ import { useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../api/httpClient';
 import { useAuth } from '../auth/AuthContext';
-import { homeFor, NAVIGATION, ROLE_NAMES } from '../navigation';
+import { homeFor, navigationFor, ROLE_NAMES } from '../navigation';
 import { RealtimeProvider, useRealtime } from '../realtime/RealtimeContext';
 import { glassSurface, pageBackground } from '../theme';
 import { AlertCenter } from './AlertCenter';
@@ -133,7 +133,7 @@ function Shell({ children }: { children: ReactNode }) {
             sx={(t) => ({ ...glassSurface(t), minWidth: 240, alignSelf: 'flex-start' })}
           >
             <List>
-              {NAVIGATION[role].map((item) => (
+              {navigationFor(role, user.moduloFacturacion).map((item) => (
                 <ListItemButton
                   key={item.path}
                   disabled={!item.available}

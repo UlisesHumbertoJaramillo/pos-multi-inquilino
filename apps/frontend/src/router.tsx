@@ -83,11 +83,18 @@ export const routes: RouteObject[] = [
   { path: '/admin/cuotas', element: asOnly(<SellerQuotasPage />) },
   { path: '/admin/caja', element: asOnly(<BranchCashPage />) },
   { path: '/admin/clientes', element: asOnly(<CustomersPage />) },
-  { path: '/admin/fiscal', element: acOnly(<FiscalConfigPage />) },
+  {
+    path: '/admin/fiscal',
+    element: (
+      <RequireAuth roles={['AC']} fiscal>
+        <FiscalConfigPage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/admin/comprobantes',
     element: (
-      <RequireAuth roles={['AC', 'AS']}>
+      <RequireAuth roles={['AC', 'AS']} fiscal>
         <VouchersPage />
       </RequireAuth>
     ),

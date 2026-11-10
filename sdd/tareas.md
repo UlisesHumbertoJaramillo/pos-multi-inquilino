@@ -518,7 +518,7 @@
   - Hecho cuando: tras desactivar el módulo, la devolución de una venta facturada se rechaza y la de una no facturada funciona.
 - [x] **T-224** · Prueba de concurrencia de la cantidad devolvible con dos devoluciones simultáneas del mismo ticket. · RF: RF-152 · Dep: T-219
   - Hecho cuando: nunca se devuelve más de lo vendido en 20 repeticiones.
-- [ ] **T-225** · Frontend POS: anulación y devolución. · RF: RF-081, RF-083 · Dep: T-219, T-185
+- [x] **T-225** · Frontend POS: anulación y devolución. · RF: RF-081, RF-083 · Dep: T-219, T-185
   - Hecho cuando: en /pos se anula una venta del turno con el PIN del AS demo, y se devuelve un ítem de un ticket de la otra sucursal.
 - [x] **T-226** · Sumar las acciones de devoluciones al generador de la matriz. · RF: RF-004 · Dep: T-225
   - Hecho cuando: las pruebas generadas pasan.
@@ -564,19 +564,19 @@
 
 ## Fase 16 — Cierre
 
-- [ ] **T-243** · Completar la matriz de seguridad con todas las acciones y los tipos de recurso del criterio 2. · RF: RF-001 a RF-004 · Dep: T-226, T-237
+- [x] **T-243** · Completar la matriz de seguridad con todas las acciones y los tipos de recurso del criterio 2. · RF: RF-001 a RF-004 · Dep: T-226, T-237
   - Hecho cuando: las pruebas generadas cubren cada fila de §5.18 y cada tipo de recurso, en lectura y escritura cruzada.
-- [ ] **T-244** · Prueba punta a punta: venta con pago mixto y cierre ciego, inspeccionando el tráfico de red. · RF: RF-068, RF-093, RF-112 · Dep: T-243
+- [x] **T-244** · Prueba punta a punta: venta con pago mixto y cierre ciego, inspeccionando el tráfico de red. · RF: RF-068, RF-093, RF-112 · Dep: T-243
   - Hecho cuando: la prueba de Playwright pasa y verifica que el teórico no viaja hacia el VO.
-- [ ] **T-245** · Prueba punta a punta: devolución en otra sucursal y revisión. · RF: RF-083, RF-087, RF-088 · Dep: T-243
+- [x] **T-245** · Prueba punta a punta: devolución en otra sucursal y revisión. · RF: RF-083, RF-087, RF-088 · Dep: T-243
   - Hecho cuando: la prueba de Playwright pasa.
-- [ ] **T-246** · Prueba punta a punta: contingencia fiscal y cierre forzado. · RF: RF-101, RF-115 · Dep: T-243
+- [x] **T-246** · Prueba punta a punta: contingencia fiscal y cierre forzado. · RF: RF-101, RF-115 · Dep: T-243
   - Hecho cuando: la prueba de Playwright pasa con el simulador de ARCA caído y recuperado.
-- [ ] **T-247** · Prueba punta a punta: comercio sin módulo de facturación. · RF: RF-165 · Dep: T-243
+- [x] **T-247** · Prueba punta a punta: comercio sin módulo de facturación. · RF: RF-165 · Dep: T-243
   - Hecho cuando: la prueba de Playwright vende, anula y devuelve sin ningún comprobante fiscal.
-- [ ] **T-248** · Activar el modo estricto de la trazabilidad en `npm run verify`. · RF: todos (criterio 1) · Dep: T-244 a T-247
+- [x] **T-248** · Activar el modo estricto de la trazabilidad en `npm run verify`. · RF: todos (criterio 1) · Dep: T-244 a T-247
   - Hecho cuando: `sdd/trazabilidad.md` tiene los 169 RF con al menos una prueba y `npm run verify` pasa en modo estricto.
-- [ ] **T-249** · Actualizar `docs/arquitectura` con el catálogo final de puertos y adaptadores. · RF: — (Const. 14) · Dep: T-248
+- [x] **T-249** · Actualizar `docs/arquitectura` con el catálogo final de puertos y adaptadores. · RF: — (Const. 14) · Dep: T-248
   - Hecho cuando: cada puerto del código figura en el catálogo con sus adaptadores.
-- [ ] **T-250** · **[Localhost]** Guion de demostración completo. · RF: — · Dep: T-249
+- [x] **T-250** · **[Localhost]** Guion de demostración completo. · RF: — · Dep: T-249
   - Hecho cuando: desde `npm run db:reset && npm run db:seed && npm run dev` se recorre un día completo de un comercio (apertura, ventas, devolución, contingencia, cortes, dashboards) siguiendo el guion del README.

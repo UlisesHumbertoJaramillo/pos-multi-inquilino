@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "npm run dev:check -w @pos/backend --silent && concurrently --kill-others --names api,web,worker --prefix-colors blue,magenta,yellow \"npm run dev -w @pos/backend\" \"npm run dev -w @pos/frontend\" \"npm run worker:dev -w @pos/backend\"",
-    "typecheck": "npm run typecheck --workspaces && tsc --noEmit -p scripts",
+    "typecheck": "npm run typecheck --workspaces && tsc --noEmit -p scripts && tsc --noEmit -p e2e",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -24,15 +24,17 @@
     "lint:arch": "depcruise apps/backend/src apps/frontend/src --config .dependency-cruiser.cjs",
     "contracts:generate": "npm run generate -w @pos/contracts",
     "test:scripts": "vitest run --root scripts",
+    "test:e2e": "playwright test -c e2e",
     "trazabilidad": "tsx scripts/trazabilidad.ts",
     "contracts:check": "tsx scripts/contracts-check.ts",
     "secrets": "secretlint \"**/*\"",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run lint:arch && npm run contracts:check && npm run trazabilidad -- --check && npm run secrets && npm audit && npm test",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run lint:arch && npm run contracts:check && npm run trazabilidad -- --check --strict && npm run secrets && npm audit && npm test",
     "worker": "npm run worker -w @pos/backend",
     "db:seed": "npm run db:seed -w @pos/backend"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@secretlint/secretlint-rule-pattern": "^13.1.0",
     "@secretlint/secretlint-rule-preset-recommend": "^13.1.0",
     "concurrently": "^10.0.6",

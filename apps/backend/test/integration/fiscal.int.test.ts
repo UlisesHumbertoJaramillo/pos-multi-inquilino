@@ -204,6 +204,12 @@ const seedCaea = () =>
   );
 
 describe('[RF-165] sin el módulo activo', () => {
+  it('la sesión informa si el comercio tiene el módulo, para no mostrar funciones fiscales', async () => {
+    const session = await get('/auth/sesion', ac);
+    expectToMatchContract(session, 'get', '/auth/sesion');
+    expect(session.body).toMatchObject({ moduloFacturacion: false });
+  });
+
   it('la venta no se factura, no hay pedido fiscal y los endpoints se rechazan', async () => {
     await openShift();
     const sale = await sold();

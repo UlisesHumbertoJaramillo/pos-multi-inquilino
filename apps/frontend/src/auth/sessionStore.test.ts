@@ -15,6 +15,7 @@ function tokens(access: string, refresh: string): SessionTokens {
       email: 'vo@demo.local',
       nombre: 'Valeria',
       comercioId: 'c1',
+      moduloFacturacion: true,
       roles: ['VO'],
       rolActivo: 'VO',
       sucursales: [],

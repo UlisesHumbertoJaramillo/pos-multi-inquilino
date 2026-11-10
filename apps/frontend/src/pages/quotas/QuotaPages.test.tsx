@@ -22,6 +22,7 @@ const session = (role: 'AC' | 'AS'): SessionTokens => ({
     email: `${role.toLowerCase()}@demo.local`,
     nombre: role === 'AS' ? 'Sergio' : 'Ana',
     comercioId: 'demo',
+    moduloFacturacion: true,
     roles: [role],
     rolActivo: role,
     sucursales: role === 'AS' ? ['centro'] : [],

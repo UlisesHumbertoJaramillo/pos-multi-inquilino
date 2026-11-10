@@ -16,6 +16,8 @@ export interface UserAccount {
   isActive: boolean;
   // Estado del comercio del usuario. Nulo para el SA.
   tenantStatus: TenantStatus | null;
+  // Si el comercio tiene el módulo de facturación (RF-165). Falso para el SA.
+  billingModule: boolean;
   assignments: RoleAssignment[];
   // Falso para una cuenta creada por otro que todavía no eligió su contraseña (se activa por correo).
   passwordDefined: boolean;

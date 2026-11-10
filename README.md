@@ -56,17 +56,36 @@ El comercio arranca con un tope de cuota de descuento de 15 % por venta y $ 20.0
 
 Los correos de validación y recuperación se muestran en la consola del backend (`[api]` en `npm run dev`).
 
+## Guion de demostración
+
+Un día completo de un comercio, desde cero (T-250). **Borra los datos de `pos_dev`.**
+
+```bash
+npm run db:reset && npm run db:seed && npm run dev
+```
+
+Abrí <https://localhost:5173> en una ventana por usuario (o en ventanas privadas). La contraseña de todos es `Demo-2026!`.
+
+1. **Activar la facturación.** Como `sa@demo.local`, en **Comercios**, activá el módulo de facturación de Demo. Como `ac@demo.local`, volvé a iniciar sesión y en **Configuración fiscal** cargá un CUIT y elegí los archivos `certificado-prueba.crt` y `clave.txt` de `apps/backend/test/support/`. El worker pide el CAEA en menos de un minuto.
+2. **Apertura.** Como `vo@demo.local`, abrí el turno de Caja 1 con un saldo inicial de $ 1.000. Como `vo.norte@demo.local`, abrí el de Norte con $ 5.000.
+3. **Venta con pago mixto.** En Centro, **Nueva venta**, agregá un producto y **Cobrar**: pagá una parte con Débito y confirmá el resto en efectivo. Anotá el número de ticket.
+4. **Devolución en otra sucursal.** En Norte, **Devolución o anulación**: buscá ese ticket, devolvé una unidad y autorizá con el PIN `2222` de Sergio Sucursal. Como `as@demo.local` (Administrador de Sucursal), en **Inventario** de Norte, revisá el producto y reingresalo.
+5. **Contingencia fiscal.** En `/dev/simuladores`, poné ARCA en **Caído** y vendé en Centro. En **Comprobantes** (AC o AS) aparece **Con CAEA, por informar**. Volvé a **Acepta**: en el siguiente reintento (2 minutos o más) pasa a **Emitido**.
+6. **Cortes.** Como `vo.norte@demo.local`, hacé el **Corte X**: el arqueo es ciego, solo ves lo que declaraste. Como `as@demo.local`, en **Caja**, forzá el cierre del turno de Centro y hacé el **Corte Z** de las dos cajas: acá sí aparecen el teórico y la diferencia.
+7. **Dashboards.** Como `ac@demo.local`, mirá **Dashboard**, **Informe diario** y **Auditoría comercial**. Las alertas del día están en la campana.
+
 ## Comandos
 
-| Comando                                   | Qué hace                                                                                                                            |
-| :---------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run verify`                          | Todo lo que exige integrar un cambio: formato, lint, tipos, arquitectura, contrato, pruebas, trazabilidad, dependencias y secretos. |
-| `npm test`                                | Pruebas unitarias y de integración (las de integración usan `pos_test`).                                                            |
-| `npm run lint` / `npm run format`         | Lint y formato.                                                                                                                     |
-| `npm run lint:arch`                       | Reglas de dependencias de la arquitectura hexagonal.                                                                                |
-| `npm run db:migrate` / `npm run db:reset` | Aplica migraciones / vacía `pos_dev` y las vuelve a aplicar.                                                                        |
-| `npm run db:seed`                         | Carga los usuarios de demostración en `pos_dev`.                                                                                    |
-| `npm run db:migration:new -- <nombre>`    | Crea una migración vacía.                                                                                                           |
-| `npm run contracts:generate`              | Genera los tipos desde `packages/contracts/openapi.yaml`.                                                                           |
-| `npm run trazabilidad`                    | Regenera `sdd/trazabilidad.md` desde las etiquetas `[RF-xxx]` de las pruebas.                                                       |
-| `npm run worker`                          | Worker de trabajos programados y outbox.                                                                                            |
+| Comando                                   | Qué hace                                                                                                                                                                                                          |
+| :---------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify`                          | Todo lo que exige integrar un cambio: formato, lint, tipos, arquitectura, contrato, pruebas, trazabilidad, dependencias y secretos.                                                                               |
+| `npm test`                                | Pruebas unitarias y de integración (las de integración usan `pos_test`).                                                                                                                                          |
+| `npm run test:e2e`                        | Pruebas punta a punta en navegador con Playwright, sobre `pos_test` y con puertos propios (3100 y 5174). No corre junto con `npm test`, que usa la misma base. La primera vez: `npx playwright install chromium`. |
+| `npm run lint` / `npm run format`         | Lint y formato.                                                                                                                                                                                                   |
+| `npm run lint:arch`                       | Reglas de dependencias de la arquitectura hexagonal.                                                                                                                                                              |
+| `npm run db:migrate` / `npm run db:reset` | Aplica migraciones / vacía `pos_dev` y las vuelve a aplicar.                                                                                                                                                      |
+| `npm run db:seed`                         | Carga los usuarios de demostración en `pos_dev`.                                                                                                                                                                  |
+| `npm run db:migration:new -- <nombre>`    | Crea una migración vacía.                                                                                                                                                                                         |
+| `npm run contracts:generate`              | Genera los tipos desde `packages/contracts/openapi.yaml`.                                                                                                                                                         |
+| `npm run trazabilidad`                    | Regenera `sdd/trazabilidad.md` desde las etiquetas `[RF-xxx]` de las pruebas.                                                                                                                                     |
+| `npm run worker`                          | Worker de trabajos programados y outbox.                                                                                                                                                                          |

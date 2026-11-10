@@ -17,6 +17,7 @@ const sessionOf = (role: 'AC' | 'AS'): SessionTokens => ({
     email: `${role}@demo.local`,
     nombre: role,
     comercioId: 'demo',
+    moduloFacturacion: true,
     roles: [role],
     rolActivo: role,
     sucursales: role === 'AS' ? ['centro'] : [],

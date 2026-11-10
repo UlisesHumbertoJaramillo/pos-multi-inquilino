@@ -6,6 +6,8 @@ export interface NavItem {
   path: string;
   // Las secciones de entregas futuras se muestran deshabilitadas.
   available: boolean;
+  // Función fiscal: no se muestra si el comercio no tiene el módulo de facturación (RF-165).
+  fiscal?: boolean;
 }
 
 export const ROLE_NAMES: Record<Role, string> = {
@@ -29,8 +31,8 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Estructura', path: '/admin/estructura', available: true },
     { label: 'Usuarios', path: '/admin/usuarios', available: true },
     { label: 'Parámetros y pagos', path: '/admin/parametros', available: true },
-    { label: 'Configuración fiscal', path: '/admin/fiscal', available: true },
-    { label: 'Comprobantes', path: '/admin/comprobantes', available: true },
+    { label: 'Configuración fiscal', path: '/admin/fiscal', available: true, fiscal: true },
+    { label: 'Comprobantes', path: '/admin/comprobantes', available: true, fiscal: true },
     { label: 'Catálogo', path: '/admin/catalogo', available: true },
     { label: 'Combos', path: '/admin/combos', available: true },
     { label: 'Listas de precios', path: '/admin/listas', available: true },
@@ -50,13 +52,18 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Cuotas de descuento', path: '/admin/cuotas', available: true },
     { label: 'Caja', path: '/admin/caja', available: true },
     { label: 'Clientes', path: '/admin/clientes', available: true },
-    { label: 'Comprobantes', path: '/admin/comprobantes', available: true },
+    { label: 'Comprobantes', path: '/admin/comprobantes', available: true, fiscal: true },
     { label: 'Dashboard', path: '/admin/dashboard', available: true },
     { label: 'Informe diario', path: '/admin/informe', available: true },
     { label: 'Auditoría comercial', path: '/admin/auditoria', available: true },
   ],
   VO: [{ label: 'Punto de venta', path: '/pos', available: true }],
 };
+
+// Menú visible para un rol, según los módulos que el backend informó en la sesión.
+export function navigationFor(role: Role, billingModule: boolean): NavItem[] {
+  return NAVIGATION[role].filter((item) => billingModule || item.fiscal !== true);
+}
 
 // Pantalla inicial de cada rol.
 export function homeFor(role: Role | null): string {

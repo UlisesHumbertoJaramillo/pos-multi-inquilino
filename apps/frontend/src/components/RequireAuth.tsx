@@ -7,7 +7,16 @@ import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { homeFor } from '../navigation';
 
-export function RequireAuth({ roles, children }: { roles?: Role[]; children: ReactNode }) {
+export function RequireAuth({
+  roles,
+  fiscal = false,
+  children,
+}: {
+  roles?: Role[];
+  // Pantalla fiscal: sin el módulo de facturación se vuelve al inicio (RF-165).
+  fiscal?: boolean;
+  children: ReactNode;
+}) {
   const { status, user, requiresRoleSelection } = useAuth();
 
   if (status === 'loading') {
@@ -22,5 +31,6 @@ export function RequireAuth({ roles, children }: { roles?: Role[]; children: Rea
     return <Navigate to="/elegir-rol" replace />;
   if (roles && !roles.includes(user.rolActivo))
     return <Navigate to={homeFor(user.rolActivo)} replace />;
+  if (fiscal && !user.moduloFacturacion) return <Navigate to={homeFor(user.rolActivo)} replace />;
   return children;
 }

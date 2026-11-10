@@ -45,6 +45,10 @@ export type SessionUser = {
    * Sucursales del rol activo.
    */
   sucursales: Array<string>;
+  /**
+   * Si el comercio tiene activo el módulo de facturación. Falso para el Super Administrador.
+   */
+  moduloFacturacion: boolean;
 };
 
 export type SessionTokens = {

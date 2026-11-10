@@ -10,5 +10,9 @@ coverage/
 *.pem
 certs/
 
+# Resultados de las pruebas punta a punta
+test-results/
+playwright-report/
+
 # Carpeta temporal de contracts:check
 .generated-check/

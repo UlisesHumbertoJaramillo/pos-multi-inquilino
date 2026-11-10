@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -42,3 +42,51 @@ jobs:
           PGPASSWORD: postgres
 
       - run: npm run verify
+
+  # Pruebas punta a punta en navegador (T-244 a T-247), con la API, el worker y el frontend reales.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Preparar PostgreSQL
+        run: npm run db:setup
+        env:
+          PGPASSWORD: postgres
+
+      - name: Generar los certificados HTTPS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mkcert
+          npm run certs
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: resultados-e2e
+          path: test-results/
+          retention-days: 7
