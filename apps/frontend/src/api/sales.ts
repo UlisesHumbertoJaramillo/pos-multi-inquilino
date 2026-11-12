@@ -1,6 +1,7 @@
 // Llamadas del POS (VO), tipadas con el contrato. Los totales los calcula el backend en cada cambio.
 import type {
   Cart,
+  ProductSection,
   SaleBillingOption,
   SaleCustomer,
   SaleDiscountRequest,
@@ -22,7 +23,11 @@ const send = (method: string, body?: unknown): RequestInit => ({
 
 export const salesApi = (request: Request) => ({
   listOwn: () => request<SalesOverview>('/ventas'),
-  start: () => request<Cart>('/ventas', send('POST')),
+  // Sin producto, una venta vacía (para atender varias en paralelo); con uno, la venta nace con él
+  // y su reserva en la misma operación (RF-176).
+  start: (first?: { productoId: string; cantidad: string }) =>
+    request<Cart>('/ventas', send('POST', first)),
+  catalog: () => request<ProductSection>('/ventas/catalogo'),
   search: (q: string) =>
     request<SaleSearchResult[]>(`/ventas/productos?q=${encodeURIComponent(q)}`),
   addItem: (saleId: string, productoId: string, cantidad: string) =>

@@ -19,6 +19,7 @@ import type {
   SalesCatalog,
   SaleSettings,
   SalesRepository,
+  RankedProduct,
   SearchResult,
   Transfer,
 } from '../aplicacion/ports.js';
@@ -599,6 +600,43 @@ export class PgSalesCatalog implements SalesCatalog {
       });
     }
     return found;
+  }
+
+  async browse(tenantId: string, branchId: string, since: Date): Promise<RankedProduct[]> {
+    const result = await this.db.query<
+      ProductRow & { disponible: string | null; categoria: string | null; vendidas: string }
+    >(
+      `WITH vendidas AS (
+         SELECT vi.producto_id, sum(vi.cantidad) AS unidades
+           FROM venta_item vi
+           JOIN venta v ON v.id = vi.venta_id AND v.tenant_id = vi.tenant_id
+          WHERE v.tenant_id = $1 AND v.sucursal_id = $2 AND v.estado_comercial = 'confirmada'
+            AND v.confirmada_en >= $3
+          GROUP BY vi.producto_id
+       )
+       ${PRODUCT_SELECT.replace('p.is_active\n', 'p.is_active, i.disponible, c.nombre AS categoria, coalesce(vd.unidades, 0)::text AS vendidas\n')}
+        LEFT JOIN inventario i ON i.sucursal_id = $2 AND i.producto_id = p.id
+        LEFT JOIN vendidas vd ON vd.producto_id = p.id
+        WHERE p.tenant_id = $1 AND p.is_active
+        ORDER BY coalesce(vd.unidades, 0) DESC, p.nombre
+        LIMIT 500`,
+      [tenantId, branchId, since],
+    );
+    const ranked: RankedProduct[] = [];
+    for (const row of result.rows) {
+      const components = await this.components(tenantId, branchId, row);
+      ranked.push({
+        ...this.entry(row),
+        components,
+        available:
+          row.tipo === 'combo'
+            ? await this.comboAvailable(tenantId, branchId, components)
+            : (row.disponible ?? '0.000'),
+        categoryName: row.categoria,
+        soldUnits: row.vendidas,
+      });
+    }
+    return ranked;
   }
 
   async available(tenantId: string, branchId: string, productId: string): Promise<string> {

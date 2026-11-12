@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.18.0
+  version: 0.19.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -2932,6 +2932,14 @@ paths:
         '403': *a47
         '409':
           $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSaleRequest'
   /ventas/productos:
     get:
       operationId: searchSaleProducts
@@ -3236,6 +3244,24 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /ventas/catalogo:
+    get:
+      operationId: browseSaleProducts
+      tags:
+        - Ventas
+      summary: Sección de productos del POS
+      description: Lo más vendido de la sucursal del turno y todos los productos por categoría, con precio y disponibilidad (RF-179, D-95).
+      responses:
+        '200':
+          description: Productos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /ventas/clientes:
     get:
       operationId: searchSaleCustomers
@@ -4282,6 +4308,84 @@ paths:
                     type: boolean
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /atajos:
+    get:
+      operationId: getPosShortcuts
+      tags:
+        - Organización
+      summary: Atajos con que opera el POS
+      responses:
+        '200':
+          description: Atajos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shortcuts'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organizacion/atajos:
+    get:
+      operationId: getShortcutSettings
+      tags:
+        - Organización
+      summary: Atajos del POS del comercio, para configurarlos
+      responses:
+        '200':
+          description: Atajos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shortcuts'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: updateShortcuts
+      tags:
+        - Organización
+      summary: Cambiar los atajos del POS del comercio
+      description: Rechaza una tecla repetida, una reservada por el navegador, una combinación o una tecla que se usa para escribir (RF-185).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShortcutsRequest'
+      responses:
+        '200':
+          description: Atajos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shortcuts'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /organizacion/atajos/restablecimiento:
+    post:
+      operationId: resetShortcuts
+      tags:
+        - Organización
+      summary: Volver a la distribución de atajos por defecto
+      responses:
+        '200':
+          description: Atajos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shortcuts'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8638,3 +8742,135 @@ components:
             - advertencia
             - info
             - null
+    StartSaleRequest:
+      description: 'Primer producto de la venta: la venta y su reserva se crean juntas (RF-176). Sin cuerpo, la venta nace vacía.'
+      type: object
+      additionalProperties: false
+      required:
+        - productoId
+        - cantidad
+      properties:
+        productoId:
+          type: string
+          format: uuid
+        cantidad:
+          type: string
+          maxLength: 20
+    ProductSection:
+      type: object
+      additionalProperties: false
+      required:
+        - masVendidos
+        - categorias
+      properties:
+        masVendidos:
+          description: Lo más vendido de la sucursal en los últimos 30 días (D-95).
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleSearchResult'
+        categorias:
+          description: Todos los productos activos, agrupados por categoría; las más vendidas primero.
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - nombre
+              - productos
+            properties:
+              id:
+                type:
+                  - string
+                  - 'null'
+                format: uuid
+              nombre:
+                type: string
+              productos:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaleSearchResult'
+    ShortcutAction:
+      type: string
+      enum:
+        - confirmar
+        - cobrar
+        - quitar_item
+        - cantidad
+        - descuento
+        - cancelar
+        - buscar
+        - ayuda
+        - venta_anterior
+        - venta_siguiente
+        - nueva_venta
+        - devolucion
+        - corte_x
+    Shortcuts:
+      description: Atajos de teclado del POS del comercio (RF-181 a RF-185). Las teclas se identifican por su posición física (KeyboardEvent.code).
+      type: object
+      additionalProperties: false
+      required:
+        - porDefecto
+        - atajos
+        - teclasPermitidas
+      properties:
+        porDefecto:
+          type: boolean
+          description: Si el comercio usa la distribución por defecto.
+        atajos:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - accion
+              - nombre
+              - tecla
+              - teclaPorDefecto
+            properties:
+              accion:
+                $ref: '#/components/schemas/ShortcutAction'
+              nombre:
+                type: string
+              tecla:
+                type:
+                  - string
+                  - 'null'
+                description: 'Nula: la acción no tiene atajo y se usa con su botón.'
+              teclaPorDefecto:
+                type: string
+        teclasPermitidas:
+          type: array
+          items:
+            type: string
+            enum:
+              - NumpadAdd
+              - NumpadSubtract
+              - NumpadMultiply
+              - NumpadDivide
+              - Enter
+              - Escape
+              - Insert
+              - Delete
+              - Home
+              - End
+              - PageUp
+              - PageDown
+              - F2
+              - F4
+              - F8
+              - F9
+    ShortcutsRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - atajos
+      properties:
+        atajos:
+          description: Tecla de cada acción; nula para dejarla sin atajo. Las que no figuran conservan la de por defecto.
+          type: object
+          additionalProperties:
+            type:
+              - string
+              - 'null'

@@ -227,7 +227,7 @@ Cada módulo es un contexto del dominio con sus propias tablas, casos de uso y p
 | `caja` | tenant_id, sucursal_id, nombre, punto_venta_fiscal, is_active | Punto de venta único por comercio | RF-024, RF-025 |
 | `parametro_comercio` | tenant_id, inactividad_carrito, inactividad_sesion, plazo_fiscal, plazo_devolucion, tolerancia_arqueo, politica_facturacion (siempre, opcional con factura, opcional sin factura), plazo_facturacion_posterior | Valores dentro de los márgenes de plataforma. La política solo aplica con el módulo activo | RF-135, RF-098, RF-166, RF-168 |
 | `metodo_pago` | tenant_id, nombre, tipo (efectivo, electrónico, cuenta corriente), recargo_pct (positivo es recargo, negativo es descuento), is_active | | RF-068, RF-069, RF-135 |
-| `atajo_comercio` | tenant_id, accion, tecla, actualizado_en, actualizado_por | Una tecla por acción y una acción por tecla. Sin filas rige la distribución por defecto | RF-185 |
+| `atajos_comercio` | tenant_id, mapa (acción → tecla), actualizado_en, actualizado_por | Una fila por comercio. Mapa nulo: rige la distribución por defecto; restablecer lo pone en nulo y no borra nada | RF-185 |
 
 ### 3.4 Catálogo y precios
 

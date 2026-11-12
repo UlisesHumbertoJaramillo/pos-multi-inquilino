@@ -100,8 +100,13 @@ export async function apiAs(email: string): Promise<APIRequestContext> {
 }
 
 export async function openShift(page: Page, initial: string): Promise<void> {
-  await page.getByRole('button', { name: 'Abrir turno' }).first().click();
-  const dialog = page.getByRole('dialog');
+  // Con una sola caja libre, el POS ya la propone (RF-177); si no, se elige la primera.
+  const dialog = page.getByRole('dialog', { name: /Abrir turno/ });
+  const proposed = await dialog.waitFor({ timeout: 5_000 }).then(
+    () => true,
+    () => false,
+  );
+  if (!proposed) await page.getByRole('button', { name: 'Abrir turno' }).first().click();
   await dialog.getByLabel('Saldo inicial').fill(initial);
   await dialog.getByRole('button', { name: 'Abrir turno' }).click();
   await expect(page.getByText('Turno abierto', { exact: true })).toBeVisible();

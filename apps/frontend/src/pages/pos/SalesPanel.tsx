@@ -4,6 +4,10 @@
 // corriente, el ticket y los periféricos (T-238 a T-240: impresora y lector de códigos). Sin
 // conexión no se agrega ni se cobra; una falla de impresión no cambia la venta (RF-108). Todos los
 // importes los calcula el backend: esta pantalla solo los muestra.
+// POS rápido (T-268, T-271, T-276 a T-278; RF-175 a RF-183, D-100 a D-102): la búsqueda queda lista
+// sin clics, el primer producto inicia la venta, la cantidad se escribe antes con el atajo de
+// cantidad (3 * código), cada acción tiene su atajo visible y la sección de productos acompaña al
+// carrito en pantallas anchas.
 import type {
   AccountCollection,
   Cart,
@@ -17,6 +21,7 @@ import type {
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Chip,
   Dialog,
@@ -37,8 +42,14 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
+  type Theme,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DetailPanel } from '../../components/DetailPanel';
+import { ShortcutHelp, WithShortcut } from '../../shortcuts/ShortcutHint';
+import { useShortcuts } from '../../shortcuts/ShortcutsContext';
+import { ProductSection, type ProductSectionHandle } from './ProductSection';
 import { formatMoney } from '../../api/catalog';
 import { collectionsApi } from '../../api/collections';
 import { ApiError } from '../../api/httpClient';
@@ -122,6 +133,13 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   const printer = usePrinter();
   const [printerOpen, setPrinterOpen] = useState(false);
   const [printFailure, setPrintFailure] = useState<{ saleId: string; ticket: number } | null>(null);
+  // Cantidad del próximo producto, escrita antes del atajo de cantidad (D-101).
+  const [pendingQuantity, setPendingQuantity] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const sectionRef = useRef<ProductSectionHandle | null>(null);
+  const wide = useMediaQuery((t: Theme) => t.breakpoints.up('md'));
 
   // Imprime el ticket que arma el backend. Si falla, la venta sigue confirmada y se puede
   // reimprimir (RF-108).
@@ -223,22 +241,46 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   }
 
   async function add(product: SaleSearchResult) {
-    // Sin una venta en curso, el primer producto empieza una.
-    let saleId = cart?.id ?? null;
-    if (saleId === null) {
-      try {
-        saleId = (await api.start()).id;
-      } catch (e: unknown) {
-        setError(errorMessage(e, 'No se pudo empezar la venta.'));
-        return;
-      }
-    }
-    const ok = await run(() => api.addItem(saleId, product.id, '1'), updated);
+    const quantity = pendingQuantity ?? '1';
+    // Sin una venta en curso, el primer producto la inicia, en una sola operación (RF-176).
+    const saleId = cart?.id ?? null;
+    const ok = await run(
+      () =>
+        saleId === null
+          ? api.start({ productoId: product.id, cantidad: quantity })
+          : api.addItem(saleId, product.id, quantity),
+      updated,
+    );
     if (ok) {
       setFound(null);
       setQuery('');
+      setPendingQuantity(null);
+      setProductsOpen(false);
       loaded.reload();
+      searchRef.current?.focus();
     }
+  }
+
+  function openPayment() {
+    if (!cart) return;
+    void run(
+      async () => ({ methods: await api.methods(), billing: await api.billing(cart.id) }),
+      ({ methods, billing }) => {
+        setDialogError(null);
+        setDialog({ kind: 'cobro', methods, billing });
+      },
+    );
+  }
+
+  function startEmpty() {
+    void run(
+      () => api.start(),
+      (created) => {
+        updated(created);
+        loaded.reload();
+        searchRef.current?.focus();
+      },
+    );
   }
 
   async function applyDiscount(form: DiscountForm, authorizationId: string | null) {
@@ -453,6 +495,79 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
   }, [api, offline]);
 
   const locked = cart !== null && (cart.traspaso !== null || cart.pagos.some(isLive));
+  const canPay =
+    cart !== null &&
+    !offline &&
+    cart.items.length > 0 &&
+    cart.traspaso === null &&
+    cart.estado !== 'pago_por_verificar';
+
+  // Atajos del POS (RF-181). Mientras hay un diálogo abierto, el diálogo maneja sus teclas.
+  const idle =
+    dialog === null &&
+    pin === null &&
+    receipt === null &&
+    ticketOf === null &&
+    !helpOpen &&
+    !printerOpen;
+  const cycle = (step: number) => {
+    if (sales.length < 2 || !cart) return;
+    const index = sales.findIndex((sale) => sale.id === cart.id);
+    const next = sales[(index + step + sales.length) % sales.length];
+    if (next) setSelected(next.id);
+  };
+  useShortcuts(
+    {
+      cantidad: () => {
+        const typed = query.trim().replace(',', '.');
+        if (/^\d+(\.\d{1,3})?$/.test(typed) && Number(typed) > 0) {
+          setPendingQuantity(typed);
+          setQuery('');
+          setFound(null);
+        } else {
+          setNotice('Escribí la cantidad y después el atajo de cantidad, antes del producto.');
+        }
+        searchRef.current?.focus();
+      },
+      cobrar: () => {
+        if (canPay) openPayment();
+      },
+      quitar_item: () => {
+        const last = cart?.items.at(-1);
+        if (cart && last && !locked && !offline) {
+          void run(() => api.removeItem(cart.id, last.id), updated);
+        }
+      },
+      descuento: () => {
+        if (cart && !locked) setDialog({ kind: 'descuento' });
+      },
+      cancelar: () => {
+        setPendingQuantity(null);
+        setQuery('');
+        setFound(null);
+        searchRef.current?.focus();
+      },
+      buscar: () => {
+        searchRef.current?.focus();
+      },
+      ayuda: () => {
+        setHelpOpen(true);
+      },
+      venta_anterior: () => {
+        cycle(-1);
+      },
+      venta_siguiente: () => {
+        cycle(1);
+      },
+      nueva_venta: () => {
+        if (!offline) startEmpty();
+      },
+      devolucion: () => {
+        if (!offline) setDialog({ kind: 'devolucion' });
+      },
+    },
+    idle,
+  );
 
   return (
     <Stack spacing={2}>
@@ -570,20 +685,8 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
             }}
           />
         ))}
-        <Button
-          variant="outlined"
-          disabled={offline}
-          onClick={() =>
-            void run(
-              () => api.start(),
-              (created) => {
-                updated(created);
-                loaded.reload();
-              },
-            )
-          }
-        >
-          Nueva venta
+        <Button variant="outlined" disabled={offline} aria-label="Nueva venta" onClick={startEmpty}>
+          <WithShortcut action="nueva_venta">Nueva venta</WithShortcut>
         </Button>
         <Button
           variant="outlined"
@@ -602,11 +705,22 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         <Button
           variant="outlined"
           disabled={offline}
+          aria-label="Devolución o anulación"
           onClick={() => {
             setDialog({ kind: 'devolucion' });
           }}
         >
-          Devolución o anulación
+          <WithShortcut action="devolucion">Devolución o anulación</WithShortcut>
+        </Button>
+        <Button
+          variant="text"
+          color="inherit"
+          aria-label="Ver los atajos"
+          onClick={() => {
+            setHelpOpen(true);
+          }}
+        >
+          <WithShortcut action="ayuda">Atajos</WithShortcut>
         </Button>
         <Button
           variant="text"
@@ -619,314 +733,377 @@ export function SalesPanel({ onChanged }: { onChanged: () => void }) {
         </Button>
       </Stack>
 
-      <Autocomplete<SaleSearchResult>
-        options={options}
-        disabled={offline}
-        filterOptions={(x) => x}
-        getOptionLabel={(p) => p.nombre}
-        getOptionDisabled={(p) => p.precio === null}
-        value={null}
-        inputValue={query}
-        onInputChange={(_, value, reason) => {
-          if (reason !== 'reset') setQuery(value);
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 3fr) minmax(280px, 2fr)' },
+          alignItems: 'start',
         }}
-        onChange={(_, product) => {
-          if (product) void add(product);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && searching) void submit();
-        }}
-        open={term !== ''}
-        autoHighlight
-        clearOnBlur={false}
-        blurOnSelect={false}
-        loading={searching}
-        loadingText="Buscando…"
-        noOptionsText="No se encontraron productos."
-        popupIcon={null}
-        renderOption={(props, p) => {
-          const { key, ...rest } = props;
-          return (
-            <li key={key} {...rest} style={{ minHeight: 56 }}>
-              <ListItemText
-                primary={`${p.nombre}${p.tipo === 'combo' ? ' (combo)' : ''}`}
-                secondary={
-                  p.precio === null
-                    ? 'Sin precio en la lista de la sucursal'
-                    : `${formatMoney(p.precio)} · disponible ${formatQuantity(p.disponible)}${p.codigoBarras ? ` · ${p.codigoBarras}` : ''}`
-                }
-              />
-            </li>
-          );
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Buscar por nombre o código" autoFocus />
-        )}
-      />
-
-      {cart && (
-        <Stack spacing={1}>
-          {cart.traspaso && (
-            <Alert severity="warning">
-              Traspaso pendiente a {cart.traspaso.receptor}: no se puede modificar hasta que lo
-              responda.
-            </Alert>
-          )}
-          <Table size="small" aria-label="Carrito">
-            <TableHead>
-              <TableRow>
-                <TableCell>Producto</TableCell>
-                <TableCell align="center">Cantidad</TableCell>
-                <TableCell align="right">Precio</TableCell>
-                <TableCell align="right">Importe</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {cart.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    {item.nombre}
-                    {item.promocion && (
-                      <Chip
-                        size="small"
-                        color="success"
-                        label={`${item.promocion.nombre} −${formatMoney(item.descuentoPromocion)}`}
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <IconButton
-                        aria-label={`Restar ${item.nombre}`}
-                        disabled={locked || offline || Number(item.cantidad) <= 1}
-                        onClick={() =>
-                          void run(
-                            () =>
-                              api.setQuantity(cart.id, item.id, String(Number(item.cantidad) - 1)),
-                            updated,
-                          )
-                        }
-                      >
-                        −
-                      </IconButton>
-                      <span>{formatQuantity(item.cantidad)}</span>
-                      <IconButton
-                        aria-label={`Sumar ${item.nombre}`}
-                        disabled={locked || offline}
-                        onClick={() =>
-                          void run(
-                            () =>
-                              api.setQuantity(cart.id, item.id, String(Number(item.cantidad) + 1)),
-                            updated,
-                          )
-                        }
-                      >
-                        +
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                  <TableCell align="right">{formatMoney(item.precioUnitario)}</TableCell>
-                  <TableCell align="right">{formatMoney(item.importeFinal)}</TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      color="error"
-                      disabled={locked}
-                      onClick={() => void run(() => api.removeItem(cart.id, item.id), updated)}
-                    >
-                      Quitar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {cart.items.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              Buscá un producto para agregarlo a la venta.
+      >
+        <Stack spacing={2} sx={{ minWidth: 0 }}>
+          {pendingQuantity !== null && (
+            <Typography data-testid="cantidad-pendiente">
+              Próximo producto: <strong>{formatQuantity(pendingQuantity)}</strong> unidades
             </Typography>
           )}
-
-          <Stack spacing={0.5} sx={{ alignItems: 'flex-end' }} aria-label="Totales">
-            <Typography>Subtotal: {formatMoney(cart.subtotal)}</Typography>
-            {Number(cart.descuentoPromociones) > 0 && (
-              <Typography color="success.main">
-                Promociones: −{formatMoney(cart.descuentoPromociones)}
-              </Typography>
-            )}
-            {cart.descuento && (
-              <Typography>
-                Descuento{cart.descuento.autorizado ? ' autorizado' : ''}: −
-                {formatMoney(cart.descuentoManual)}
-              </Typography>
-            )}
-            <Typography variant="h5">Total: {formatMoney(cart.total)}</Typography>
-          </Stack>
-
-          {cart.estado === 'pago_por_verificar' && (
-            <AttentionCard
-              severity="advertencia"
-              title="Hay un pago por verificar"
-              detail="La venta espera el resultado de la pasarela. Si ya sabés si se cobró, indicalo en el pago."
-            />
+          {!wide && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setProductsOpen(true);
+              }}
+            >
+              Elegir de la lista de productos
+            </Button>
           )}
-          {cart.pagos.length > 0 && (
-            <List dense aria-label="Pagos de la venta">
-              {cart.pagos.map((p) => (
-                <ListItem
-                  key={p.id}
-                  secondaryAction={
-                    <Stack direction="row" spacing={1}>
-                      {p.estado === 'aprobado' && p.tipo === 'electronico' && (
+          <Autocomplete<SaleSearchResult>
+            options={options}
+            disabled={offline}
+            filterOptions={(x) => x}
+            getOptionLabel={(p) => p.nombre}
+            getOptionDisabled={(p) => p.precio === null}
+            value={null}
+            inputValue={query}
+            onInputChange={(_, value, reason) => {
+              if (reason !== 'reset') setQuery(value);
+            }}
+            onChange={(_, product) => {
+              if (product) void add(product);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searching) void submit();
+              // Con la búsqueda vacía, la flecha baja a la sección de productos (RF-180).
+              if (e.key === 'ArrowDown' && term === '' && wide) {
+                e.preventDefault();
+                sectionRef.current?.focus();
+              }
+            }}
+            open={term !== ''}
+            autoHighlight
+            clearOnBlur={false}
+            blurOnSelect={false}
+            loading={searching}
+            loadingText="Buscando…"
+            noOptionsText="No se encontraron productos."
+            popupIcon={null}
+            renderOption={(props, p) => {
+              const { key, ...rest } = props;
+              return (
+                <li key={key} {...rest} style={{ minHeight: 56 }}>
+                  <ListItemText
+                    primary={`${p.nombre}${p.tipo === 'combo' ? ' (combo)' : ''}`}
+                    secondary={
+                      p.precio === null
+                        ? 'Sin precio en la lista de la sucursal'
+                        : `${formatMoney(p.precio)} · disponible ${formatQuantity(p.disponible)}${p.codigoBarras ? ` · ${p.codigoBarras}` : ''}`
+                    }
+                  />
+                </li>
+              );
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Buscar por nombre o código"
+                autoFocus
+                inputRef={searchRef}
+                data-atajos="datos"
+              />
+            )}
+          />
+
+          {cart && (
+            <Stack spacing={1}>
+              {cart.traspaso && (
+                <Alert severity="warning">
+                  Traspaso pendiente a {cart.traspaso.receptor}: no se puede modificar hasta que lo
+                  responda.
+                </Alert>
+              )}
+              <Table size="small" aria-label="Carrito">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Producto</TableCell>
+                    <TableCell align="center">Cantidad</TableCell>
+                    <TableCell align="right">Precio</TableCell>
+                    <TableCell align="right">Importe</TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {cart.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        {item.nombre}
+                        {item.promocion && (
+                          <Chip
+                            size="small"
+                            color="success"
+                            label={`${item.promocion.nombre} −${formatMoney(item.descuentoPromocion)}`}
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ justifyContent: 'center', alignItems: 'center' }}
+                        >
+                          <IconButton
+                            aria-label={`Restar ${item.nombre}`}
+                            disabled={locked || offline || Number(item.cantidad) <= 1}
+                            onClick={() =>
+                              void run(
+                                () =>
+                                  api.setQuantity(
+                                    cart.id,
+                                    item.id,
+                                    String(Number(item.cantidad) - 1),
+                                  ),
+                                updated,
+                              )
+                            }
+                          >
+                            −
+                          </IconButton>
+                          <span>{formatQuantity(item.cantidad)}</span>
+                          <IconButton
+                            aria-label={`Sumar ${item.nombre}`}
+                            disabled={locked || offline}
+                            onClick={() =>
+                              void run(
+                                () =>
+                                  api.setQuantity(
+                                    cart.id,
+                                    item.id,
+                                    String(Number(item.cantidad) + 1),
+                                  ),
+                                updated,
+                              )
+                            }
+                          >
+                            +
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="right">{formatMoney(item.precioUnitario)}</TableCell>
+                      <TableCell align="right">{formatMoney(item.importeFinal)}</TableCell>
+                      <TableCell align="right">
                         <Button
                           size="small"
-                          onClick={() =>
-                            void run(() => api.reverse(cart.id, p.id), updated).then(() => {
-                              loaded.reload();
-                            })
-                          }
+                          color="error"
+                          disabled={locked}
+                          onClick={() => void run(() => api.removeItem(cart.id, item.id), updated)}
                         >
-                          Revertir
+                          Quitar
                         </Button>
-                      )}
-                      {p.resolucionManual && (
-                        <>
-                          <Button
-                            size="small"
-                            onClick={() => {
-                              askResolution(cart, p, 'aprobado');
-                            }}
-                          >
-                            Se cobró
-                          </Button>
-                          <Button
-                            size="small"
-                            color="inherit"
-                            onClick={() => {
-                              askResolution(cart, p, 'rechazado');
-                            }}
-                          >
-                            No se cobró
-                          </Button>
-                        </>
-                      )}
-                    </Stack>
-                  }
-                >
-                  <ListItemText
-                    primary={`${p.metodo}: ${formatMoney(p.fraccion)}`}
-                    secondary={
-                      <Status
-                        severity={PAYMENT_SEVERITY[p.estado]}
-                        label={PAYMENT_STATES[p.estado]}
-                      />
-                    }
-                    slotProps={{ secondary: { component: 'div' } }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-
-          {cart.cliente ? (
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Chip
-                label={`Cliente: ${cart.cliente.razonSocial}`}
-                onDelete={() => void run(() => api.setCustomer(cart.id, null), updated)}
-              />
-              {cart.cliente.cuentaCorriente && (
-                <Typography variant="caption" color="text.secondary">
-                  Disponible {formatMoney(cart.cliente.disponible)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {cart.items.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  Buscá un producto para agregarlo a la venta.
                 </Typography>
               )}
-            </Stack>
-          ) : (
-            <CustomerPicker
-              search={api.customers}
-              label="Cliente de la venta (opcional)"
-              onPick={(c) => void run(() => api.setCustomer(cart.id, c.id), updated)}
-            />
-          )}
 
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{ justifyContent: 'flex-end' }}
-          >
-            <Button
-              size="large"
-              disabled={locked}
-              onClick={() => {
-                setDialog({ kind: 'descuento' });
-              }}
-            >
-              Descuento
-            </Button>
-            <Button
-              size="large"
-              disabled={locked}
-              onClick={() =>
-                void run(
-                  () => api.transferTargets(cart.id),
-                  (targets) => {
-                    setDialog({ kind: 'traspaso', targets });
-                  },
-                )
-              }
-            >
-              Traspasar
-            </Button>
-            <Button
-              size="large"
-              color="error"
-              disabled={locked}
-              onClick={() => {
-                if (window.confirm('¿Descartar la venta? Se liberan las reservas.')) {
-                  void run(
-                    () => api.discard(cart.id),
-                    () => {
-                      setNotice('Venta descartada.');
-                      setSelected(null);
-                      refresh();
-                    },
-                  );
-                }
-              }}
-            >
-              Descartar
-            </Button>
-            <Button
-              size="large"
-              variant="contained"
-              disabled={
-                offline ||
-                cart.items.length === 0 ||
-                cart.traspaso !== null ||
-                cart.estado === 'pago_por_verificar'
-              }
-              onClick={() =>
-                void run(
-                  async () => ({
-                    methods: await api.methods(),
-                    billing: await api.billing(cart.id),
-                  }),
-                  ({ methods, billing }) => {
-                    setDialogError(null);
-                    setDialog({ kind: 'cobro', methods, billing });
-                  },
-                )
-              }
-            >
-              Cobrar
-            </Button>
-          </Stack>
+              <Stack spacing={0.5} sx={{ alignItems: 'flex-end' }} aria-label="Totales">
+                <Typography>Subtotal: {formatMoney(cart.subtotal)}</Typography>
+                {Number(cart.descuentoPromociones) > 0 && (
+                  <Typography color="success.main">
+                    Promociones: −{formatMoney(cart.descuentoPromociones)}
+                  </Typography>
+                )}
+                {cart.descuento && (
+                  <Typography>
+                    Descuento{cart.descuento.autorizado ? ' autorizado' : ''}: −
+                    {formatMoney(cart.descuentoManual)}
+                  </Typography>
+                )}
+                <Typography variant="h5">Total: {formatMoney(cart.total)}</Typography>
+              </Stack>
+
+              {cart.estado === 'pago_por_verificar' && (
+                <AttentionCard
+                  severity="advertencia"
+                  title="Hay un pago por verificar"
+                  detail="La venta espera el resultado de la pasarela. Si ya sabés si se cobró, indicalo en el pago."
+                />
+              )}
+              {cart.pagos.length > 0 && (
+                <List dense aria-label="Pagos de la venta">
+                  {cart.pagos.map((p) => (
+                    <ListItem
+                      key={p.id}
+                      secondaryAction={
+                        <Stack direction="row" spacing={1}>
+                          {p.estado === 'aprobado' && p.tipo === 'electronico' && (
+                            <Button
+                              size="small"
+                              onClick={() =>
+                                void run(() => api.reverse(cart.id, p.id), updated).then(() => {
+                                  loaded.reload();
+                                })
+                              }
+                            >
+                              Revertir
+                            </Button>
+                          )}
+                          {p.resolucionManual && (
+                            <>
+                              <Button
+                                size="small"
+                                onClick={() => {
+                                  askResolution(cart, p, 'aprobado');
+                                }}
+                              >
+                                Se cobró
+                              </Button>
+                              <Button
+                                size="small"
+                                color="inherit"
+                                onClick={() => {
+                                  askResolution(cart, p, 'rechazado');
+                                }}
+                              >
+                                No se cobró
+                              </Button>
+                            </>
+                          )}
+                        </Stack>
+                      }
+                    >
+                      <ListItemText
+                        primary={`${p.metodo}: ${formatMoney(p.fraccion)}`}
+                        secondary={
+                          <Status
+                            severity={PAYMENT_SEVERITY[p.estado]}
+                            label={PAYMENT_STATES[p.estado]}
+                          />
+                        }
+                        slotProps={{ secondary: { component: 'div' } }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+
+              {cart.cliente ? (
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Chip
+                    label={`Cliente: ${cart.cliente.razonSocial}`}
+                    onDelete={() => void run(() => api.setCustomer(cart.id, null), updated)}
+                  />
+                  {cart.cliente.cuentaCorriente && (
+                    <Typography variant="caption" color="text.secondary">
+                      Disponible {formatMoney(cart.cliente.disponible)}
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <CustomerPicker
+                  search={api.customers}
+                  label="Cliente de la venta (opcional)"
+                  onPick={(c) => void run(() => api.setCustomer(cart.id, c.id), updated)}
+                />
+              )}
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ justifyContent: 'flex-end' }}
+              >
+                <Button
+                  size="large"
+                  disabled={locked}
+                  aria-label="Descuento"
+                  onClick={() => {
+                    setDialog({ kind: 'descuento' });
+                  }}
+                >
+                  <WithShortcut action="descuento">Descuento</WithShortcut>
+                </Button>
+                <Button
+                  size="large"
+                  disabled={locked}
+                  onClick={() =>
+                    void run(
+                      () => api.transferTargets(cart.id),
+                      (targets) => {
+                        setDialog({ kind: 'traspaso', targets });
+                      },
+                    )
+                  }
+                >
+                  Traspasar
+                </Button>
+                <Button
+                  size="large"
+                  color="error"
+                  disabled={locked}
+                  onClick={() => {
+                    if (window.confirm('¿Descartar la venta? Se liberan las reservas.')) {
+                      void run(
+                        () => api.discard(cart.id),
+                        () => {
+                          setNotice('Venta descartada.');
+                          setSelected(null);
+                          refresh();
+                        },
+                      );
+                    }
+                  }}
+                >
+                  Descartar
+                </Button>
+                <Button
+                  size="large"
+                  variant="contained"
+                  disabled={!canPay}
+                  aria-label="Cobrar"
+                  onClick={openPayment}
+                >
+                  <WithShortcut action="cobrar">Cobrar</WithShortcut>
+                </Button>
+              </Stack>
+            </Stack>
+          )}
         </Stack>
+        {wide && (
+          <ProductSection
+            ref={sectionRef}
+            disabled={offline}
+            onPick={(p) => void add(p)}
+            onLeave={() => searchRef.current?.focus()}
+          />
+        )}
+      </Box>
+      {!wide && (
+        <DetailPanel
+          title="Productos"
+          open={productsOpen}
+          onClose={() => {
+            setProductsOpen(false);
+          }}
+        >
+          <ProductSection
+            ref={sectionRef}
+            disabled={offline}
+            onPick={(p) => void add(p)}
+            onLeave={() => undefined}
+          />
+        </DetailPanel>
+      )}
+      {helpOpen && (
+        <ShortcutHelp
+          onClose={() => {
+            setHelpOpen(false);
+            searchRef.current?.focus();
+          }}
+        />
       )}
 
       {dialog?.kind === 'descuento' && cart && (

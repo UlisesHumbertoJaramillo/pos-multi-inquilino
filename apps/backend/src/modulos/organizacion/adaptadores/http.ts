@@ -4,6 +4,19 @@ import { securityContextOf } from '../../../compartido/adaptadores/http/authenti
 import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import { parseInput } from '../../../compartido/adaptadores/http/validation.js';
 import { BILLING_POLICIES, type TenantParameters } from '../dominio/parameters.js';
+import {
+  ASSIGNABLE_KEYS,
+  DEFAULT_SHORTCUTS,
+  SHORTCUT_ACTIONS,
+  SHORTCUT_NAMES,
+} from '../dominio/shortcuts.js';
+import type {
+  GetPosShortcuts,
+  GetShortcutSettings,
+  ResetShortcuts,
+  ShortcutSettings,
+  UpdateShortcuts,
+} from '../aplicacion/shortcuts.js';
 import { PAYMENT_TYPES, type PaymentMethod } from '../dominio/payment-methods.js';
 import type { Branch, Register } from '../dominio/structure.js';
 import type { TenantUser } from '../aplicacion/ports.js';
@@ -50,6 +63,10 @@ export interface OrganizationUseCases {
   createPaymentMethod: CreatePaymentMethod;
   updatePaymentMethod: UpdatePaymentMethod;
   deactivatePaymentMethod: DeactivatePaymentMethod;
+  getPosShortcuts: GetPosShortcuts;
+  getShortcutSettings: GetShortcutSettings;
+  updateShortcuts: UpdateShortcuts;
+  resetShortcuts: ResetShortcuts;
 }
 
 const idParams = z.object({ id: z.uuid() });
@@ -141,6 +158,22 @@ const paymentDto = (m: PaymentMethod) => ({
 
 const ORG = 'organizacion.gestionar' as const;
 const SETTINGS = 'parametros.gestionar' as const;
+
+const shortcutsBody = z
+  .object({ atajos: z.record(z.string().max(40), z.string().max(40).nullable()) })
+  .strict();
+
+// Atajos con su nombre, su tecla y la de por defecto, más las teclas que se pueden elegir.
+const shortcutsDto = (s: ShortcutSettings) => ({
+  porDefecto: s.isDefault,
+  atajos: SHORTCUT_ACTIONS.map((action) => ({
+    accion: action,
+    nombre: SHORTCUT_NAMES[action],
+    tecla: s.map[action],
+    teclaPorDefecto: DEFAULT_SHORTCUTS[action],
+  })),
+  teclasPermitidas: [...ASSIGNABLE_KEYS],
+});
 
 export function organizationRoutes(useCases: OrganizationUseCases): HttpRoute[] {
   return [
@@ -370,6 +403,42 @@ export function organizationRoutes(useCases: OrganizationUseCases): HttpRoute[] 
         const { id } = parseInput(idParams, req.params);
         await useCases.deactivatePaymentMethod.execute(securityContextOf(res), id);
         res.status(204).end();
+      },
+    },
+    {
+      // Los atajos con que opera el POS: los consulta el VO (RF-181).
+      method: 'get',
+      path: '/atajos',
+      action: 'ventas.operar',
+      handler: async (_req, res) => {
+        res.json(shortcutsDto(await useCases.getPosShortcuts.execute(securityContextOf(res))));
+      },
+    },
+    {
+      method: 'get',
+      path: '/organizacion/atajos',
+      action: SETTINGS,
+      handler: async (_req, res) => {
+        res.json(shortcutsDto(await useCases.getShortcutSettings.execute(securityContextOf(res))));
+      },
+    },
+    {
+      method: 'put',
+      path: '/organizacion/atajos',
+      action: SETTINGS,
+      handler: async (req, res) => {
+        const body = parseInput(shortcutsBody, req.body);
+        res.json(
+          shortcutsDto(await useCases.updateShortcuts.execute(securityContextOf(res), body.atajos)),
+        );
+      },
+    },
+    {
+      method: 'post',
+      path: '/organizacion/atajos/restablecimiento',
+      action: SETTINGS,
+      handler: async (_req, res) => {
+        res.json(shortcutsDto(await useCases.resetShortcuts.execute(securityContextOf(res))));
       },
     },
   ];

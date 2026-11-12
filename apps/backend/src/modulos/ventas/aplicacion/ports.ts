@@ -156,9 +156,17 @@ export interface SearchResult extends CatalogEntry {
   available: string;
 }
 
+export interface RankedProduct extends SearchResult {
+  categoryName: string | null;
+  soldUnits: string;
+}
+
 export interface SalesCatalog {
   product(tenantId: string, branchId: string, productId: string): Promise<CatalogEntry | undefined>;
   search(tenantId: string, branchId: string, query: string): Promise<SearchResult[]>;
+  // Productos activos de la sucursal con su categoría y lo vendido desde una fecha, de más a menos
+  // vendido y después por nombre (RF-179, D-95).
+  browse(tenantId: string, branchId: string, since: Date): Promise<RankedProduct[]>;
   available(tenantId: string, branchId: string, productId: string): Promise<string>;
   branchExists(tenantId: string, branchId: string): Promise<boolean>;
 }

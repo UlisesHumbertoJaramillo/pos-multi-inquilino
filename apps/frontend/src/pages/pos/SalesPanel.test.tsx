@@ -521,11 +521,12 @@ describe('[RF-083] [RF-085] [RF-081] devolución en el POS', () => {
   });
 });
 
-describe('[RF-054] [RF-060] [RF-050] carrito del POS', () => {
+describe('[RF-054] [RF-060] [RF-050] [RF-176] carrito del POS', () => {
   it('el VO arma un carrito por búsqueda, ve la promoción resaltada y cobra en efectivo', async () => {
     const own: OwnShift = { turno: SHIFT, movimientos: [] };
     const overview: SalesOverview = { ventas: [], traspasosRecibidos: [] };
     let paid: Record<string, unknown> | undefined;
+    let started: unknown;
     const withWater: Cart = {
       ...emptyCart(),
       items: [
@@ -556,13 +557,11 @@ describe('[RF-054] [RF-060] [RF-050] carrito del POS', () => {
       'GET /cuenta-corriente/cobros': () => ({ status: 200, body: [] }),
       'GET /ventas/metodos-pago': () => ({ status: 200, body: [EFECTIVO] }),
       'GET /ventas/venta1/facturacion': () => ({ status: 200, body: NO_BILLING }),
-      'POST /ventas': () => {
-        overview.ventas = [emptyCart()];
-        return { status: 201, body: emptyCart() };
-      },
-      'POST /ventas/venta1/items': () => {
+      // La venta nace con su primer producto, en una sola operación.
+      'POST /ventas': (body) => {
+        started = body;
         overview.ventas = [withWater];
-        return { status: 200, body: withWater };
+        return { status: 201, body: withWater };
       },
       'POST /ventas/venta1/cobro': (body) => {
         paid = body as Record<string, unknown>;
@@ -591,6 +590,7 @@ describe('[RF-054] [RF-060] [RF-050] carrito del POS', () => {
     await user.click(await within(results).findByText('Agua mineral'));
 
     const cart = await screen.findByRole('table', { name: 'Carrito' });
+    expect(started).toEqual({ productoId: 'agua', cantidad: '1' });
     expect(await within(cart).findByText('2x1 en agua −$ 300,00')).toBeInTheDocument();
     expect(screen.getByText('Total: $ 300,00')).toBeInTheDocument();
 
@@ -632,5 +632,118 @@ describe('[RF-054] [RF-060] [RF-050] carrito del POS', () => {
     await vi.waitFor(() => {
       expect(added).toEqual({ productoId: 'agua', cantidad: '1' });
     });
+  });
+});
+
+const SHORTCUTS = {
+  porDefecto: true,
+  atajos: [
+    ['confirmar', 'Enter'],
+    ['cobrar', 'NumpadAdd'],
+    ['quitar_item', 'NumpadSubtract'],
+    ['cantidad', 'NumpadMultiply'],
+    ['descuento', 'NumpadDivide'],
+    ['cancelar', 'Escape'],
+    ['buscar', 'Home'],
+    ['ayuda', 'End'],
+    ['venta_anterior', 'PageUp'],
+    ['venta_siguiente', 'PageDown'],
+    ['nueva_venta', 'Insert'],
+    ['devolucion', 'F9'],
+    ['corte_x', 'F8'],
+  ].map(([accion, tecla]) => ({ accion, nombre: accion, tecla, teclaPorDefecto: tecla })),
+  teclasPermitidas: [],
+};
+
+describe('[RF-175] [RF-181] [RF-183] POS con el teclado', () => {
+  function posWithShortcuts(handlers: Parameters<typeof mockApi>[0]) {
+    const own: OwnShift = { turno: SHIFT, movimientos: [] };
+    sessionStorage.setItem('pos.tokenRenovacion', SESSION.tokenRenovacion);
+    mockApi({
+      'POST /auth/renovar': () => ({ status: 200, body: SESSION }),
+      'GET /atajos': () => ({ status: 200, body: SHORTCUTS }),
+      'GET /caja/turno': () => ({ status: 200, body: own }),
+      'GET /cuenta-corriente/cobros': () => ({ status: 200, body: [] }),
+      'GET /ventas/productos': () => ({ status: 200, body: [AGUA] }),
+      ...handlers,
+    });
+    renderApp('/pos');
+  }
+
+  it('la búsqueda queda lista sin clics, y la cantidad se escribe antes con *', async () => {
+    let started: unknown;
+    posWithShortcuts({
+      'GET /ventas': () => ({ status: 200, body: { ventas: [], traspasosRecibidos: [] } }),
+      'POST /ventas': (body) => {
+        started = body;
+        return { status: 201, body: emptyCart() };
+      },
+    });
+    const user = userEvent.setup();
+    const search = await screen.findByLabelText('Buscar por nombre o código');
+    expect(search).toHaveFocus();
+
+    await user.keyboard('3');
+    fireEvent.keyDown(search, { code: 'NumpadMultiply', key: '*' });
+    expect(await screen.findByTestId('cantidad-pendiente')).toHaveTextContent('3 unidades');
+    expect(search).toHaveValue('');
+
+    await user.type(search, 'agu');
+    await user.click(await within(await screen.findByRole('listbox')).findByText('Agua mineral'));
+    await vi.waitFor(() => {
+      expect(started).toEqual({ productoId: 'agua', cantidad: '3' });
+    });
+  });
+
+  it('cada acción muestra su atajo, y + abre el cobro', async () => {
+    const sale = saleOf({});
+    posWithShortcuts({
+      'GET /ventas': () => ({
+        status: 200,
+        body: { ventas: [sale], traspasosRecibidos: [] } satisfies SalesOverview,
+      }),
+      'GET /ventas/metodos-pago': () => ({ status: 200, body: [EFECTIVO] }),
+      'GET /ventas/venta1/facturacion': () => ({ status: 200, body: NO_BILLING }),
+    });
+    const pay = await screen.findByRole('button', { name: 'Cobrar' });
+    expect(pay).toHaveTextContent('+');
+    expect(screen.getByRole('button', { name: 'Devolución o anulación' })).toHaveTextContent('F9');
+
+    fireEvent.keyDown(screen.getByLabelText('Buscar por nombre o código'), {
+      code: 'NumpadAdd',
+      key: '+',
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar la venta' });
+    // El efectivo arranca con el foco: Enter confirma una venta en efectivo.
+    expect(within(dialog).getByLabelText('Efectivo')).toHaveFocus();
+  });
+
+  it('Fin muestra la ayuda con los atajos del comercio', async () => {
+    posWithShortcuts({
+      'GET /ventas': () => ({ status: 200, body: { ventas: [], traspasosRecibidos: [] } }),
+    });
+    const search = await screen.findByLabelText('Buscar por nombre o código');
+    await vi.waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Ver los atajos' })).toHaveTextContent('Fin');
+    });
+    fireEvent.keyDown(search, { code: 'End', key: 'End' });
+    const help = await screen.findByRole('dialog', { name: 'Atajos del teclado' });
+    expect(within(help).getByText('cobrar')).toBeInTheDocument();
+  });
+
+  it('[RF-184] en un campo de texto libre las teclas no son atajos', async () => {
+    posWithShortcuts({
+      'GET /ventas': () => ({
+        status: 200,
+        body: { ventas: [saleOf({})], traspasosRecibidos: [] },
+      }),
+    });
+    const customer = await screen.findByLabelText('Cliente de la venta (opcional)');
+    await vi.waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Ver los atajos' })).toHaveTextContent('Fin');
+    });
+    customer.focus();
+    fireEvent.keyDown(customer, { code: 'End', key: 'End' });
+    expect(screen.queryByRole('dialog', { name: 'Atajos del teclado' })).toBeNull();
   });
 });

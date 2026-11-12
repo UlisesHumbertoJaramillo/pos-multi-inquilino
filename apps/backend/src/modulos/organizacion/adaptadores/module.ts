@@ -20,6 +20,12 @@ import {
   UpdatePaymentMethod,
 } from '../aplicacion/settings.js';
 import {
+  GetPosShortcuts,
+  GetShortcutSettings,
+  ResetShortcuts,
+  UpdateShortcuts,
+} from '../aplicacion/shortcuts.js';
+import {
   CreateBranch,
   CreateRegister,
   DeactivateBranch,
@@ -40,6 +46,7 @@ import {
   PgParametersRepository,
   PgPaymentMethodRepository,
   PgRegisterRepository,
+  PgShortcutRepository,
 } from './postgres.js';
 
 export interface OrganizationModuleDependencies {
@@ -91,6 +98,8 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     ids: deps.ids,
   };
 
+  const shortcutDeps = { ...common, shortcuts: new PgShortcutRepository(deps.db) };
+
   const useCases: OrganizationUseCases = {
     getStructure: new GetStructure(structureDeps),
     createBranch: new CreateBranch(structureDeps),
@@ -109,6 +118,10 @@ export function createOrganizationModule(deps: OrganizationModuleDependencies): 
     createPaymentMethod: new CreatePaymentMethod(settingsDeps),
     updatePaymentMethod: new UpdatePaymentMethod(settingsDeps),
     deactivatePaymentMethod: new DeactivatePaymentMethod(settingsDeps),
+    getPosShortcuts: new GetPosShortcuts(shortcutDeps),
+    getShortcutSettings: new GetShortcutSettings(shortcutDeps),
+    updateShortcuts: new UpdateShortcuts(shortcutDeps),
+    resetShortcuts: new ResetShortcuts(shortcutDeps),
   };
   return { routes: organizationRoutes(useCases), useCases };
 }

@@ -31,6 +31,7 @@ import { VouchersPage } from './pages/fiscal/VouchersPage';
 import { AuditPage } from './pages/reports/AuditPage';
 import { DailyReportPage } from './pages/reports/DailyReportPage';
 import { DashboardPage } from './pages/reports/DashboardPage';
+import { ShortcutsPage } from './pages/organization/ShortcutsPage';
 import { SettingsPage } from './pages/organization/SettingsPage';
 import { StructurePage } from './pages/organization/StructurePage';
 import { UsersPage } from './pages/organization/UsersPage';
@@ -74,6 +75,7 @@ export const routes: RouteObject[] = [
   { path: '/admin/estructura', element: acOnly(<StructurePage />) },
   { path: '/admin/usuarios', element: acOnly(<UsersPage />) },
   { path: '/admin/parametros', element: acOnly(<SettingsPage />) },
+  { path: '/admin/atajos', element: acOnly(<ShortcutsPage />) },
   { path: '/admin/catalogo', element: acOnly(<CatalogPage />) },
   { path: '/admin/combos', element: acOnly(<CombosPage />) },
   { path: '/admin/listas', element: acOnly(<PriceListsPage />) },

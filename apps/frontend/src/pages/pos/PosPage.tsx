@@ -1,7 +1,8 @@
 // Punto de venta del VO: apertura de turno, ingresos y retiros con PIN, Corte X y Corte Z ciegos
 // (T-141, T-142; RF-089, RF-091 a RF-095), y las ventas del turno (SalesPanel). Esta pantalla nunca
 // recibe el saldo teórico ni el resultado del arqueo: el backend no los envía a un VO (RF-112,
-// D-80).
+// D-80). Al entrar, si hay una sola caja libre se propone abrirla (RF-177); el Corte X tiene su
+// atajo, y los movimientos del turno van en un segundo nivel (RF-192).
 import type { CashCount } from '@pos/contracts';
 import {
   Alert,
@@ -30,6 +31,9 @@ import { errorMessage, PageSection } from '../../components/PageSection';
 import { PinDialog, type PinRequest } from '../../components/PinDialog';
 import { useLoader } from '../../hooks/useLoader';
 import { AmountDialog, type AmountRequest, CountResultDialog } from '../cash/CashDialogs';
+import { DetailPanel } from '../../components/DetailPanel';
+import { WithShortcut } from '../../shortcuts/ShortcutHint';
+import { useShortcuts } from '../../shortcuts/ShortcutsContext';
 import { SalesPanel } from './SalesPanel';
 
 type Operation =
@@ -77,7 +81,8 @@ export function PosPage() {
   const branches = user?.sucursales ?? [];
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const branchId = selectedBranch ?? branches[0] ?? null;
-  const [operation, setOperation] = useState<Operation | null>(null);
+  const [chosen, setOperation] = useState<Operation | null>(null);
+  const [proposalDismissed, setProposalDismissed] = useState(false);
   const [pin, setPin] = useState<(PinRequest & { amount: string; reason: string }) | null>(null);
   const [result, setResult] = useState<{ title: string; count: CashCount } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +96,31 @@ export function PosPage() {
   }, [api, branchId]);
   const loaded = useLoader(fetchData, 'No se pudo cargar la caja.');
   const shift = loaded.data?.own.turno ?? null;
+  const [movementsOpen, setMovementsOpen] = useState(false);
+
+  // Una sola caja libre en la sucursal: se propone abrirla y solo se pide el saldo (RF-177). Se
+  // propone una vez; si el VO cancela, elige él.
+  const free =
+    shift || !loaded.data
+      ? []
+      : loaded.data.registers.filter((r) => !r.turnoAbierto && !r.requiereCorteZ);
+  const only = free.length === 1 ? free[0] : undefined;
+  const proposal: Operation | null =
+    !proposalDismissed && only ? { kind: 'abrir', registerId: only.id, name: only.nombre } : null;
+  const operation = chosen ?? proposal;
+
+  useShortcuts(
+    {
+      corte_x: () => {
+        if (shift) setOperation({ kind: 'corte_x' });
+      },
+    },
+    operation === null && pin === null && result === null,
+  );
 
   function close() {
     setOperation(null);
+    setProposalDismissed(true);
     setDialogError(null);
   }
 
@@ -182,7 +209,7 @@ export function PosPage() {
             >
               {branches.map((id) => (
                 <MenuItem key={id} value={id}>
-                  {id}
+                  {user?.detalleSucursales.find((b) => b.id === id)?.nombre ?? id}
                 </MenuItem>
               ))}
             </TextField>
@@ -200,13 +227,12 @@ export function PosPage() {
               <Typography variant="h6">{shift.caja}</Typography>
               <Status severity="correcta" label="Turno abierto" />
               <Typography variant="body2" color="text.secondary">
-                Jornada del {new Date(`${shift.fechaJornada}T12:00:00`).toLocaleDateString('es-AR')}{' '}
-                · desde las{' '}
+                Desde las{' '}
                 {new Date(shift.abiertoEn).toLocaleTimeString('es-AR', {
                   hour: '2-digit',
                   minute: '2-digit',
-                })}{' '}
-                · saldo inicial {formatMoney(shift.saldoInicial)}
+                })}
+                , con {formatMoney(shift.saldoInicial)} de saldo inicial
               </Typography>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -229,17 +255,36 @@ export function PosPage() {
                 Retiro
               </Button>
               <Button
+                variant="outlined"
+                size="large"
+                onClick={() => {
+                  setMovementsOpen(true);
+                }}
+              >
+                Movimientos del turno
+              </Button>
+              <Button
                 variant="contained"
                 size="large"
+                aria-label="Corte X"
                 onClick={() => {
                   setOperation({ kind: 'corte_x' });
                 }}
               >
-                Corte X
+                <WithShortcut action="corte_x">Corte X</WithShortcut>
               </Button>
             </Stack>
             <SalesPanel onChanged={loaded.reload} />
-            <Typography variant="subtitle1">Movimientos de caja</Typography>
+          </Stack>
+        ) : null}
+        <DetailPanel
+          title="Movimientos del turno"
+          open={movementsOpen}
+          onClose={() => {
+            setMovementsOpen(false);
+          }}
+        >
+          <Stack spacing={1}>
             <Table size="small" aria-label="Movimientos del turno">
               <TableHead>
                 <TableRow>
@@ -271,7 +316,8 @@ export function PosPage() {
               </Typography>
             )}
           </Stack>
-        ) : (
+        </DetailPanel>
+        {shift ? null : (
           <>
             <Typography variant="body2" color="text.secondary">
               Elegí una caja para abrir tu turno.

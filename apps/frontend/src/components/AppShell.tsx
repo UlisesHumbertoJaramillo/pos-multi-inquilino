@@ -34,7 +34,9 @@ import { homeFor, navigationFor, ROLE_NAMES } from '../navigation';
 import { RealtimeProvider, useRealtime } from '../realtime/RealtimeContext';
 import { glassSurface, pageBackground } from '../theme';
 import { AlertIndicator, AlertsProvider, CriticalAlertNotice } from './AlertCenter';
+import { ShortcutsProvider, useDialogConfirm } from '../shortcuts/ShortcutsContext';
 import { ColorModeToggle } from './ColorModeToggle';
+import { QuickNav } from './QuickNav';
 import { Status } from './Status';
 
 export function AppShell({
@@ -47,12 +49,20 @@ export function AppShell({
 }) {
   const { user } = useAuth();
   const role = user?.rolActivo ?? null;
-  if (!user || role === null || role === 'SA') return <Shell register={register}>{children}</Shell>;
+  if (!user || role === null || role === 'SA') {
+    return (
+      <ShortcutsProvider pos={false}>
+        <Shell register={register}>{children}</Shell>
+      </ShortcutsProvider>
+    );
+  }
   return (
     <RealtimeProvider branchId={role === 'VO' ? (user.sucursales[0] ?? null) : null}>
-      <AlertsProvider>
-        <Shell register={register}>{children}</Shell>
-      </AlertsProvider>
+      <ShortcutsProvider pos={role === 'VO'}>
+        <AlertsProvider>
+          <Shell register={register}>{children}</Shell>
+        </AlertsProvider>
+      </ShortcutsProvider>
     </RealtimeProvider>
   );
 }
@@ -97,6 +107,8 @@ function Shell({ register, children }: { register: string | null; children: Reac
   const location = useLocation();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Enter confirma la acción principal de cualquier diálogo (RF-194).
+  useDialogConfirm();
 
   if (!user) return null;
   const role = user.rolActivo;
@@ -141,6 +153,9 @@ function Shell({ register, children }: { register: string | null; children: Reac
               <Place icon={<PointOfSaleOutlined fontSize="small" />} text={register} />
             )}
           </Stack>
+          {role !== null && role !== 'VO' && (
+            <QuickNav role={role} billingModule={user.moduloFacturacion} />
+          )}
           <ConnectionStatus />
           {role !== null && role !== 'SA' && <AlertIndicator />}
           <Button

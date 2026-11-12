@@ -1,6 +1,8 @@
 // Cobro de la venta (T-185; RF-068 a RF-075): los medios electrónicos se cobran de a uno con la
 // terminal y el resto se confirma al final. Importes, recargos, vuelto y control de que las
 // fracciones cuadren los calcula el backend: esta pantalla solo los captura y los muestra.
+// Con el teclado (T-277; RF-181, RF-182): las flechas pasan de un medio a otro, Enter en un medio
+// electrónico lo cobra, y Enter en el efectivo o el atajo de cobrar confirman la venta.
 import type { Cart, SaleBillingOption, SalePaymentMethod } from '@pos/contracts';
 import {
   Alert,
@@ -15,13 +17,72 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
+import { WithShortcut } from '../../shortcuts/ShortcutHint';
+import { useShortcuts } from '../../shortcuts/ShortcutsContext';
 import { formatMoney } from '../../api/catalog';
 
 export interface PaymentLine {
   metodoPagoId: string;
   fraccion: string;
   entregado: string | null;
+}
+
+// Flechas arriba y abajo: el campo anterior o el siguiente del cobro.
+function moveFocus(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  const inputs = Array.from(
+    (event.target as HTMLElement)
+      .closest('[role="dialog"]')
+      ?.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])') ?? [],
+  );
+  const index = inputs.indexOf(event.target as HTMLInputElement);
+  const next = inputs[index + (event.key === 'ArrowDown' ? 1 : -1)];
+  if (index < 0 || !next) return;
+  event.preventDefault();
+  next.focus();
+  next.select();
+}
+
+// Importe de un medio de pago. Enter en un medio electrónico lo cobra (sin confirmar la venta).
+function AmountField({
+  method,
+  value,
+  onChange,
+  onEnter,
+  inputRef,
+  autoFocus = false,
+}: {
+  method: SalePaymentMethod;
+  value: string;
+  onChange: (value: string) => void;
+  onEnter?: () => void;
+  inputRef?: (element: HTMLInputElement | null) => void;
+  // El efectivo arranca con el foco: una venta en efectivo se confirma con Enter.
+  autoFocus?: boolean;
+}) {
+  return (
+    <TextField
+      label={`${method.nombre}${Number(method.recargoPct) === 0 ? '' : ` (${String(Number(method.recargoPct))} %)`}`}
+      value={value}
+      onChange={(e) => {
+        onChange(e.target.value);
+      }}
+      onKeyDown={(e) => {
+        moveFocus(e);
+        if (e.key === 'Enter' && onEnter) {
+          e.preventDefault();
+          e.stopPropagation();
+          onEnter();
+        }
+      }}
+      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+      {...(inputRef ? { inputRef } : {})}
+      autoFocus={autoFocus}
+      data-atajos="datos"
+      fullWidth
+    />
+  );
 }
 
 export function PaymentDialog({
@@ -57,24 +118,18 @@ export function PaymentDialog({
   const edit = (id: string, value: string) => {
     setAmounts({ ...amounts, [id]: value.replace(',', '.') });
   };
-
-  const amountField = (m: SalePaymentMethod) => (
-    <TextField
-      label={`${m.nombre}${Number(m.recargoPct) === 0 ? '' : ` (${String(Number(m.recargoPct))} %)`}`}
-      value={amountOf(m)}
-      onChange={(e) => {
-        edit(m.id, e.target.value);
-      }}
-      slotProps={{ htmlInput: { inputMode: 'decimal' } }}
-      fullWidth
-    />
-  );
+  const cashInput = useRef<HTMLInputElement | null>(null);
+  const setCashInput = useCallback((element: HTMLInputElement | null) => {
+    cashInput.current = element;
+  }, []);
 
   async function charge(m: SalePaymentMethod) {
+    if (amountOf(m).trim() === '') return;
     setBusy(true);
     await onCharge(m.id, amountOf(m).trim());
     setAmounts({});
     setBusy(false);
+    cashInput.current?.focus();
   }
 
   function confirm() {
@@ -92,8 +147,21 @@ export function PaymentDialog({
     onConfirm(lines, billing.visible ? invoice : null);
   }
 
+  useShortcuts({
+    cobrar: () => {
+      if (!busy) confirm();
+    },
+  });
+
   return (
-    <Dialog open onClose={onCancel} fullWidth maxWidth="sm">
+    <Dialog
+      open
+      onClose={onCancel}
+      fullWidth
+      maxWidth="sm"
+      // Al terminar de abrirse, el foco queda en el efectivo: Enter confirma una venta en efectivo.
+      slotProps={{ transition: { onEntered: () => cashInput.current?.focus() } }}
+    >
       <DialogTitle>Cobrar la venta</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -103,7 +171,14 @@ export function PaymentDialog({
           {pending &&
             electronic.map((m) => (
               <Stack key={m.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                {amountField(m)}
+                <AmountField
+                  method={m}
+                  value={amountOf(m)}
+                  onChange={(value) => {
+                    edit(m.id, value);
+                  }}
+                  onEnter={() => void charge(m)}
+                />
                 <Button
                   variant="outlined"
                   size="large"
@@ -116,21 +191,37 @@ export function PaymentDialog({
             ))}
           {pending && cash && (
             <Stack direction="row" spacing={1}>
-              {amountField(cash)}
+              <AmountField
+                method={cash}
+                value={amountOf(cash)}
+                onChange={(value) => {
+                  edit(cash.id, value);
+                }}
+                inputRef={setCashInput}
+                autoFocus
+              />
               <TextField
                 label="Entregado"
                 value={tendered}
                 onChange={(e) => {
                   setTendered(e.target.value.replace(',', '.'));
                 }}
+                onKeyDown={moveFocus}
                 slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                data-atajos="datos"
                 fullWidth
               />
             </Stack>
           )}
           {pending && credit && cart.cliente && (
             <Stack spacing={0.5}>
-              {amountField(credit)}
+              <AmountField
+                method={credit}
+                value={amountOf(credit)}
+                onChange={(value) => {
+                  edit(credit.id, value);
+                }}
+              />
               <Typography variant="caption" color="text.secondary">
                 {cart.cliente.razonSocial}: disponible {formatMoney(cart.cliente.disponible)}
               </Typography>
@@ -154,8 +245,14 @@ export function PaymentDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancelar</Button>
-        <Button variant="contained" disabled={busy} onClick={confirm}>
-          Confirmar venta
+        <Button
+          variant="contained"
+          disabled={busy}
+          onClick={confirm}
+          aria-label="Confirmar venta"
+          data-confirmar
+        >
+          <WithShortcut action="cobrar">Confirmar venta</WithShortcut>
         </Button>
       </DialogActions>
     </Dialog>

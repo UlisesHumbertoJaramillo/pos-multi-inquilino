@@ -1,5 +1,7 @@
 // Repositorios PostgreSQL del módulo de organización. Tablas aisladas por comercio: se usan dentro
 // de una unidad de trabajo con el comercio fijado, y además cada consulta filtra por comercio.
+import type { ShortcutRepository } from '../aplicacion/shortcuts.js';
+import type { ShortcutMap } from '../dominio/shortcuts.js';
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
 import type { BillingPolicy, TenantParameters } from '../dominio/parameters.js';
 import type { PaymentMethod, PaymentType } from '../dominio/payment-methods.js';
@@ -281,6 +283,30 @@ export class PgPaymentMethodRepository implements PaymentMethodRepository {
       `UPDATE metodo_pago SET is_active = false, desactivado_en = $3, desactivado_por = $4
         WHERE tenant_id = $1 AND id = $2 AND is_active`,
       [tenantId, id, at, by],
+    );
+  }
+}
+
+// Atajos del POS del comercio (T-274, AD-28): una fila por comercio con el mapa, o nulo para la
+// distribución por defecto.
+export class PgShortcutRepository implements ShortcutRepository {
+  constructor(private readonly db: PgDatabase) {}
+
+  async find(tenantId: string): Promise<Partial<Record<string, string | null>> | null> {
+    const result = await this.db.query<{ mapa: Record<string, string | null> | null }>(
+      'SELECT mapa FROM atajos_comercio WHERE tenant_id = $1',
+      [tenantId],
+    );
+    return result.rows[0]?.mapa ?? null;
+  }
+
+  async save(tenantId: string, map: ShortcutMap | null, by: string, at: Date): Promise<void> {
+    await this.db.query(
+      `INSERT INTO atajos_comercio (tenant_id, mapa, actualizado_en, actualizado_por)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tenant_id) DO UPDATE SET mapa = EXCLUDED.mapa,
+         actualizado_en = EXCLUDED.actualizado_en, actualizado_por = EXCLUDED.actualizado_por`,
+      [tenantId, map === null ? null : JSON.stringify(map), at, by],
     );
   }
 }

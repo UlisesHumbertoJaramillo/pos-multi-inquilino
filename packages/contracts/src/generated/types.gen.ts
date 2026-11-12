@@ -1908,6 +1908,90 @@ export type AlertSummary = {
   severidadMaxima: 'critica' | 'advertencia' | 'info' | null;
 };
 
+/**
+ * Primer producto de la venta: la venta y su reserva se crean juntas (RF-176). Sin cuerpo, la venta nace vacía.
+ */
+export type StartSaleRequest = {
+  productoId: string;
+  cantidad: string;
+};
+
+export type ProductSection = {
+  /**
+   * Lo más vendido de la sucursal en los últimos 30 días (D-95).
+   */
+  masVendidos: Array<SaleSearchResult>;
+  /**
+   * Todos los productos activos, agrupados por categoría; las más vendidas primero.
+   */
+  categorias: Array<{
+    id: string | null;
+    nombre: string;
+    productos: Array<SaleSearchResult>;
+  }>;
+};
+
+export type ShortcutAction =
+  | 'confirmar'
+  | 'cobrar'
+  | 'quitar_item'
+  | 'cantidad'
+  | 'descuento'
+  | 'cancelar'
+  | 'buscar'
+  | 'ayuda'
+  | 'venta_anterior'
+  | 'venta_siguiente'
+  | 'nueva_venta'
+  | 'devolucion'
+  | 'corte_x';
+
+/**
+ * Atajos de teclado del POS del comercio (RF-181 a RF-185). Las teclas se identifican por su posición física (KeyboardEvent.code).
+ */
+export type Shortcuts = {
+  /**
+   * Si el comercio usa la distribución por defecto.
+   */
+  porDefecto: boolean;
+  atajos: Array<{
+    accion: ShortcutAction;
+    nombre: string;
+    /**
+     * Nula: la acción no tiene atajo y se usa con su botón.
+     */
+    tecla: string | null;
+    teclaPorDefecto: string;
+  }>;
+  teclasPermitidas: Array<
+    | 'NumpadAdd'
+    | 'NumpadSubtract'
+    | 'NumpadMultiply'
+    | 'NumpadDivide'
+    | 'Enter'
+    | 'Escape'
+    | 'Insert'
+    | 'Delete'
+    | 'Home'
+    | 'End'
+    | 'PageUp'
+    | 'PageDown'
+    | 'F2'
+    | 'F4'
+    | 'F8'
+    | 'F9'
+  >;
+};
+
+export type ShortcutsRequest = {
+  /**
+   * Tecla de cada acción; nula para dejarla sin atajo. Las que no figuran conservan la de por defecto.
+   */
+  atajos: {
+    [key: string]: string | null;
+  };
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -6436,13 +6520,17 @@ export type ListOwnSalesResponses = {
 export type ListOwnSalesResponse = ListOwnSalesResponses[keyof ListOwnSalesResponses];
 
 export type StartSaleData = {
-  body?: never;
+  body?: StartSaleRequest;
   path?: never;
   query?: never;
   url: '/ventas';
 };
 
 export type StartSaleErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
   /**
    * Sin token válido, credenciales incorrectas o sesión vencida.
    */
@@ -6955,6 +7043,36 @@ export type RejectTransfer2Responses = {
 };
 
 export type RejectTransfer2Response = RejectTransfer2Responses[keyof RejectTransfer2Responses];
+
+export type BrowseSaleProductsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/ventas/catalogo';
+};
+
+export type BrowseSaleProductsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type BrowseSaleProductsError = BrowseSaleProductsErrors[keyof BrowseSaleProductsErrors];
+
+export type BrowseSaleProductsResponses = {
+  /**
+   * Productos.
+   */
+  200: ProductSection;
+};
+
+export type BrowseSaleProductsResponse =
+  BrowseSaleProductsResponses[keyof BrowseSaleProductsResponses];
 
 export type SearchSaleCustomersData = {
   body?: never;
@@ -8442,3 +8560,128 @@ export type ReportPeripheralResponses = {
 };
 
 export type ReportPeripheralResponse = ReportPeripheralResponses[keyof ReportPeripheralResponses];
+
+export type GetPosShortcutsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/atajos';
+};
+
+export type GetPosShortcutsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetPosShortcutsError = GetPosShortcutsErrors[keyof GetPosShortcutsErrors];
+
+export type GetPosShortcutsResponses = {
+  /**
+   * Atajos.
+   */
+  200: Shortcuts;
+};
+
+export type GetPosShortcutsResponse = GetPosShortcutsResponses[keyof GetPosShortcutsResponses];
+
+export type GetShortcutSettingsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/organizacion/atajos';
+};
+
+export type GetShortcutSettingsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetShortcutSettingsError = GetShortcutSettingsErrors[keyof GetShortcutSettingsErrors];
+
+export type GetShortcutSettingsResponses = {
+  /**
+   * Atajos.
+   */
+  200: Shortcuts;
+};
+
+export type GetShortcutSettingsResponse =
+  GetShortcutSettingsResponses[keyof GetShortcutSettingsResponses];
+
+export type UpdateShortcutsData = {
+  body: ShortcutsRequest;
+  path?: never;
+  query?: never;
+  url: '/organizacion/atajos';
+};
+
+export type UpdateShortcutsErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * Una regla de negocio impidió la operación.
+   */
+  409: ApiError;
+};
+
+export type UpdateShortcutsError = UpdateShortcutsErrors[keyof UpdateShortcutsErrors];
+
+export type UpdateShortcutsResponses = {
+  /**
+   * Atajos.
+   */
+  200: Shortcuts;
+};
+
+export type UpdateShortcutsResponse = UpdateShortcutsResponses[keyof UpdateShortcutsResponses];
+
+export type ResetShortcutsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/organizacion/atajos/restablecimiento';
+};
+
+export type ResetShortcutsErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type ResetShortcutsError = ResetShortcutsErrors[keyof ResetShortcutsErrors];
+
+export type ResetShortcutsResponses = {
+  /**
+   * Atajos.
+   */
+  200: Shortcuts;
+};
+
+export type ResetShortcutsResponse = ResetShortcutsResponses[keyof ResetShortcutsResponses];

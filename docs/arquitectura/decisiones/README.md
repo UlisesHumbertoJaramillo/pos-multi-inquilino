@@ -30,4 +30,6 @@ Copia individual de cada decisión de la tabla §4 del [plan técnico](../../../
 | [AD-24](AD-24-webhooks-mercado-pago.md)                  | Webhooks de Mercado Pago verificados por firma                  |
 | [AD-25](AD-25-credenciales-fiscales-cifradas.md)         | Credenciales fiscales cifradas con clave externa                |
 | [AD-26](AD-26-modulos-opcionales.md)                     | Módulos opcionales activables por comercio                      |
+| [AD-28](AD-28-atajos-por-comercio.md)                    | Atajos del POS como parámetro del comercio                      |
 | [AD-30](AD-30-sistema-visual-unico.md)                   | Sistema visual único con severidades y componentes compartidos  |
+| [AD-31](AD-31-venta-con-primer-producto.md)              | La venta nace con su primer producto                            |

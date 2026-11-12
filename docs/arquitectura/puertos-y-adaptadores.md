@@ -254,6 +254,17 @@ La Nota de Crédito se pide con el evento `nota_credito.solicitada`: la cola fis
 | Consultas PostgreSQL | adaptador (`postgres.ts`) | Agrupan por fecha de jornada (turno → jornada) y siempre filtran por comercio y por las sucursales del ámbito. Las ventas son brutas, y las devoluciones y anulaciones van aparte (D-91). |
 | Rutas HTTP           | adaptador (`http.ts`)     | `/ventas/{id}/ticket`, `/reportes/...` y `/auditoria-comercial`.                                                                                                                          |
 
+## Atajos del POS (AD-28)
+
+| Pieza              | Ubicación                              | Qué hace                                                                                                                                                                                                                                                                           |
+| :----------------- | :------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reglas             | `organizacion/dominio/shortcuts.ts`    | Acciones del POS, distribución por defecto para la mano derecha y validación: teclas repetidas, reservadas por el navegador, combinaciones o teclas que se usan para escribir (RF-182, RF-185, D-100).                                                                             |
+| Casos de uso       | `organizacion/aplicacion/shortcuts.ts` | `GetPosShortcuts` (VO), `GetShortcutSettings`, `UpdateShortcuts` y `ResetShortcuts` (AC, con auditoría). Puerto `ShortcutRepository`, adaptador `PgShortcutRepository` (tabla `atajos_comercio`).                                                                                  |
+| Rutas              | `organizacion/adaptadores/http.ts`     | `GET /atajos` para el POS; `GET` y `PUT /organizacion/atajos` y `POST /organizacion/atajos/restablecimiento` para el AC.                                                                                                                                                           |
+| Motor del frontend | `frontend/src/shortcuts`               | Traduce teclas en acciones con el mapa del comercio, decide según dónde está el foco (texto libre, búsqueda o importe, PIN) y muestra el atajo junto a cada acción y en la ayuda. Enter confirma la acción principal de un diálogo; F2 abre «Ir a…» en la administración (RF-194). |
+
+La venta nace con su primer producto en una sola operación (`POST /ventas` con cuerpo, AD-31), y `GET /ventas/catalogo` arma la sección de productos con `SalesCatalog.browse`, ordenada por lo vendido en la sucursal en los últimos 30 días (D-95).
+
 ## Sistema visual del frontend (AD-30)
 
 | Pieza                         | Ubicación                                   | Qué hace                                                                                                                                                                                                                                 |
@@ -407,6 +418,7 @@ Cada puerto del backend con los adaptadores que lo implementan (T-249). Una prue
 | `SessionPolicy`                     | `modulos/identidad/aplicacion/sessions.ts`      | Sin clase propia: lo implementa un objeto del módulo o un adaptador en memoria.                                                            |
 | `SessionRepository`                 | `modulos/identidad/aplicacion/ports.ts`         | `PgSessionRepository` (`modulos/identidad/adaptadores/postgres.ts`)                                                                        |
 | `SessionStatus`                     | `compartido/aplicacion/session-status.ts`       | Sin clase propia: lo implementa un objeto del módulo o un adaptador en memoria.                                                            |
+| `ShortcutRepository`                | `modulos/organizacion/aplicacion/shortcuts.ts`  | `PgShortcutRepository` (`modulos/organizacion/adaptadores/postgres.ts`)                                                                    |
 | `ShiftQuota`                        | `modulos/caja/aplicacion/ports.ts`              | Sin clase propia: lo implementa un objeto del módulo o un adaptador en memoria.                                                            |
 | `StockIntake`                       | `modulos/proveedores/aplicacion/ports.ts`       | Sin clase propia: lo implementa un objeto del módulo o un adaptador en memoria.                                                            |
 | `StockRepository`                   | `modulos/inventario/aplicacion/ports.ts`        | `PgStockRepository` (`modulos/inventario/adaptadores/postgres.ts`)                                                                         |

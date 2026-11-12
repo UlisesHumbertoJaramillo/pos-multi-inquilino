@@ -79,7 +79,7 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
-describe('[RF-089] [RF-092] caja del VO', () => {
+describe('[RF-089] [RF-092] [RF-177] caja del VO', () => {
   it('el VO abre un turno y registra un retiro autorizado con el PIN del AS', async () => {
     const own: OwnShift = { turno: null, movimientos: [] };
     let authorization: Record<string, unknown> | undefined;
@@ -109,11 +109,10 @@ describe('[RF-089] [RF-092] caja del VO', () => {
     renderApp('/pos');
     const user = userEvent.setup();
 
-    const card = await screen.findByLabelText('Caja 1');
-    await user.click(within(card).getByRole('button', { name: 'Abrir turno' }));
-    let dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Saldo inicial'), '1000');
-    await user.click(within(dialog).getByRole('button', { name: 'Abrir turno' }));
+    // [RF-177] La única caja libre se propone sola: solo se pide el saldo inicial.
+    let dialog = await screen.findByRole('dialog', { name: 'Abrir turno · Caja 1' });
+    // [RF-194] Enter confirma la acción principal del diálogo: el turno se abre sin el mouse.
+    await user.type(within(dialog).getByLabelText('Saldo inicial'), '1000{Enter}');
     expect(await screen.findByText('Turno abierto.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Retiro' }));
@@ -138,7 +137,9 @@ describe('[RF-089] [RF-092] caja del VO', () => {
       pin: '2222',
     });
     expect(withdrawal).toEqual({ monto: '300.00', motivo: 'Depósito', autorizacionId: 'aut1' });
-    const table = screen.getByRole('table', { name: 'Movimientos del turno' });
+    // Los movimientos van en el segundo nivel.
+    await user.click(screen.getByRole('button', { name: 'Movimientos del turno' }));
+    const table = await screen.findByRole('table', { name: 'Movimientos del turno' });
     expect(await within(table).findByText('Retiro')).toBeInTheDocument();
   });
 

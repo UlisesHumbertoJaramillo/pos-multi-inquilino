@@ -31,6 +31,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Estructura', path: '/admin/estructura', available: true },
     { label: 'Usuarios', path: '/admin/usuarios', available: true },
     { label: 'Parámetros y pagos', path: '/admin/parametros', available: true },
+    { label: 'Atajos del POS', path: '/admin/atajos', available: true },
     { label: 'Configuración fiscal', path: '/admin/fiscal', available: true, fiscal: true },
     { label: 'Comprobantes', path: '/admin/comprobantes', available: true, fiscal: true },
     { label: 'Catálogo', path: '/admin/catalogo', available: true },

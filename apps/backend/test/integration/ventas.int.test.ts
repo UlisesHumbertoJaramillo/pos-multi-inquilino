@@ -178,6 +178,79 @@ describe('[RF-053] [RF-054] venta y búsqueda', () => {
   });
 });
 
+describe('[RF-176] la venta nace con su primer producto', () => {
+  beforeEach(() => openShift());
+
+  it('crea la venta, agrega el producto y lo reserva en una sola operación', async () => {
+    const response = await post('/ventas', vo, { productoId: AGUA, cantidad: '2' });
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
+    expectToMatchContract(response, 'post', '/ventas');
+    const cart = response.body as Cart;
+    expect(cart.items).toHaveLength(1);
+    expect(cart.items[0]).toMatchObject({ productoId: AGUA, cantidad: '2.000' });
+    expect(cart.total).toBe('600.00');
+    expect(await stock(AGUA)).toEqual({ disponible: '8.000', reservado: '2.000' });
+  });
+
+  it('sin stock no queda ninguna venta vacía', async () => {
+    const response = await post('/ventas', vo, { productoId: AGUA, cantidad: '50' });
+    expect(response.status).toBe(409);
+    expect(await ownerSelect('SELECT id FROM venta')).toEqual([]);
+    expect(await stock(AGUA)).toEqual({ disponible: '10.000', reservado: '0.000' });
+  });
+
+  it('sin cuerpo sigue naciendo vacía, para atender varias ventas en paralelo', async () => {
+    const cart = await newSale();
+    expect(cart.items).toEqual([]);
+  });
+});
+
+describe('[RF-179] sección de productos del POS', () => {
+  beforeEach(() => openShift());
+
+  it('trae primero lo más vendido de la sucursal y todo agrupado por categoría', async () => {
+    // Galletitas se vendió más que el agua en los últimos 30 días.
+    for (const [product, quantity] of [
+      [GALLETITAS, '3'],
+      [AGUA, '1'],
+    ] as const) {
+      const sale = (await post('/ventas', vo, { productoId: product, cantidad: quantity }))
+        .body as Cart;
+      expect((await post(`/ventas/${sale.id}/cobro`, vo, { entregado: '1000' })).status).toBe(200);
+    }
+
+    const response = await get('/ventas/catalogo', vo);
+    expect(response.status).toBe(200);
+    expectToMatchContract(response, 'get', '/ventas/catalogo');
+    const body = response.body as {
+      masVendidos: SaleSearchResult[];
+      categorias: { nombre: string; productos: SaleSearchResult[] }[];
+    };
+    expect(body.masVendidos.map((p) => p.nombre)).toEqual(['Galletitas', 'Agua mineral']);
+    expect(body.categorias.map((c) => c.nombre)).toEqual(['Bebidas', 'Combos']);
+    expect(body.categorias[0]?.productos.map((p) => p.nombre)).toEqual([
+      'Galletitas',
+      'Agua mineral',
+    ]);
+    expect(body.categorias[0]?.productos[0]).toMatchObject({
+      precio: '100.00',
+      disponible: '7.000',
+    });
+  });
+
+  it('no cuenta las ventas de otra sucursal', async () => {
+    const sale = (await post('/ventas', vo, { productoId: AGUA, cantidad: '1' })).body as Cart;
+    expect((await post(`/ventas/${sale.id}/cobro`, vo, { entregado: '1000' })).status).toBe(200);
+    const before = (await get('/ventas/catalogo', vo)).body as { masVendidos: unknown[] };
+    expect(before.masVendidos).toHaveLength(1);
+
+    // La misma venta, como si fuera de Norte: ya no ordena la sección de Centro.
+    await ownerQuery('UPDATE venta SET sucursal_id = $1 WHERE id = $2', [BRANCH_NORTE, sale.id]);
+    const body = (await get('/ventas/catalogo', vo)).body as { masVendidos: unknown[] };
+    expect(body.masVendidos).toEqual([]);
+  });
+});
+
 describe('[RF-030] [RF-055] [RF-056] [RF-051] agregar ítems con reserva', () => {
   beforeEach(() => openShift());
 

@@ -51,6 +51,7 @@ export function AmountDialog({
             }}
             slotProps={{ htmlInput: { inputMode: 'decimal' } }}
             autoFocus
+            data-atajos="datos"
           />
           {request.withReason && (
             <TextField

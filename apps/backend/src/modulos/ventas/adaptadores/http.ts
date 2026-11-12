@@ -31,6 +31,7 @@ import type {
   SearchProducts,
   SendTransfer,
   SetManualDiscount,
+  BrowseProducts,
   StartSale,
   UpdateItemQuantity,
 } from '../aplicacion/sales.js';
@@ -38,6 +39,7 @@ import type { Payment, SaleCustomer, SearchResult, Transfer } from '../aplicacio
 
 export interface SalesUseCases {
   startSale: StartSale;
+  browseProducts: BrowseProducts;
   listOwnSales: ListOwnSales;
   getSale: GetSale;
   searchProducts: SearchProducts;
@@ -64,6 +66,8 @@ const quantity = z.string().max(20);
 const idParams = z.object({ id: z.uuid() });
 const itemParams = z.object({ id: z.uuid(), itemId: z.uuid() });
 const searchQuery = z.object({ q: z.string().max(100) });
+// La venta puede nacer con su primer producto (RF-176).
+const startBody = z.object({ productoId: z.uuid(), cantidad: quantity }).strict();
 const addBody = z.object({ productoId: z.uuid(), cantidad: quantity }).strict();
 const quantityBody = z.object({ cantidad: quantity }).strict();
 const discountBody = z
@@ -230,8 +234,18 @@ export function salesRoutes(useCases: SalesUseCases): HttpRoute[] {
       method: 'post',
       path: '/ventas',
       action: OPERATE,
-      handler: async (_req, res) => {
-        res.status(201).json(cartDto(await useCases.startSale.execute(securityContextOf(res))));
+      handler: async (req, res) => {
+        const raw: unknown = req.body;
+        const empty =
+          raw === undefined ||
+          raw === null ||
+          (typeof raw === 'object' && Object.keys(raw).length === 0);
+        const first = empty ? null : parseInput(startBody, raw);
+        const sale = await useCases.startSale.execute(
+          securityContextOf(res),
+          first === null ? null : { productId: first.productoId, quantity: first.cantidad },
+        );
+        res.status(201).json(cartDto(sale));
       },
     },
     {
@@ -243,6 +257,23 @@ export function salesRoutes(useCases: SalesUseCases): HttpRoute[] {
         const { q } = parseInput(searchQuery, req.query);
         const found = await useCases.searchProducts.execute(securityContextOf(res), q);
         res.json(found.map(searchDto));
+      },
+    },
+    {
+      // Sección de productos del POS (RF-179). Antes de /ventas/:id, como la búsqueda.
+      method: 'get',
+      path: '/ventas/catalogo',
+      action: OPERATE,
+      handler: async (_req, res) => {
+        const section = await useCases.browseProducts.execute(securityContextOf(res));
+        res.json({
+          masVendidos: section.topSellers.map(searchDto),
+          categorias: section.categories.map((c) => ({
+            id: c.id,
+            nombre: c.name,
+            productos: c.products.map(searchDto),
+          })),
+        });
       },
     },
     {

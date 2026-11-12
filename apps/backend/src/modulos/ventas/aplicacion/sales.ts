@@ -148,6 +148,48 @@ export abstract class SalesUseCase {
     return sale;
   }
 
+  // Agrega un producto a una venta en curso, reservando su stock: todo o nada (RF-055, RF-056).
+  protected async addToSale(
+    actor: Actor,
+    sale: Sale,
+    input: { productId: string; quantity: string },
+  ): Promise<CartView> {
+    const entry = await this.deps.catalog.product(actor.tenantId, sale.branchId, input.productId);
+    sellable(entry);
+    const quantity = normalizeQuantity(input.quantity, entry.type === 'combo');
+    const items = await this.deps.sales.items(actor.tenantId, sale.id);
+    const existing = items.find((i) => i.productId === entry.id);
+    if (existing) {
+      // El mismo producto suma a su ítem, que conserva el precio fijado (RF-031, D-84).
+      await this.moveStock(actor, sale, existing, 'reservar', quantity);
+      await this.deps.sales.saveItem(actor.tenantId, {
+        ...existing,
+        quantity: addQuantities(existing.quantity, quantity),
+      });
+    } else {
+      const item: SaleItem = {
+        id: this.deps.ids.next(),
+        saleId: sale.id,
+        productId: entry.id,
+        type: entry.type,
+        name: entry.name,
+        categoryId: entry.categoryId,
+        quantity,
+        // Precio de la lista activa de la sucursal en este momento (RF-030).
+        fixedPrice: entry.price,
+        vatRate: entry.type === 'combo' ? null : entry.vatRate,
+        promotionId: null,
+        promoDiscount: '0.00',
+        manualDiscount: '0.00',
+        final: '0.00',
+        components: entry.components,
+      };
+      await this.moveStock(actor, sale, item, 'reservar', quantity);
+      await this.deps.sales.addItem(actor.tenantId, item, actor.at);
+    }
+    return this.reprice(actor, sale);
+  }
+
   protected async view(actor: Actor, sale: Sale): Promise<CartView> {
     const items = await this.deps.sales.items(actor.tenantId, sale.id);
     const payments = await this.deps.sales.paymentsOf(actor.tenantId, sale.id);
@@ -286,8 +328,13 @@ export abstract class SalesUseCase {
 
 const trimQuantity = (value: string) => String(Number(value));
 
+// Una venta nueva. Con un primer producto, la venta y su reserva se crean en la misma transacción:
+// si no hay stock, no queda ninguna venta vacía (RF-176, AD-31).
 export class StartSale extends SalesUseCase {
-  async execute(context: SecurityContext): Promise<CartView> {
+  async execute(
+    context: SecurityContext,
+    first: { productId: string; quantity: string } | null = null,
+  ): Promise<CartView> {
     return this.inTenant(context, async (actor) => {
       const shift = await this.deps.shifts.openShiftOf(actor.tenantId, actor.userId);
       if (!shift) {
@@ -321,6 +368,7 @@ export class StartSale extends SalesUseCase {
       await this.deps.sales.insert(sale);
       const idle = await this.deps.settings.cartIdleMinutes(actor.tenantId);
       await this.scheduleExpiration(sale, idleUntil(actor.at, idle));
+      if (first !== null) return this.addToSale(actor, sale, first);
       return this.view(actor, sale);
     });
   }
@@ -368,6 +416,53 @@ export class SearchProducts extends SalesUseCase {
   }
 }
 
+// Sección de productos del POS (RF-179, D-95): primero lo más vendido de la sucursal en los últimos
+// 30 días, y después todo agrupado por categoría, las más vendidas primero.
+const TOP_SELLERS = 12;
+const SALES_WINDOW_MS = 30 * 86_400_000;
+
+export interface ProductSection {
+  topSellers: SearchResult[];
+  categories: { id: string | null; name: string; products: SearchResult[] }[];
+}
+
+export class BrowseProducts extends SalesUseCase {
+  async execute(context: SecurityContext): Promise<ProductSection> {
+    return this.inTenant(context, async (actor) => {
+      const shift = await this.deps.shifts.openShiftOf(actor.tenantId, actor.userId);
+      const branchId = shift?.branchId ?? context.branchIds[0];
+      if (branchId === undefined) return { topSellers: [], categories: [] };
+      const since = new Date(actor.at.getTime() - SALES_WINDOW_MS);
+      // Ya vienen ordenados por unidades vendidas, de más a menos, y después por nombre.
+      const ranked = await this.deps.catalog.browse(actor.tenantId, branchId, since);
+      const groups = new Map<
+        string,
+        { id: string | null; name: string; sold: number; products: SearchResult[] }
+      >();
+      const topSellers: SearchResult[] = [];
+      for (const { soldUnits, categoryName, ...product } of ranked) {
+        const key = product.categoryId ?? '';
+        const group = groups.get(key) ?? {
+          id: product.categoryId,
+          name: categoryName ?? 'Combos',
+          sold: 0,
+          products: [],
+        };
+        group.sold += Number(soldUnits);
+        group.products.push(product);
+        groups.set(key, group);
+        if (Number(soldUnits) > 0 && topSellers.length < TOP_SELLERS) topSellers.push(product);
+      }
+      return {
+        topSellers,
+        categories: [...groups.values()]
+          .sort((a, b) => b.sold - a.sold || a.name.localeCompare(b.name, 'es'))
+          .map(({ id, name, products }) => ({ id, name, products })),
+      };
+    });
+  }
+}
+
 export class AddItem extends SalesUseCase {
   async execute(
     context: SecurityContext,
@@ -376,40 +471,7 @@ export class AddItem extends SalesUseCase {
   ): Promise<CartView> {
     return this.inTenant(context, async (actor) => {
       const sale = await this.editableSale(context, actor, saleId);
-      const entry = await this.deps.catalog.product(actor.tenantId, sale.branchId, input.productId);
-      sellable(entry);
-      const quantity = normalizeQuantity(input.quantity, entry.type === 'combo');
-      const items = await this.deps.sales.items(actor.tenantId, sale.id);
-      const existing = items.find((i) => i.productId === entry.id);
-      if (existing) {
-        // El mismo producto suma a su ítem, que conserva el precio fijado (RF-031, D-84).
-        await this.moveStock(actor, sale, existing, 'reservar', quantity);
-        await this.deps.sales.saveItem(actor.tenantId, {
-          ...existing,
-          quantity: addQuantities(existing.quantity, quantity),
-        });
-      } else {
-        const item: SaleItem = {
-          id: this.deps.ids.next(),
-          saleId: sale.id,
-          productId: entry.id,
-          type: entry.type,
-          name: entry.name,
-          categoryId: entry.categoryId,
-          quantity,
-          // Precio de la lista activa de la sucursal en este momento (RF-030).
-          fixedPrice: entry.price,
-          vatRate: entry.type === 'combo' ? null : entry.vatRate,
-          promotionId: null,
-          promoDiscount: '0.00',
-          manualDiscount: '0.00',
-          final: '0.00',
-          components: entry.components,
-        };
-        await this.moveStock(actor, sale, item, 'reservar', quantity);
-        await this.deps.sales.addItem(actor.tenantId, item, actor.at);
-      }
-      return this.reprice(actor, sale);
+      return this.addToSale(actor, sale, input);
     });
   }
 }

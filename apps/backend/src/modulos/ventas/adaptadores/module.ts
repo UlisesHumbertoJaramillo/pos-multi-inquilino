@@ -48,6 +48,7 @@ import {
   SearchProducts,
   SendTransfer,
   SetManualDiscount,
+  BrowseProducts,
   StartSale,
   TRANSFER_EXPIRATION_JOB,
   UpdateItemQuantity,
@@ -112,6 +113,7 @@ export function createSalesModule(deps: SalesModuleDependencies): SalesModule {
   };
   const useCases: SalesUseCases = {
     startSale: new StartSale(dependencies),
+    browseProducts: new BrowseProducts(dependencies),
     listOwnSales: new ListOwnSales(dependencies),
     getSale: new GetSale(dependencies),
     searchProducts: new SearchProducts(dependencies),

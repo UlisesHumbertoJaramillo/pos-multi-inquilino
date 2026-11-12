@@ -618,39 +618,39 @@
 
 ## Fase 18 — POS rápido y atajos de teclado
 
-- [ ] **T-267** · Backend: agregar un producto sin venta activa crea la venta y reserva el ítem en una sola operación. · RF: RF-176 · Dep: —
+- [x] **T-267** · Backend: agregar un producto sin venta activa crea la venta y reserva el ítem en una sola operación. · RF: RF-176 · Dep: —
   - Hecho cuando: una prueba de integración verifica que se crea la venta con su ítem y su reserva, y que sin stock no queda ninguna venta vacía.
-- [ ] **T-268** · POS listo para vender: con el turno abierto, el foco queda en la búsqueda y el primer producto o lectura inicia la venta. · RF: RF-175, RF-176 · Dep: T-267
+- [x] **T-268** · POS listo para vender: con el turno abierto, el foco queda en la búsqueda y el primer producto o lectura inicia la venta. · RF: RF-175, RF-176 · Dep: T-267
   - Hecho cuando: sin ningún clic, escribir o leer un código y elegirlo agrega el producto a una venta nueva.
-- [ ] **T-269** · Apertura de turno con la única caja disponible ya propuesta: solo se pide el saldo inicial. · RF: RF-177 · Dep: —
+- [x] **T-269** · Apertura de turno con la única caja disponible ya propuesta: solo se pide el saldo inicial. · RF: RF-177 · Dep: —
   - Hecho cuando: con una sola caja libre, el turno se abre escribiendo el saldo y apretando Enter.
-- [ ] **T-270** · Backend: sección de productos del POS, por categoría y con primero lo más vendido de la sucursal en 30 días, con precio de la lista activa, disponibilidad y combos. · RF: RF-179 · Dep: —
+- [x] **T-270** · Backend: sección de productos del POS, por categoría y con primero lo más vendido de la sucursal en 30 días, con precio de la lista activa, disponibilidad y combos. · RF: RF-179 · Dep: —
   - Hecho cuando: una prueba de integración con ventas cargadas verifica el orden, y que nunca usa ventas de otra sucursal ni de otro comercio.
-- [ ] **T-271** · Sección de productos con mouse y toque: categorías y tarjetas con nombre, precio y disponibilidad, actualizada en vivo. · RF: RF-179 · Dep: T-270, T-252
+- [x] **T-271** · Sección de productos con mouse y toque: categorías y tarjetas con nombre, precio y disponibilidad, actualizada en vivo. · RF: RF-179 · Dep: T-270, T-252
   - Hecho cuando: tocar una tarjeta agrega el producto, y la disponibilidad cambia sin recargar cuando vende otro POS.
-- [ ] **T-272** · Sección de productos con teclado: flechas, Enter y salto entre categorías. · RF: RF-180 · Dep: T-271
+- [x] **T-272** · Sección de productos con teclado: flechas, Enter y salto entre categorías. · RF: RF-180 · Dep: T-271
   - Hecho cuando: todo lo que ofrece la sección se recorre y se elige sin mouse.
-- [ ] **T-273** · Dominio de atajos: catálogo de acciones, distribución por defecto para la mano derecha y validación de teclas repetidas, reservadas por el navegador o que requieran las dos manos. · RF: RF-182, RF-185 · Dep: —
+- [x] **T-273** · Dominio de atajos: catálogo de acciones, distribución por defecto para la mano derecha y validación de teclas repetidas, reservadas por el navegador o que requieran las dos manos. · RF: RF-182, RF-185 · Dep: —
   - Hecho cuando: una tabla de casos verifica que la distribución por defecto es válida y que cada regla rechaza su caso.
-- [ ] **T-274** · Persistencia y endpoints de atajos: consulta para los usuarios del comercio, y cambio y restablecimiento solo para el AC, con auditoría. · RF: RF-185 · Dep: T-273
+- [x] **T-274** · Persistencia y endpoints de atajos: consulta para los usuarios del comercio, y cambio y restablecimiento solo para el AC, con auditoría. · RF: RF-185 · Dep: T-273
   - Hecho cuando: las pruebas de integración y la matriz verifican que el AC cambia y restablece, que el AS y el VO reciben 403 y que otro comercio no ve los atajos.
-- [ ] **T-275** · Motor de atajos del frontend: aplica el mapa del comercio y no se dispara en campos de texto, durante una lectura del lector ni en el diálogo de PIN. · RF: RF-184 · Dep: T-274
+- [x] **T-275** · Motor de atajos del frontend: aplica el mapa del comercio y no se dispara en campos de texto, durante una lectura del lector ni en el diálogo de PIN. · RF: RF-184 · Dep: T-274
   - Hecho cuando: las pruebas verifican que las teclas en un campo, una ráfaga del lector y el PIN no disparan atajos.
-- [ ] **T-276** · Atajos de la venta: buscar, elegir, cantidad, quitar ítem, descuento, cambiar de venta y cobrar. · RF: RF-181 · Dep: T-275, T-272
+- [x] **T-276** · Atajos de la venta: buscar, elegir, cantidad, quitar ítem, descuento, cambiar de venta y cobrar. · RF: RF-181 · Dep: T-275, T-272
   - Hecho cuando: cada acción de la venta se ejecuta con su atajo.
-- [ ] **T-277** · Atajos del cobro y de la caja: medio de pago, importe, confirmar, cancelar, devolución y Corte X. · RF: RF-181, RF-182 · Dep: T-276
+- [x] **T-277** · Atajos del cobro y de la caja: medio de pago, importe, confirmar, cancelar, devolución y Corte X. · RF: RF-181, RF-182 · Dep: T-276
   - Hecho cuando: una venta con pago mixto se cobra y se confirma con atajos, sin mouse.
-- [ ] **T-278** · Atajo visible junto a cada acción, y ayuda con todos los atajos de la pantalla. · RF: RF-183 · Dep: T-275
+- [x] **T-278** · Atajo visible junto a cada acción, y ayuda con todos los atajos de la pantalla. · RF: RF-183 · Dep: T-275
   - Hecho cuando: cada botón con atajo lo muestra, y la ayuda lista los de la pantalla según el mapa del comercio.
-- [ ] **T-279** · Pantalla del AC para cambiar y restablecer los atajos del comercio, con los rechazos del backend. · RF: RF-185 · Dep: T-274, T-278
+- [x] **T-279** · Pantalla del AC para cambiar y restablecer los atajos del comercio, con los rechazos del backend. · RF: RF-185 · Dep: T-274, T-278
   - Hecho cuando: el AC cambia un atajo, el POS lo usa al recargar, y un atajo repetido se rechaza con su motivo.
-- [ ] **T-280** · Atajos de la administración y los dashboards: ir a cada sección, buscar y confirmar o cancelar un diálogo. · RF: RF-194 · Dep: T-275
+- [x] **T-280** · Atajos de la administración y los dashboards: ir a cada sección, buscar y confirmar o cancelar un diálogo. · RF: RF-194 · Dep: T-275
   - Hecho cuando: cada sección del menú tiene su atajo, y Enter y Esc confirman y cancelan los diálogos.
-- [ ] **T-281** · POS en dos niveles: carrito y cobro despejados, con el detalle de ítems, promociones y pagos en el segundo nivel. · RF: RF-192 · Dep: T-253, T-276
+- [x] **T-281** · POS en dos niveles: carrito y cobro despejados, con el detalle de ítems, promociones y pagos en el segundo nivel. · RF: RF-192 · Dep: T-253, T-276
   - Hecho cuando: las pruebas del POS siguen pasando, y el detalle se abre con un clic o con su atajo.
-- [ ] **T-282** · Prueba punta a punta: venta en efectivo y venta con pago mixto solo con el teclado, con la mano derecha y sin clics antes del primer producto. · RF: RF-175, RF-176, RF-182 · Dep: T-277, T-269
+- [x] **T-282** · Prueba punta a punta: venta en efectivo y venta con pago mixto solo con el teclado, con la mano derecha y sin clics antes del primer producto. · RF: RF-175, RF-176, RF-182 · Dep: T-277, T-269
   - Hecho cuando: la prueba de Playwright pasa sin usar el mouse, y ningún atajo usado combina teclas de las dos mitades del teclado.
-- [ ] **T-283** · **[Localhost]** Guion del POS rápido. · RF: — · Dep: T-282, T-279, T-259
+- [x] **T-283** · **[Localhost]** Guion del POS rápido. · RF: — · Dep: T-282, T-279, T-259
   - Hecho cuando: (1) se entra y se abre el turno en la caja propuesta, (2) se vende solo con el teclado numérico, (3) el AC cambia un atajo y el POS lo usa, (4) una alerta crítica en vivo aparece en el POS.
 
 ## Fase 19 — Dashboards en dos niveles

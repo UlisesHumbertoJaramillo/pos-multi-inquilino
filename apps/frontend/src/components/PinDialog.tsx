@@ -71,7 +71,7 @@ export function PinDialog({
   }
 
   return (
-    <Dialog open onClose={onCancel} fullWidth maxWidth="xs">
+    <Dialog open onClose={onCancel} fullWidth maxWidth="xs" data-atajos="no">
       <DialogTitle>Autorización con PIN</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
