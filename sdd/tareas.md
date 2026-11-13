@@ -670,21 +670,21 @@
 
 ## Fase 20 — Carga desde Excel
 
-- [ ] **T-290** · Puerto `SpreadsheetReader` y adaptador de .xlsx en el backend (AD-27): límites de 5 MB y 5.000 filas, rechazo de macros y formatos viejos, y fórmulas por su valor calculado. · RF: RF-174 · Dep: —
+- [x] **T-290** · Puerto `SpreadsheetReader` y adaptador de .xlsx en el backend (AD-27): límites de 5 MB y 5.000 filas, rechazo de macros y formatos viejos, y fórmulas por su valor calculado. · RF: RF-174 · Dep: —
   - Hecho cuando: pruebas con archivos generados: válido, con macros, .xls, dañado, demasiado grande y con fórmulas.
-- [ ] **T-291** · Plantillas descargables de productos, proveedores y precios. · RF: RF-173 · Dep: T-290
+- [x] **T-291** · Plantillas descargables de productos, proveedores y precios. · RF: RF-173 · Dep: T-290
   - Hecho cuando: cada plantilla descargada se vuelve a cargar vacía sin errores de formato.
-- [ ] **T-292** · Dominio y caso de uso de la carga de productos, con vista previa y aplicación. · RF: RF-170, RF-173 · Dep: T-290
+- [x] **T-292** · Dominio y caso de uso de la carga de productos, con vista previa y aplicación. · RF: RF-170, RF-173 · Dep: T-290
   - Hecho cuando: una tabla de casos valida cada fila, la vista previa no escribe nada y la aplicación crea, actualiza y rechaza exactamente lo que anunció.
-- [ ] **T-293** · Carga de proveedores identificados por CUIT, sin tocar el saldo adeudado. · RF: RF-172 · Dep: T-292
+- [x] **T-293** · Carga de proveedores identificados por CUIT, sin tocar el saldo adeudado. · RF: RF-172 · Dep: T-292
   - Hecho cuando: un CUIT existente actualiza el proveedor y su saldo no cambia.
-- [ ] **T-294** · Carga de precios en listas de precio fijo, con su historial de precios. · RF: RF-171 · Dep: T-292
+- [x] **T-294** · Carga de precios en listas de precio fijo, con su historial de precios. · RF: RF-171 · Dep: T-292
   - Hecho cuando: cada cambio queda en el historial, y una lista con otra regla se rechaza con su motivo.
-- [ ] **T-295** · Contrato y endpoints de carga (vista previa y aplicación), con auditoría como una sola operación. · RF: RF-170 a RF-174 · Dep: T-291 a T-294
+- [x] **T-295** · Contrato y endpoints de carga (vista previa y aplicación), con auditoría como una sola operación. · RF: RF-170 a RF-174 · Dep: T-291 a T-294
   - Hecho cuando: las pruebas de integración y la matriz pasan, la carga queda en la auditoría comercial con su detalle, y el archivo se valida en el servidor.
-- [ ] **T-296** · Pantalla de carga desde Excel: tipo, plantilla, archivo, resumen con los rechazos y confirmación. · RF: RF-173 · Dep: T-295
+- [x] **T-296** · Pantalla de carga desde Excel: tipo, plantilla, archivo, resumen con los rechazos y confirmación. · RF: RF-173 · Dep: T-295
   - Hecho cuando: el AC ve cuánto se va a crear, actualizar y rechazar, y nada cambia hasta que confirma.
-- [ ] **T-297** · **[Localhost]** Guion de la carga desde Excel. · RF: — · Dep: T-296
+- [x] **T-297** · **[Localhost]** Guion de la carga desde Excel. · RF: — · Dep: T-296
   - Hecho cuando: (1) se descarga la plantilla, (2) se completa en Excel, (3) se ve la vista previa con una fila rechazada, (4) se confirma, (5) un archivo con macros se rechaza completo.
 
 ## Fase 21 — Cierre de la revisión de experiencia de uso

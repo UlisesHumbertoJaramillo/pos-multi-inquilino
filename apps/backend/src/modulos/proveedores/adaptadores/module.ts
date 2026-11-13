@@ -1,4 +1,5 @@
 // Arma el módulo de proveedores con sus adaptadores. Lo usan la raíz de composición y las pruebas.
+import { SupplierImport } from '../aplicacion/supplier-import.js';
 import type { AccessControl } from '../../../compartido/aplicacion/access-control.js';
 import type { CommercialAuditLog } from '../../../compartido/aplicacion/audit.js';
 import type { Clock } from '../../../compartido/aplicacion/clock.js';
@@ -45,6 +46,8 @@ export interface SupplierModule {
   useCases: SupplierUseCases;
   // Compras pendientes de un producto, para el control de bajas del catálogo (D-42).
   pendingPurchases(tenantId: string, productId: string): Promise<number>;
+  // Carga de proveedores desde Excel (RF-172).
+  supplierImport: SupplierImport;
 }
 
 export function createSupplierModule(deps: SupplierModuleDependencies): SupplierModule {
@@ -81,5 +84,6 @@ export function createSupplierModule(deps: SupplierModuleDependencies): Supplier
     routes: supplierRoutes(useCases),
     useCases,
     pendingPurchases: (tenantId, productId) => purchases.pendingForProduct(tenantId, productId),
+    supplierImport: new SupplierImport({ suppliers: suppliers.suppliers, ids: deps.ids }),
   };
 }

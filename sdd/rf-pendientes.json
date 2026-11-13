@@ -1,10 +1,4 @@
 {
   "$comentario": "RF del spec que todavía no tienen pruebas, con la tarea que las agrega. El modo estricto de la trazabilidad los tolera; T-299 deja la lista vacía.",
-  "pendientes": {
-    "RF-170": "T-292",
-    "RF-171": "T-294",
-    "RF-172": "T-293",
-    "RF-173": "T-292",
-    "RF-174": "T-290"
-  }
+  "pendientes": {}
 }

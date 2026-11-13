@@ -7,6 +7,7 @@ import type { HttpRoute } from '../../../compartido/adaptadores/http/routes.js';
 import type { PgDatabase } from '../../../compartido/adaptadores/postgres/pg-database.js';
 import { CreateCombo, ListCombos, UpdateCombo } from '../aplicacion/combos.js';
 import { CatalogCosts } from '../aplicacion/costs.js';
+import { PriceImport } from '../aplicacion/price-import.js';
 import type { ProductDependencyQuery } from '../aplicacion/ports.js';
 import type { CatalogDependencies } from '../aplicacion/price-book.js';
 import {
@@ -55,6 +56,8 @@ export interface CatalogModule {
   useCases: CatalogUseCases;
   // Costos e importación para el módulo de proveedores.
   costs: CatalogCosts;
+  // Carga de precios desde Excel (RF-171).
+  priceImport: PriceImport;
 }
 
 export function createCatalogModule(deps: CatalogModuleDependencies): CatalogModule {
@@ -95,5 +98,10 @@ export function createCatalogModule(deps: CatalogModuleDependencies): CatalogMod
     listBranchPriceLists: new ListBranchPriceLists(catalog),
     assignBranchPriceList: new AssignBranchPriceList(catalog),
   };
-  return { routes: catalogRoutes(useCases), useCases, costs: new CatalogCosts(catalog) };
+  return {
+    routes: catalogRoutes(useCases),
+    useCases,
+    costs: new CatalogCosts(catalog),
+    priceImport: new PriceImport(catalog),
+  };
 }

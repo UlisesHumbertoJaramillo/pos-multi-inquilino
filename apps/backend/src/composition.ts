@@ -44,6 +44,7 @@ import {
 } from './modulos/devoluciones/adaptadores/module.js';
 import { type AlertsModule, createAlertsModule } from './modulos/alertas/adaptadores/module.js';
 import { createReportsModule, type ReportsModule } from './modulos/reportes/adaptadores/module.js';
+import { createImportModule } from './modulos/importacion/adaptadores/module.js';
 import {
   createPeripheralsModule,
   type PeripheralsModule,
@@ -453,6 +454,18 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
   // Ticket, informe diario, dashboards y auditoría comercial: solo lectura (plan §2.18).
   const reports = createReportsModule({ db: deps.db, clock: deps.clock, access });
 
+  // Carga desde Excel (T-290 a T-295): las filas las procesan catálogo y proveedores.
+  const imports = createImportModule({
+    db: deps.db,
+    clock: deps.clock,
+    ids: uuidGenerator,
+    access,
+    commercialAudit,
+    products: catalog.costs,
+    suppliers: suppliers.supplierImport,
+    prices: catalog.priceImport,
+  });
+
   // Estado de la impresora y del lector, para el panel técnico del SA (T-241, AD-16).
   const peripherals = createPeripheralsModule({ db: deps.db, access, technicalAudit });
 
@@ -463,6 +476,7 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     ...catalog.routes,
     ...inventory.routes,
     ...suppliers.routes,
+    ...imports.routes,
     ...promotions.routes,
     ...quotas.routes,
     ...cash.routes,

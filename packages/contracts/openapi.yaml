@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.20.0
+  version: 0.21.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -4390,6 +4390,306 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /importaciones/productos/plantilla:
+    get:
+      operationId: getImportTemplateProductos
+      tags:
+        - Catálogo
+      summary: Plantilla de Excel para cargar productos
+      responses:
+        '200':
+          description: Libro de Excel con el encabezado de la plantilla.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /importaciones/productos/vista-previa:
+    post:
+      operationId: previewImportProductos
+      tags:
+        - Catálogo
+      summary: Vista previa de la carga de productos
+      description: 'Columnas Código de barras, Nombre, Categoría y Costo sin IVA. Crea o actualiza por código de barras y recalcula los precios (RF-170). No escribe nada: informa cuánto se crearía, actualizaría y rechazaría (RF-173). Un archivo que no es .xlsx, con macros o que supera 5 MB o 5.000 filas se rechaza completo (RF-174).'
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /importaciones/productos:
+    post:
+      operationId: applyImportProductos
+      tags:
+        - Catálogo
+      summary: Cargar productos desde Excel
+      description: Columnas Código de barras, Nombre, Categoría y Costo sin IVA. Crea o actualiza por código de barras y recalcula los precios (RF-170). Aplica las filas válidas e informa las rechazadas; queda en la auditoría como una sola operación (D-49).
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /importaciones/proveedores/plantilla:
+    get:
+      operationId: getImportTemplateProveedores
+      tags:
+        - Proveedores
+      summary: Plantilla de Excel para cargar proveedores
+      responses:
+        '200':
+          description: Libro de Excel con el encabezado de la plantilla.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /importaciones/proveedores/vista-previa:
+    post:
+      operationId: previewImportProveedores
+      tags:
+        - Proveedores
+      summary: Vista previa de la carga de proveedores
+      description: 'Columnas CUIT, Razón social y Contacto. Crea o actualiza por CUIT, sin tocar el saldo adeudado (RF-172). No escribe nada: informa cuánto se crearía, actualizaría y rechazaría (RF-173). Un archivo que no es .xlsx, con macros o que supera 5 MB o 5.000 filas se rechaza completo (RF-174).'
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /importaciones/proveedores:
+    post:
+      operationId: applyImportProveedores
+      tags:
+        - Proveedores
+      summary: Cargar proveedores desde Excel
+      description: Columnas CUIT, Razón social y Contacto. Crea o actualiza por CUIT, sin tocar el saldo adeudado (RF-172). Aplica las filas válidas e informa las rechazadas; queda en la auditoría como una sola operación (D-49).
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /importaciones/precios/plantilla:
+    get:
+      operationId: getImportTemplatePrecios
+      tags:
+        - Catálogo
+      summary: Plantilla de Excel para cargar precios
+      responses:
+        '200':
+          description: Libro de Excel con el encabezado de la plantilla.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /importaciones/precios/vista-previa:
+    post:
+      operationId: previewImportPrecios
+      tags:
+        - Catálogo
+      summary: Vista previa de la carga de precios
+      description: 'Columnas Lista, Código de barras y Precio final. Solo listas de precio fijo; cada cambio queda en el historial (RF-171). No escribe nada: informa cuánto se crearía, actualizaría y rechazaría (RF-173). Un archivo que no es .xlsx, con macros o que supera 5 MB o 5.000 filas se rechaza completo (RF-174).'
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /importaciones/precios:
+    post:
+      operationId: applyImportPrecios
+      tags:
+        - Catálogo
+      summary: Cargar precios desde Excel
+      description: Columnas Lista, Código de barras y Precio final. Solo listas de precio fijo; cada cambio queda en el historial (RF-171). Aplica las filas válidas e informa las rechazadas; queda en la auditoría como una sola operación (D-49).
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel:
+            schema:
+              type: string
+              format: binary
+          application/vnd.ms-excel.sheet.macroEnabled.12:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Resumen de la carga.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
 components:
   securitySchemes:
     tokenAcceso:
@@ -8978,3 +9278,50 @@ components:
             type:
               - string
               - 'null'
+    ImportSummary:
+      description: Resultado de una carga desde Excel, en la vista previa o al aplicarla (RF-173).
+      type: object
+      additionalProperties: false
+      required:
+        - creados
+        - actualizados
+        - rechazados
+        - filas
+      properties:
+        creados:
+          type: integer
+          minimum: 0
+        actualizados:
+          type: integer
+          minimum: 0
+        rechazados:
+          type: integer
+          minimum: 0
+        filas:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - fila
+              - clave
+              - resultado
+              - motivo
+            properties:
+              fila:
+                type: integer
+                minimum: 2
+                description: Número de la fila en la planilla.
+              clave:
+                type: string
+                description: Código de barras, CUIT o lista y código.
+              resultado:
+                type: string
+                enum:
+                  - creado
+                  - actualizado
+                  - error
+              motivo:
+                type:
+                  - string
+                  - 'null'

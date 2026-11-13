@@ -165,5 +165,13 @@ export async function seedCatalog(
       [tenantId, list.id, list.branch],
     );
   }
+  // Lista de precio fijo, sin sucursal: sus precios se cargan a mano o desde Excel (RF-171).
+  await client.query(
+    `INSERT INTO lista_precio (id, tenant_id, nombre, regla, parametros, creado_en)
+     VALUES ($1, $2, 'Precios especiales', 'fijo', '{}', $3)
+     ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, regla = EXCLUDED.regla,
+       parametros = EXCLUDED.parametros, is_active = true, desactivado_en = NULL, desactivado_por = NULL`,
+    [id('03', 3), tenantId, now],
+  );
   return { products: PRODUCTS.length };
 }

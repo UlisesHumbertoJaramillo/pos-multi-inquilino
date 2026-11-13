@@ -41,6 +41,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     { label: 'Cuota de descuento', path: '/admin/cuota', available: true },
     { label: 'Proveedores', path: '/admin/proveedores', available: true },
     { label: 'Compras', path: '/admin/compras', available: true },
+    { label: 'Carga desde Excel', path: '/admin/carga-excel', available: true },
     { label: 'Dashboard', path: '/admin/dashboard', available: true },
     { label: 'Informe diario', path: '/admin/informe', available: true },
     { label: 'Auditoría comercial', path: '/admin/auditoria', available: true },

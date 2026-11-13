@@ -30,6 +30,7 @@ Copia individual de cada decisión de la tabla §4 del [plan técnico](../../../
 | [AD-24](AD-24-webhooks-mercado-pago.md)                  | Webhooks de Mercado Pago verificados por firma                  |
 | [AD-25](AD-25-credenciales-fiscales-cifradas.md)         | Credenciales fiscales cifradas con clave externa                |
 | [AD-26](AD-26-modulos-opcionales.md)                     | Módulos opcionales activables por comercio                      |
+| [AD-27](AD-27-excel-en-el-backend.md)                    | Los archivos Excel se leen en el backend                        |
 | [AD-28](AD-28-atajos-por-comercio.md)                    | Atajos del POS como parámetro del comercio                      |
 | [AD-29](AD-29-graficas-con-series-del-backend.md)        | Gráficas con series que calcula el backend                      |
 | [AD-30](AD-30-sistema-visual-unico.md)                   | Sistema visual único con severidades y componentes compartidos  |

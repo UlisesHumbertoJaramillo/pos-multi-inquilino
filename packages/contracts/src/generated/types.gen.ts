@@ -2039,6 +2039,27 @@ export type ShortcutsRequest = {
   };
 };
 
+/**
+ * Resultado de una carga desde Excel, en la vista previa o al aplicarla (RF-173).
+ */
+export type ImportSummary = {
+  creados: number;
+  actualizados: number;
+  rechazados: number;
+  filas: Array<{
+    /**
+     * Número de la fila en la planilla.
+     */
+    fila: number;
+    /**
+     * Código de barras, CUIT o lista y código.
+     */
+    clave: string;
+    resultado: 'creado' | 'actualizado' | 'error';
+    motivo: string | null;
+  }>;
+};
+
 export type GetHealthData = {
   body?: never;
   path?: never;
@@ -8732,3 +8753,329 @@ export type ResetShortcutsResponses = {
 };
 
 export type ResetShortcutsResponse = ResetShortcutsResponses[keyof ResetShortcutsResponses];
+
+export type GetImportTemplateProductosData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/importaciones/productos/plantilla';
+};
+
+export type GetImportTemplateProductosErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetImportTemplateProductosError =
+  GetImportTemplateProductosErrors[keyof GetImportTemplateProductosErrors];
+
+export type GetImportTemplateProductosResponses = {
+  /**
+   * Libro de Excel con el encabezado de la plantilla.
+   */
+  200: Blob | File;
+};
+
+export type GetImportTemplateProductosResponse =
+  GetImportTemplateProductosResponses[keyof GetImportTemplateProductosResponses];
+
+export type PreviewImportProductosData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/productos/vista-previa';
+};
+
+export type PreviewImportProductosErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type PreviewImportProductosError =
+  PreviewImportProductosErrors[keyof PreviewImportProductosErrors];
+
+export type PreviewImportProductosResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type PreviewImportProductosResponse =
+  PreviewImportProductosResponses[keyof PreviewImportProductosResponses];
+
+export type ApplyImportProductosData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/productos';
+};
+
+export type ApplyImportProductosErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type ApplyImportProductosError =
+  ApplyImportProductosErrors[keyof ApplyImportProductosErrors];
+
+export type ApplyImportProductosResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type ApplyImportProductosResponse =
+  ApplyImportProductosResponses[keyof ApplyImportProductosResponses];
+
+export type GetImportTemplateProveedoresData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/importaciones/proveedores/plantilla';
+};
+
+export type GetImportTemplateProveedoresErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetImportTemplateProveedoresError =
+  GetImportTemplateProveedoresErrors[keyof GetImportTemplateProveedoresErrors];
+
+export type GetImportTemplateProveedoresResponses = {
+  /**
+   * Libro de Excel con el encabezado de la plantilla.
+   */
+  200: Blob | File;
+};
+
+export type GetImportTemplateProveedoresResponse =
+  GetImportTemplateProveedoresResponses[keyof GetImportTemplateProveedoresResponses];
+
+export type PreviewImportProveedoresData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/proveedores/vista-previa';
+};
+
+export type PreviewImportProveedoresErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type PreviewImportProveedoresError =
+  PreviewImportProveedoresErrors[keyof PreviewImportProveedoresErrors];
+
+export type PreviewImportProveedoresResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type PreviewImportProveedoresResponse =
+  PreviewImportProveedoresResponses[keyof PreviewImportProveedoresResponses];
+
+export type ApplyImportProveedoresData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/proveedores';
+};
+
+export type ApplyImportProveedoresErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type ApplyImportProveedoresError =
+  ApplyImportProveedoresErrors[keyof ApplyImportProveedoresErrors];
+
+export type ApplyImportProveedoresResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type ApplyImportProveedoresResponse =
+  ApplyImportProveedoresResponses[keyof ApplyImportProveedoresResponses];
+
+export type GetImportTemplatePreciosData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/importaciones/precios/plantilla';
+};
+
+export type GetImportTemplatePreciosErrors = {
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+};
+
+export type GetImportTemplatePreciosError =
+  GetImportTemplatePreciosErrors[keyof GetImportTemplatePreciosErrors];
+
+export type GetImportTemplatePreciosResponses = {
+  /**
+   * Libro de Excel con el encabezado de la plantilla.
+   */
+  200: Blob | File;
+};
+
+export type GetImportTemplatePreciosResponse =
+  GetImportTemplatePreciosResponses[keyof GetImportTemplatePreciosResponses];
+
+export type PreviewImportPreciosData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/precios/vista-previa';
+};
+
+export type PreviewImportPreciosErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type PreviewImportPreciosError =
+  PreviewImportPreciosErrors[keyof PreviewImportPreciosErrors];
+
+export type PreviewImportPreciosResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type PreviewImportPreciosResponse =
+  PreviewImportPreciosResponses[keyof PreviewImportPreciosResponses];
+
+export type ApplyImportPreciosData = {
+  body: Blob | File;
+  path?: never;
+  query?: never;
+  url: '/importaciones/precios';
+};
+
+export type ApplyImportPreciosErrors = {
+  /**
+   * Datos inválidos o token de un solo uso inválido.
+   */
+  400: ApiError;
+  /**
+   * Sin token válido, credenciales incorrectas o sesión vencida.
+   */
+  401: ApiError;
+  /**
+   * El rol activo o el ámbito no permiten la acción.
+   */
+  403: ApiError;
+  /**
+   * El cuerpo de la solicitud supera el tamaño permitido.
+   */
+  413: ApiError;
+};
+
+export type ApplyImportPreciosError = ApplyImportPreciosErrors[keyof ApplyImportPreciosErrors];
+
+export type ApplyImportPreciosResponses = {
+  /**
+   * Resumen de la carga.
+   */
+  200: ImportSummary;
+};
+
+export type ApplyImportPreciosResponse =
+  ApplyImportPreciosResponses[keyof ApplyImportPreciosResponses];
