@@ -655,17 +655,17 @@
 
 ## Fase 19 — Dashboards en dos niveles
 
-- [ ] **T-284** · Backend: indicadores con comparación contra el período anterior de igual duración, y series de ventas por día, por medio de pago y de los 5 productos más vendidos. · RF: RF-186 · Dep: —
+- [x] **T-284** · Backend: indicadores con comparación contra el período anterior de igual duración, y series de ventas por día, por medio de pago y de los 5 productos más vendidos. · RF: RF-186 · Dep: —
   - Hecho cuando: tablas de casos con períodos de distinto largo y sin ventas en el anterior, y respuestas validadas contra el contrato.
-- [ ] **T-285** · Backend: marca de atención en los valores del dashboard que la requieren: arqueos con diferencia, stock bajo y comprobantes sin regularizar. · RF: RF-186 · Dep: T-284
+- [x] **T-285** · Backend: marca de atención en los valores del dashboard que la requieren: arqueos con diferencia, stock bajo y comprobantes sin regularizar. · RF: RF-186 · Dep: T-284
   - Hecho cuando: una prueba de integración verifica cada marca y que desaparece cuando el punto se resuelve.
-- [ ] **T-286** · Librería de gráficas (AD-29) y componentes de indicador y gráfica con los colores del tema. · RF: RF-186 · Dep: T-251
+- [x] **T-286** · Librería de gráficas (AD-29) y componentes de indicador y gráfica con los colores del tema. · RF: RF-186 · Dep: T-251
   - Hecho cuando: las pruebas de componentes pasan, y las gráficas se leen en modo claro y oscuro y tienen texto alternativo.
-- [ ] **T-287** · Primer nivel del dashboard estratégico del AC: indicadores comparados, gráficas y valores resaltados. · RF: RF-186 · Dep: T-284, T-285, T-286
+- [x] **T-287** · Primer nivel del dashboard estratégico del AC: indicadores comparados, gráficas y valores resaltados. · RF: RF-186 · Dep: T-284, T-285, T-286
   - Hecho cuando: el dashboard muestra los indicadores y las gráficas de D-97, y los valores con marca de atención se ven resaltados.
-- [ ] **T-288** · Primer nivel del dashboard operativo del AS y del informe diario. · RF: RF-186 · Dep: T-287
+- [x] **T-288** · Primer nivel del dashboard operativo del AS y del informe diario. · RF: RF-186 · Dep: T-287
   - Hecho cuando: el AS ve solo su sucursal, con los mismos componentes que el AC.
-- [ ] **T-289** · Segundo nivel desde cada indicador y gráfica, con el mismo período y la misma sucursal. · RF: RF-187 · Dep: T-287, T-253
+- [x] **T-289** · Segundo nivel desde cada indicador y gráfica, con el mismo período y la misma sucursal. · RF: RF-187 · Dep: T-287, T-253
   - Hecho cuando: elegir un indicador o una barra abre el detalle filtrado, y las tablas de D-50 siguen completas en el segundo nivel.
 
 ## Fase 20 — Carga desde Excel

@@ -1872,6 +1872,53 @@ export type Dashboard = {
     advertencias: number;
     informativas: number;
   };
+  /**
+   * Período anterior de igual duración, para comparar (D-97).
+   */
+  anterior: {
+    desde: string;
+    hasta: string;
+    ventas: ReportTotals;
+  };
+  variacion: {
+    /**
+     * Variación porcentual con un decimal; nula si el período anterior es cero.
+     */
+    total: string | null;
+    /**
+     * Variación porcentual con un decimal; nula si el período anterior es cero.
+     */
+    tickets: string | null;
+    /**
+     * Variación porcentual con un decimal; nula si el período anterior es cero.
+     */
+    promedio: string | null;
+  };
+  /**
+   * Todos los días del período, con cero los que no tuvieron ventas.
+   */
+  serieDiaria: Array<{
+    fecha: string;
+    total: string;
+    tickets: number;
+  }>;
+  /**
+   * Los 5 productos más vendidos del período.
+   */
+  masVendidos: Array<{
+    productoId: string;
+    nombre: string;
+    cantidad: string;
+    total: string;
+  }>;
+  /**
+   * Cuántos puntos requieren atención, para resaltarlos (RF-186).
+   */
+  atencion: {
+    arqueosConDiferencia: number;
+    bajoMinimo: number;
+    comprobantesSinRegularizar: number | null;
+  };
 };
 
 export type CommercialAuditPage = {

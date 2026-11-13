@@ -94,3 +94,42 @@ export const TICKET_LEGENDS: Record<TicketIdentification, string> = {
   factura_en_tramite: 'Factura en trámite con ARCA: el comprobante fiscal se emite al autorizarse.',
   no_valido_como_factura: 'Ticket no válido como factura.',
 };
+
+// Período anterior de igual duración, inmediatamente antes (D-97): del 11 al 20 se compara con
+// del 1 al 10.
+export function previousPeriod(period: Period): Period {
+  const from = dayNumber(period.from);
+  const to = dayNumber(period.to);
+  const length = to - from + 1;
+  const day = (n: number) => new Date(n * DAY_MS).toISOString().slice(0, 10);
+  return { from: day(from - length), to: day(from - 1) };
+}
+
+// Variación porcentual contra el período anterior, con un decimal y redondeo a la mitad hacia
+// arriba. Nula si el anterior es cero: no hay contra qué comparar.
+export function changePercent(
+  current: string,
+  previous: string,
+  scale = MONEY_SCALE,
+): string | null {
+  const now = parseDecimal(current, scale);
+  const before = parseDecimal(previous, scale);
+  if (before === 0n) return null;
+  // Décimas de punto porcentual.
+  return formatDecimal(divideRoundingHalfUp((now - before) * 1000n, before), 1);
+}
+
+// Serie diaria completa del período, con los días sin ventas en cero, para las gráficas.
+export function fillDays<T extends { day: string }>(
+  period: Period,
+  days: readonly T[],
+  empty: (day: string) => T,
+): T[] {
+  const byDay = new Map(days.map((d) => [d.day, d]));
+  const series: T[] = [];
+  for (let n = dayNumber(period.from); n <= dayNumber(period.to); n += 1) {
+    const day = new Date(n * DAY_MS).toISOString().slice(0, 10);
+    series.push(byDay.get(day) ?? empty(day));
+  }
+  return series;
+}

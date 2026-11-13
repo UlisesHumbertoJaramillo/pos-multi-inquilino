@@ -192,6 +192,24 @@ const dashboardDto = (d: Dashboard) => ({
     umbral: b.minimum,
   })),
   comprobantesSinRegularizar: d.pendingVouchers,
+  anterior: {
+    desde: d.previous.period.from,
+    hasta: d.previous.period.to,
+    ventas: totalsDto(d.previous.sales),
+  },
+  variacion: { total: d.change.total, tickets: d.change.tickets, promedio: d.change.average },
+  serieDiaria: d.dailySeries.map((x) => ({ fecha: x.day, total: x.total, tickets: x.tickets })),
+  masVendidos: d.topProducts.map((p) => ({
+    productoId: p.productId,
+    nombre: p.name,
+    cantidad: p.quantity,
+    total: p.total,
+  })),
+  atencion: {
+    arqueosConDiferencia: d.attention.cashCountDifferences,
+    bajoMinimo: d.attention.lowStock,
+    comprobantesSinRegularizar: d.attention.pendingVouchers,
+  },
   alertas: {
     criticas: d.alerts.critical,
     advertencias: d.alerts.warning,

@@ -11,7 +11,10 @@ import {
   assertPeriod,
   averageTicket,
   dateIn,
+  changePercent,
   defaultPeriod,
+  fillDays,
+  previousPeriod,
   MAX_PERIOD_DAYS,
   type Period,
   TICKET_LEGENDS,
@@ -186,9 +189,17 @@ export interface Dashboard {
   // Sin regularizar a hoy, de cualquier fecha. Nulo sin el módulo de facturación.
   pendingVouchers: number | null;
   alerts: AlertCounts;
+  // Primer nivel (D-97): comparación con el período anterior de igual duración, serie diaria
+  // completa para la gráfica, los más vendidos y los puntos que requieren atención (RF-186).
+  previous: { period: Period; sales: Totals };
+  change: { total: string | null; tickets: string | null; average: string | null };
+  dailySeries: DayTotal[];
+  topProducts: ProductTotal[];
+  attention: { cashCountDifferences: number; lowStock: number; pendingVouchers: number | null };
 }
 
 export const TOP_PRODUCTS = 20;
+export const TOP_PRODUCTS_CHART = 5;
 
 async function buildDashboard(
   reports: ReportReader,
@@ -196,22 +207,44 @@ async function buildDashboard(
   period: Period,
   role: 'AC' | 'AS',
 ): Promise<Dashboard> {
-  const sales = await reports.sales(scope, period);
+  const current = await reports.sales(scope, period);
+  const sales = { ...current, average: averageTicket(current.total, current.tickets) };
+  const before = previousPeriod(period);
+  const earlier = await reports.sales(scope, before);
+  const previous = { ...earlier, average: averageTicket(earlier.total, earlier.tickets) };
+  const byProduct = await reports.byProduct(scope, period, TOP_PRODUCTS);
+  const byDay = await reports.byDay(scope, period);
+  const cashCounts = await reports.cashCounts(scope, period);
+  const belowMinimum = await reports.belowMinimum(scope);
+  const pendingVouchers = (await reports.fiscalModule(scope.tenantId))
+    ? await reports.pendingVouchers(scope, null)
+    : null;
   return {
     period,
     branchId: scope.branchIds?.[0] ?? null,
-    sales: { ...sales, average: averageTicket(sales.total, sales.tickets) },
+    sales,
+    previous: { period: before, sales: previous },
+    change: {
+      total: changePercent(sales.total, previous.total),
+      tickets: changePercent(String(sales.tickets), String(previous.tickets), 0),
+      average: changePercent(sales.average, previous.average),
+    },
+    dailySeries: fillDays(period, byDay, (day) => ({ day, total: '0.00', tickets: 0 })),
+    topProducts: byProduct.slice(0, TOP_PRODUCTS_CHART),
+    attention: {
+      cashCountDifferences: cashCounts.length,
+      lowStock: belowMinimum.length,
+      pendingVouchers,
+    },
     returns: await reports.returns(scope, period),
     voids: await reports.voids(scope, period),
     byMethod: await reports.byMethod(scope, period),
     bySeller: await reports.bySeller(scope, period),
-    byProduct: await reports.byProduct(scope, period, TOP_PRODUCTS),
-    byDay: await reports.byDay(scope, period),
-    cashCounts: await reports.cashCounts(scope, period),
-    belowMinimum: await reports.belowMinimum(scope),
-    pendingVouchers: (await reports.fiscalModule(scope.tenantId))
-      ? await reports.pendingVouchers(scope, null)
-      : null,
+    byProduct,
+    byDay,
+    cashCounts,
+    belowMinimum,
+    pendingVouchers,
     alerts: await reports.alertCounts(scope, role),
   };
 }

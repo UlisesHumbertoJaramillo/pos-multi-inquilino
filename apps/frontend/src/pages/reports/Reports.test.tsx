@@ -52,6 +52,18 @@ const DASHBOARD: Dashboard = {
   bajoMinimo: [{ sucursal: 'Norte', producto: 'Agua', disponible: '99.000', umbral: '200.000' }],
   comprobantesSinRegularizar: null,
   alertas: { criticas: 0, advertencias: 1, informativas: 0 },
+  anterior: {
+    desde: '2026-09-04',
+    hasta: '2026-10-03',
+    ventas: { total: '5000.00', tickets: 5, promedio: '1000.00' },
+  },
+  variacion: { total: '40.0', tickets: '-20.0', promedio: '75.0' },
+  serieDiaria: [
+    { fecha: '2026-11-01', total: '0.00', tickets: 0 },
+    { fecha: '2026-11-02', total: '7000.00', tickets: 4 },
+  ],
+  masVendidos: [{ productoId: 'agua', nombre: 'Agua', cantidad: '7.000', total: '7000.00' }],
+  atencion: { arqueosConDiferencia: 0, bajoMinimo: 1, comprobantesSinRegularizar: null },
 };
 
 function withSession(role: 'AC' | 'AS', handlers: Parameters<typeof mockApi>[0]) {
@@ -59,6 +71,10 @@ function withSession(role: 'AC' | 'AS', handlers: Parameters<typeof mockApi>[0])
   return mockApi({
     'POST /auth/renovar': () => ({ status: 200, body: sessionOf(role) }),
     'GET /alertas': () => ({ status: 200, body: [] }),
+    'GET /alertas/resumen': () => ({
+      status: 200,
+      body: { cantidad: 0, severidadMaxima: null },
+    }),
     ...handlers,
   });
 }
@@ -69,7 +85,7 @@ const calls = (fetchMock: ReturnType<typeof mockApi>) =>
     return `${url.pathname}${url.search}`;
   });
 
-describe('[RF-110] dashboard del AC', () => {
+describe('[RF-110] [RF-186] [RF-187] dashboard del AC', () => {
   it('muestra las métricas del backend y filtra por sucursal', async () => {
     const fetchMock = withSession('AC', {
       'GET /organizacion/estructura': () => ({ status: 200, body: STRUCTURE }),
@@ -79,11 +95,37 @@ describe('[RF-110] dashboard del AC', () => {
     const user = userEvent.setup();
 
     const metrics = await screen.findByLabelText('Métricas');
+    // Primer nivel: los indicadores con su variación, lo que requiere atención y las gráficas.
     expect(within(metrics).getByText('Ventas (brutas)')).toBeInTheDocument();
     expect(within(metrics).getByText('$ 1.750,00')).toBeInTheDocument();
+    expect(within(metrics).getByText('+40,0 %')).toBeInTheDocument();
+    expect(within(metrics).getByText('−20,0 %')).toBeInTheDocument();
     expect(
-      within(metrics).getByRole('table', { name: 'Productos bajo el stock mínimo' }),
+      within(metrics).getByRole('group', { name: 'Advertencia: 1 productos bajo el stock mínimo' }),
     ).toBeInTheDocument();
+    expect(within(metrics).getByLabelText('Ventas por día')).toBeInTheDocument();
+    expect(within(metrics).getByLabelText('Los 5 más vendidos')).toBeInTheDocument();
+    // Las tablas densas no están en el primer nivel.
+    expect(within(metrics).queryByRole('table')).toBeNull();
+
+    // Segundo nivel: el punto de atención abre su detalle.
+    await user.click(within(metrics).getByRole('button', { name: 'Ver los productos' }));
+    const detail = await screen.findByRole('presentation');
+    expect(
+      await within(detail).findByRole('table', { name: 'Productos bajo el stock mínimo' }),
+    ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('presentation')).toBeNull();
+    });
+
+    // Un indicador abre el detalle de las ventas del período.
+    await user.click(within(metrics).getByRole('button', { name: /^Ventas \(brutas\)/ }));
+    expect(await screen.findByRole('table', { name: 'Ventas por día' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('presentation')).toBeNull();
+    });
 
     await user.click(screen.getByLabelText('Sucursal'));
     await user.click(await screen.findByRole('option', { name: 'Norte' }));

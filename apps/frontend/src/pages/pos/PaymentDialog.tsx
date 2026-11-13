@@ -160,7 +160,14 @@ export function PaymentDialog({
       fullWidth
       maxWidth="sm"
       // Al terminar de abrirse, el foco queda en el efectivo: Enter confirma una venta en efectivo.
-      slotProps={{ transition: { onEntered: () => cashInput.current?.focus() } }}
+      slotProps={{
+        transition: {
+          // Si ya se está escribiendo en un campo, no se le quita el foco.
+          onEntered: () => {
+            if (!(document.activeElement instanceof HTMLInputElement)) cashInput.current?.focus();
+          },
+        },
+      }}
     >
       <DialogTitle>Cobrar la venta</DialogTitle>
       <DialogContent>

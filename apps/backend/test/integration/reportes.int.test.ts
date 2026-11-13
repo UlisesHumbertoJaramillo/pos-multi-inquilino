@@ -377,7 +377,7 @@ describe('[RF-109] informe diario por fecha de jornada (T-233)', () => {
   });
 });
 
-describe('[RF-110] dashboard del AC (T-234)', () => {
+describe('[RF-110] [RF-186] dashboard del AC (T-234)', () => {
   it('las métricas coinciden con lo vendido y se filtran por sucursal y período', async () => {
     await openShift();
     const kept = await sell('3');
@@ -418,6 +418,17 @@ describe('[RF-110] dashboard del AC (T-234)', () => {
       alertas: { criticas: 0, advertencias: 1, informativas: 0 },
     });
     expect((all.body as { porVendedor: unknown[] }).porVendedor).toHaveLength(2);
+    // [RF-186] Primer nivel: comparación con el período anterior, serie completa y lo destacado.
+    expect(all.body).toMatchObject({
+      anterior: { desde: '2026-10-30', hasta: '2026-10-31', ventas: { total: '0.00', tickets: 0 } },
+      variacion: { total: null, tickets: null, promedio: null },
+      serieDiaria: [
+        { fecha: '2026-11-01', total: '0.00', tickets: 0 },
+        { fecha: '2026-11-02', total: '7000.00', tickets: 4 },
+      ],
+      masVendidos: [{ productoId: AGUA, nombre: 'Agua', total: '7000.00' }],
+      atencion: { bajoMinimo: 1, comprobantesSinRegularizar: null },
+    });
 
     const norte = await get(`/reportes/dashboard?sucursalId=${BRANCH_NORTE}`, ac);
     expect(norte.body).toMatchObject({

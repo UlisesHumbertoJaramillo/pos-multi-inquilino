@@ -2,7 +2,6 @@
 import type { ReportCashCount, ReportMethodTotal, ReportSellerTotal } from '@pos/contracts';
 import {
   Box,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -14,28 +13,6 @@ import {
 } from '@mui/material';
 import type { ReactNode } from 'react';
 import { formatMoney } from '../../api/catalog';
-import { glassSurface } from '../../theme';
-
-export function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Paper
-      elevation={0}
-      sx={(t) => ({ ...glassSurface(t), p: 2, minWidth: 160, flex: '1 1 160px' })}
-    >
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="h5" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </Typography>
-      {hint !== undefined && (
-        <Typography variant="caption" color="text.secondary">
-          {hint}
-        </Typography>
-      )}
-    </Paper>
-  );
-}
 
 export function MetricRow({ children }: { children: ReactNode }) {
   return (

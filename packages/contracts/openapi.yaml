@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API del Sistema POS Multi-Inquilino
-  version: 0.19.0
+  version: 0.20.0
   description: 'Contrato entre el frontend y el backend (Const. 15, AD-21). Se escribe antes de implementar cada endpoint, y los tipos de packages/contracts se generan desde este archivo. Todo endpoint exige un token de acceso (Bearer), salvo los de la lista blanca de AD-22, que declaran `security: []` (Const. 16).'
 servers:
   - url: https://localhost:3000
@@ -8512,6 +8512,11 @@ components:
         - bajoMinimo
         - comprobantesSinRegularizar
         - alertas
+        - anterior
+        - variacion
+        - serieDiaria
+        - masVendidos
+        - atencion
       properties:
         desde:
           type: string
@@ -8616,6 +8621,105 @@ components:
               type: integer
             informativas:
               type: integer
+        anterior:
+          description: Período anterior de igual duración, para comparar (D-97).
+          type: object
+          additionalProperties: false
+          required:
+            - desde
+            - hasta
+            - ventas
+          properties:
+            desde:
+              type: string
+              format: date
+            hasta:
+              type: string
+              format: date
+            ventas:
+              $ref: '#/components/schemas/ReportTotals'
+        variacion:
+          type: object
+          additionalProperties: false
+          required:
+            - total
+            - tickets
+            - promedio
+          properties:
+            total:
+              description: Variación porcentual con un decimal; nula si el período anterior es cero.
+              type:
+                - string
+                - 'null'
+            tickets:
+              description: Variación porcentual con un decimal; nula si el período anterior es cero.
+              type:
+                - string
+                - 'null'
+            promedio:
+              description: Variación porcentual con un decimal; nula si el período anterior es cero.
+              type:
+                - string
+                - 'null'
+        serieDiaria:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - fecha
+              - total
+              - tickets
+            properties:
+              fecha:
+                type: string
+                pattern: ^\d{4}-\d{2}-\d{2}$
+              total:
+                type: string
+              tickets:
+                type: integer
+          description: Todos los días del período, con cero los que no tuvieron ventas.
+        masVendidos:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - productoId
+              - nombre
+              - cantidad
+              - total
+            properties:
+              productoId:
+                type: string
+                format: uuid
+              nombre:
+                type: string
+              cantidad:
+                type: string
+              total:
+                type: string
+          description: Los 5 productos más vendidos del período.
+        atencion:
+          description: Cuántos puntos requieren atención, para resaltarlos (RF-186).
+          type: object
+          additionalProperties: false
+          required:
+            - arqueosConDiferencia
+            - bajoMinimo
+            - comprobantesSinRegularizar
+          properties:
+            arqueosConDiferencia:
+              type: integer
+              minimum: 0
+            bajoMinimo:
+              type: integer
+              minimum: 0
+            comprobantesSinRegularizar:
+              type:
+                - integer
+                - 'null'
+              minimum: 0
     CommercialAuditPage:
       type: object
       additionalProperties: false

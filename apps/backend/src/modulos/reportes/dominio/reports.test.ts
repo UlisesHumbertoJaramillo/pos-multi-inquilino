@@ -4,7 +4,10 @@ import {
   assertPeriod,
   averageTicket,
   dateIn,
+  changePercent,
   defaultPeriod,
+  fillDays,
+  previousPeriod,
   ticketIdentification,
 } from './reports.js';
 
@@ -63,5 +66,41 @@ describe('[RF-107] identificación del ticket', () => {
     expect(ticketIdentification({ billed: true, voucher: { ...voucher, nonFiscal: true } })).toBe(
       'no_valido_como_factura',
     );
+  });
+});
+
+describe('[RF-186] comparación y series del dashboard', () => {
+  it('el período anterior tiene la misma duración e inmediatamente antes', () => {
+    expect(previousPeriod({ from: '2026-11-11', to: '2026-11-20' })).toEqual({
+      from: '2026-11-01',
+      to: '2026-11-10',
+    });
+    expect(previousPeriod({ from: '2026-03-01', to: '2026-03-01' })).toEqual({
+      from: '2026-02-28',
+      to: '2026-02-28',
+    });
+  });
+
+  it.each([
+    ['1200.00', '1000.00', '20.0'],
+    ['800.00', '1000.00', '-20.0'],
+    ['1000.00', '3000.00', '-66.7'],
+    ['1000.05', '1000.00', '0.0'],
+    ['500.00', '0.00', null],
+  ])('de %s contra %s varía %s %%', (current, previous, expected) => {
+    expect(changePercent(current, previous)).toBe(expected);
+  });
+
+  it('la serie diaria completa los días sin ventas', () => {
+    const series = fillDays(
+      { from: '2026-11-01', to: '2026-11-03' },
+      [{ day: '2026-11-02', total: '7000.00' }],
+      (day) => ({ day, total: '0.00' }),
+    );
+    expect(series).toEqual([
+      { day: '2026-11-01', total: '0.00' },
+      { day: '2026-11-02', total: '7000.00' },
+      { day: '2026-11-03', total: '0.00' },
+    ]);
   });
 });
