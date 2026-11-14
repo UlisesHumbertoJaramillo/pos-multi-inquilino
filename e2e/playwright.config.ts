@@ -13,6 +13,9 @@ const backendEnv = {
   // La cola fiscal se procesa enseguida: en producción la pasada es cada 30 segundos.
   FISCAL_SWEEP_MS: '1000',
   WORKER_POLL_MS: '250',
+  // Las pruebas inician y renuevan muchas sesiones por minuto desde la misma dirección: el límite de
+  // las rutas públicas (30 por minuto) cortaría la suite en un servidor rápido, como el del CI.
+  PUBLIC_RATE_LIMIT: '600',
 };
 
 export default defineConfig({

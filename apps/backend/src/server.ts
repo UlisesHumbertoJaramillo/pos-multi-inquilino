@@ -6,7 +6,7 @@ import { systemClock } from './compartido/adaptadores/clock/system-clock.js';
 import { createPinoLogger } from './compartido/adaptadores/logging/pino-logger.js';
 import { PgDatabase } from './compartido/adaptadores/postgres/pg-database.js';
 import { appDatabaseConfigFromEnv, createPgPool } from './compartido/adaptadores/postgres/pool.js';
-import { apiConfigFromEnv, type Api, createApi } from './composition.js';
+import { apiConfigFromEnv, type Api, createApi, publicRateLimitFromEnv } from './composition.js';
 import { PgRealtimeFeed } from './modulos/alertas/adaptadores/postgres.js';
 
 const ENV_PATH = resolve(import.meta.dirname, '../../../.env');
@@ -30,7 +30,13 @@ if (!existsSync(CERT_FILE) || !existsSync(KEY_FILE)) {
 let api: Api;
 try {
   const db = new PgDatabase(createPgPool(appDatabaseConfigFromEnv(process.env), logger));
-  api = createApi(apiConfigFromEnv(process.env), { db, clock: systemClock, logger });
+  const publicRateLimit = publicRateLimitFromEnv(process.env);
+  api = createApi(apiConfigFromEnv(process.env), {
+    db,
+    clock: systemClock,
+    logger,
+    ...(publicRateLimit ? { publicRateLimit } : {}),
+  });
 } catch (error: unknown) {
   // Configuración insegura o incompleta: el backend no arranca (Const. 17).
   logger.error('El backend no puede arrancar con esta configuración', { err: error });

@@ -521,3 +521,15 @@ export function createApi(config: ApiConfig, deps: ApiDependencies): Api {
     routes,
   };
 }
+
+// Límite de las rutas públicas por minuto, solo fuera de producción: las pruebas punta a punta
+// inician y renuevan muchas sesiones desde una misma dirección (Const. 17). En producción rige
+// siempre el límite por defecto.
+export function publicRateLimitFromEnv(
+  env: NodeJS.ProcessEnv,
+): { windowMs: number; limit: number } | undefined {
+  if (env.NODE_ENV === 'production' || env.PUBLIC_RATE_LIMIT === undefined) return undefined;
+  const limit = Number(env.PUBLIC_RATE_LIMIT);
+  if (!Number.isInteger(limit) || limit <= 0) return undefined;
+  return { windowMs: 60_000, limit };
+}

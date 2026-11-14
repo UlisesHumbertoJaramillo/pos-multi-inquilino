@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { publicRateLimitFromEnv } from './composition.js';
 import { describe, expect, it } from 'vitest';
 import { bearer, createTestApp } from '../test/support/app.js';
 import { expectToMatchContract } from '../test/support/contract.js';
@@ -32,5 +33,23 @@ describe('/docs', () => {
       .set('Authorization', await bearer());
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('límite de las rutas públicas según el entorno (Const. 17)', () => {
+  it('fuera de producción se puede ajustar para las pruebas punta a punta', () => {
+    expect(publicRateLimitFromEnv({ PUBLIC_RATE_LIMIT: '600' })).toEqual({
+      windowMs: 60_000,
+      limit: 600,
+    });
+  });
+
+  it('en producción, o con un valor inválido, rige el límite por defecto', () => {
+    expect(
+      publicRateLimitFromEnv({ NODE_ENV: 'production', PUBLIC_RATE_LIMIT: '600' }),
+    ).toBeUndefined();
+    expect(publicRateLimitFromEnv({ PUBLIC_RATE_LIMIT: 'mucho' })).toBeUndefined();
+    expect(publicRateLimitFromEnv({ PUBLIC_RATE_LIMIT: '0' })).toBeUndefined();
+    expect(publicRateLimitFromEnv({})).toBeUndefined();
   });
 });
